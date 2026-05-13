@@ -126,15 +126,15 @@ with tab_users:
                                       type="primary", use_container_width=True):
                             try:
                                 uid = u["id"]
-                                # FK 참조 먼저 해제 (ON DELETE SET NULL 미적용 환경 대비)
+                                # FK 참조 해제 (requester_id는 NOT NULL이므로 NULL 대신 행 삭제)
+                                sb.table("transfers").delete().eq("requester_id", uid).execute()
                                 sb.table("history").update({"actor_id": None}).eq("actor_id", uid).execute()
                                 sb.table("warehouse").update({"last_modified_by": None}).eq("last_modified_by", uid).execute()
-                                sb.table("transfers").update({"requester_id": None}).eq("requester_id", uid).execute()
                                 try:
-                                    sb.table("material_requests").update({"requester_id": None}).eq("requester_id", uid).execute()
+                                    sb.table("material_requests").delete().eq("requester_id", uid).execute()
                                     sb.table("material_requests").update({"processed_by": None}).eq("processed_by", uid).execute()
                                 except Exception:
-                                    pass  # material_requests 테이블이 없는 경우 무시
+                                    pass
                                 sb.table("users").delete().eq("id", uid).execute()
                                 st.session_state[del_key] = False
                                 st.success(f"✅ {u['name']} 계정이 삭제됐습니다.")
