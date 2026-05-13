@@ -21,8 +21,16 @@ def apply_global_css():
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap');
     html, body, * { font-family:'Noto Sans KR', sans-serif !important; }
-    /* ── 0. 사이드바 자동 네비게이션 숨김 + 닫기 버튼 완전 제거 ── */
-    [data-testid="stSidebarNav"]        { display: none !important; }
+    /* ── 0. 사이드바 내부 헤더/네비 완전 제거 ── */
+    [data-testid="stSidebarNav"],
+    [data-testid="stSidebarHeader"] {
+        display: none !important;
+        height: 0 !important;
+        min-height: 0 !important;
+        overflow: hidden !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
     /* ≡ 위에 투명 오버레이로 사이드바 열기/닫기 버튼 배치 */
     [data-testid="stSidebarCollapseButton"],
     [data-testid="collapsedControl"] {
@@ -32,7 +40,6 @@ def apply_global_css():
         background:transparent !important; border:none !important;
     }
     button[data-testid="baseButton-headerNoPadding"] { display: none !important; }
-    section[data-testid="stSidebar"] > div:first-child > div > button { display: none !important; }
 
     /* ── 1. 전체 세로 스크롤 ── */
     html, body {
@@ -78,10 +85,14 @@ def apply_global_css():
 
     /* ── 상/하단 공백 제거 (Streamlit 전용 타겟팅) ── */
     [data-testid="stSidebar"] > div:first-child {
-        padding-top: 0rem !important;
-        padding-bottom: 0rem !important;
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
     }
     [data-testid="stSidebarContent"] {
+        padding-top: 0 !important;
+        margin-top: 0 !important;
+    }
+    [data-testid="stSidebarUserContent"] {
         padding-top: 0 !important;
         margin-top: 0 !important;
     }
@@ -224,11 +235,19 @@ def render_top_bar(title: str, user: dict):
     <script>
     (function(){
         function zapSidebar(){
+            /* 사이드바 헤더(stSidebarHeader) 완전 제거 */
+            var hdr=document.querySelector('[data-testid="stSidebarHeader"]');
+            if(hdr){ hdr.style.setProperty('display','none','important'); }
+            var nav=document.querySelector('[data-testid="stSidebarNav"]');
+            if(nav){ nav.style.setProperty('display','none','important'); }
+            /* 패딩/마진 제거 */
             var sels=[
                 'section[data-testid="stSidebar"] > div',
                 'section[data-testid="stSidebar"] > div > div',
                 '[data-testid="stSidebarContent"]',
                 '[data-testid="stSidebarContent"] > div',
+                '[data-testid="stSidebarUserContent"]',
+                '[data-testid="stSidebarUserContent"] > div',
                 'section[data-testid="stSidebar"] .block-container'
             ];
             sels.forEach(function(s){
@@ -243,6 +262,7 @@ def render_top_bar(title: str, user: dict):
         zapSidebar();
         setTimeout(zapSidebar,200);
         setTimeout(zapSidebar,600);
+        setTimeout(zapSidebar,1500);
     })();
     </script>
     """, unsafe_allow_html=True)

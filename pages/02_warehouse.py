@@ -70,10 +70,12 @@ st.markdown("""
 html, body, * { font-family:'Noto Sans KR', sans-serif !important; }
 
 /* ───── 숨김 요소 ───── */
-[data-testid="stSidebarNav"]                     { display:none!important; }
+[data-testid="stSidebarNav"],
+[data-testid="stSidebarHeader"]                  { display:none!important; height:0!important; overflow:hidden!important; padding:0!important; margin:0!important; }
 [data-testid="collapsedControl"]                 { display:none!important; }
 [data-testid="stSidebarCollapseButton"]          { display:none!important; }
 button[data-testid="baseButton-headerNoPadding"] { display:none!important; }
+[data-testid="stSidebarUserContent"]             { padding-top:0!important; margin-top:0!important; }
 
 /* ───── 기본 헤더 숨김 (커스텀 헤더로 대체) ───── */
 header[data-testid="stHeader"]                   { visibility:hidden!important; }
