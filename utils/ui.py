@@ -130,6 +130,7 @@ def apply_global_css():
     section[data-testid="stSidebar"] button {
         background:transparent !important; border:none !important;
         color:#adb5bd !important; text-align:left !important;
+        justify-content:flex-start !important;
         padding:6px 12px !important; border-radius:8px !important;
         font-size:16px !important; height:auto !important;
         min-height:36px !important; white-space:nowrap !important;

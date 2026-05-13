@@ -122,6 +122,7 @@ section[data-testid="stSidebar"] [data-baseweb="select"] svg   { fill:#adb5bd!im
 section[data-testid="stSidebar"] button {
     background:transparent!important; border:none!important;
     color:#adb5bd!important; text-align:left!important;
+    justify-content:flex-start!important;
     padding:5px 12px!important; border-radius:7px!important;
     font-size:16px!important; height:auto!important;
     min-height:36px!important; white-space:nowrap!important;
