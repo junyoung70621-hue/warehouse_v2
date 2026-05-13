@@ -41,7 +41,16 @@ def apply_global_css():
     }
     button[data-testid="baseButton-headerNoPadding"] { display: none !important; }
 
-    /* ── 1. 전체 세로 스크롤 ── */
+    /* ── 1. 페이지 전환 페이드인 (이전 UI 플래시 방지) ── */
+    [data-testid="stAppViewContainer"] {
+        animation: wms-fadein 0.15s ease-out !important;
+    }
+    @keyframes wms-fadein {
+        from { opacity: 0; }
+        to   { opacity: 1; }
+    }
+
+    /* ── 2. 전체 세로 스크롤 ── */
     html, body {
         overflow-y: auto !important;
         height: auto !important;
@@ -68,7 +77,7 @@ def apply_global_css():
         max-width: 100% !important;
     }
 
-    /* ── 2. 타이틀 ── */
+    /* ── 3. 타이틀 ── */
     h1, h2, h3 {
         overflow: visible !important;
         line-height: 1.8 !important;
@@ -77,7 +86,7 @@ def apply_global_css():
     }
     hr { margin: 3px 0 8px 0 !important; }
 
-    /* ── 3. 다크 사이드바 (#212529) ── */
+    /* ── 4. 다크 사이드바 (#212529) ── */
     section[data-testid="stSidebar"],
     section[data-testid="stSidebar"] > div,
     section[data-testid="stSidebar"] > div > div { background: #212529 !important; }
@@ -138,7 +147,7 @@ def apply_global_css():
     section[data-testid="stSidebar"] > div,
     section[data-testid="stSidebar"] > div > div { overflow:hidden !important; }
 
-    /* ── 4. 상단 툴바 버튼 ── */
+    /* ── 5. 상단 툴바 버튼 ── */
     div[data-testid="stHorizontalBlock"] button,
     div[data-testid="stHorizontalBlock"] [data-testid="stDownloadButton"] button {
         white-space: nowrap !important;
@@ -153,7 +162,7 @@ def apply_global_css():
         height: 34px !important;
     }
 
-    /* ── 5. data_editor (팝업 내 미니 테이블) ── */
+    /* ── 6. data_editor (팝업 내 미니 테이블) ── */
     [data-testid="stDataEditor"] th {
         background-color: #e8edf5 !important;
         color: #1a237e !important;
@@ -170,7 +179,7 @@ def apply_global_css():
         padding: 2px 8px !important;
     }
 
-    /* ── 6. 공통 컴포넌트 ── */
+    /* ── 7. 공통 컴포넌트 ── */
     div[data-testid="stRadio"] label     { font-size: 12px !important; }
     div[data-testid="stCaptionContainer"] p { font-size: 11px !important; }
     div[data-testid="column"]             { padding: 0 2px !important; }

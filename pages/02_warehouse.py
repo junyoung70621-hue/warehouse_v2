@@ -69,6 +69,10 @@ st.markdown("""
 /* ───── 전체 폰트 ───── */
 html, body, * { font-family:'Noto Sans KR', sans-serif !important; }
 
+/* ───── 페이지 전환 페이드인 ───── */
+[data-testid="stAppViewContainer"] { animation: wms-fadein 0.15s ease-out !important; }
+@keyframes wms-fadein { from { opacity:0; } to { opacity:1; } }
+
 /* ───── 숨김 요소 ───── */
 [data-testid="stSidebarNav"],
 [data-testid="stSidebarHeader"]                  { display:none!important; height:0!important; overflow:hidden!important; padding:0!important; margin:0!important; }
