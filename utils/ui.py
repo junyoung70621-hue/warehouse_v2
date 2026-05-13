@@ -23,8 +23,9 @@ def apply_global_css():
     html, body, * { font-family:'Noto Sans KR', sans-serif !important; }
     /* ── 0. 사이드바 자동 네비게이션 숨김 + 닫기 버튼 완전 제거 ── */
     [data-testid="stSidebarNav"]        { display: none !important; }
-    [data-testid="collapsedControl"]    { display: none !important; }
-    [data-testid="stSidebarCollapseButton"] { display: none !important; }
+    /* collapsedControl·CollapseButton — DOM 유지(JS 클릭용), 시각적으로만 숨김 */
+    [data-testid="collapsedControl"]        { opacity:0 !important; pointer-events:none !important; }
+    [data-testid="stSidebarCollapseButton"] { opacity:0 !important; pointer-events:none !important; }
     button[data-testid="baseButton-headerNoPadding"] { display: none !important; }
     section[data-testid="stSidebar"] button[kind="header"]     { display: none !important; }
     section[data-testid="stSidebar"] > div:first-child > div > button { display: none !important; }
@@ -83,10 +84,6 @@ def apply_global_css():
     section[data-testid="stSidebar"] .block-container {
         padding:0 !important; margin:0 !important;
         flex:1 !important; display:flex !important; flex-direction:column !important;
-    }
-    /* render_sidebar_header 스크립트 요소 → flex 흐름에서 제거 */
-    section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] > div:first-child {
-        display:none !important;
     }
     /* 버튼 목록 전체 높이 균등 분배 */
     section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
@@ -190,24 +187,8 @@ def apply_global_css():
 
 
 def render_sidebar_header():
-    """사이드바 최상단 공백 제거 JS (로고는 상단바에서 표시)"""
-    st.markdown("""
-    <script>
-    (function(){
-        function zap(){
-            var s = document.querySelector('section[data-testid="stSidebar"]');
-            if(!s){ setTimeout(zap,100); return; }
-            s.querySelectorAll('div').forEach(function(d){
-                if(parseFloat(window.getComputedStyle(d).paddingTop)>=28){
-                    d.style.setProperty('padding-top','0px','important');
-                    d.style.setProperty('margin-top','0px','important');
-                }
-            });
-        }
-        zap(); setTimeout(zap,200); setTimeout(zap,600);
-    })();
-    </script>
-    """, unsafe_allow_html=True)
+    """사이드바 헤더 — 별도 렌더링 없음 (JS는 render_top_bar에서 주입)"""
+    pass
 
 
 def render_top_bar(title: str, user: dict):
@@ -228,7 +209,7 @@ def render_top_bar(title: str, user: dict):
         if _LOGO_B64 else
         '<span style="color:#ced4da;font-size:12px;font-weight:700;">ATEC</span>'
     )
-    # 상단바 관련 CSS 주입
+    # 상단바 관련 CSS + 사이드바 패딩 제거 JS 주입
     st.markdown("""
     <style>
     header[data-testid="stHeader"]   { visibility:hidden!important; }
@@ -237,6 +218,21 @@ def render_top_bar(title: str, user: dict):
     html, body                       { overflow-y:auto!important; min-height:100vh!important; }
     [data-testid="stAppViewContainer"] { overflow-y:auto!important; }
     </style>
+    <script>
+    (function(){
+        function zap(){
+            var s=document.querySelector('section[data-testid="stSidebar"]');
+            if(!s){setTimeout(zap,100);return;}
+            s.querySelectorAll('div').forEach(function(d){
+                if(parseFloat(window.getComputedStyle(d).paddingTop)>=28){
+                    d.style.setProperty('padding-top','0px','important');
+                    d.style.setProperty('margin-top','0px','important');
+                }
+            });
+        }
+        zap();setTimeout(zap,300);setTimeout(zap,800);
+    })();
+    </script>
     """, unsafe_allow_html=True)
     # 상단바 HTML
     st.markdown(f"""
@@ -251,8 +247,14 @@ def render_top_bar(title: str, user: dict):
         <div style="flex:1;background:#ffffff;display:flex;align-items:center;
                     justify-content:space-between;padding:0 24px;
                     border-bottom:1px solid #e0e5ee;">
-            <span style="font-family:'Noto Sans KR',sans-serif;font-size:16px;
-                         font-weight:700;color:#1a2035;">
+            <span onclick="(function(){{
+                var b=document.querySelector('[data-testid=\\'stSidebarCollapseButton\\']')
+                     ||document.querySelector('[data-testid=\\'collapsedControl\\']');
+                if(b)b.click();
+            }})()"
+                  style="font-family:'Noto Sans KR',sans-serif;font-size:16px;
+                         font-weight:700;color:#1a2035;cursor:pointer;user-select:none;"
+                  title="사이드바 열기/닫기">
                 ≡&nbsp; {title}
             </span>
             <div style="display:flex;align-items:center;gap:16px;">
