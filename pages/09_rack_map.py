@@ -3,7 +3,7 @@ import streamlit as st
 from utils.auth import require_login, is_role
 from utils.rack_map import RACK_COORD, get_rack_map_image
 from utils.ui import apply_global_css, render_sidebar_header, render_sidebar_user, render_top_bar
-from utils.permissions import get_center as _get_center
+from utils.permissions import get_center as _get_center, get_viewable_centers
 
 st.set_page_config(
     page_title="에이텍모빌리티 자재관리",
@@ -29,6 +29,11 @@ with st.sidebar:
     render_sidebar_header()
     if st.button("📊 대시보드", use_container_width=True):
         st.switch_page("pages/10_dashboard.py")
+    st.divider()
+    viewable = get_viewable_centers(user)
+    if st.session_state.get("sidebar_center") not in viewable:
+        st.session_state.pop("sidebar_center", None)
+    st.selectbox("센터", viewable, label_visibility="collapsed", key="sidebar_center")
     st.divider()
     if st.button("📦 재고 현황", use_container_width=True):
         st.switch_page("pages/02_warehouse.py")

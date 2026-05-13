@@ -4,6 +4,7 @@ import pandas as pd
 import io
 from utils.auth import require_login, is_role
 from utils.db import fetch_history
+from utils.permissions import get_viewable_centers
 from utils.ui import apply_global_css, render_sidebar_header, render_sidebar_user, render_top_bar
 
 st.set_page_config(
@@ -24,6 +25,11 @@ with st.sidebar:
     render_sidebar_header()
     if st.button("📊 대시보드", use_container_width=True):
         st.switch_page("pages/10_dashboard.py")
+    st.divider()
+    viewable = get_viewable_centers(user)
+    if st.session_state.get("sidebar_center") not in viewable:
+        st.session_state.pop("sidebar_center", None)
+    selected_center = st.selectbox("센터", viewable, label_visibility="collapsed", key="sidebar_center")
     st.divider()
     if st.button("📦 재고 현황", use_container_width=True):
         st.switch_page("pages/02_warehouse.py")
@@ -76,6 +82,14 @@ action_map = {
 action_filter = action_map[filter_action]
 
 raw = fetch_history(action_type=action_filter, limit=filter_limit)
+
+# 선택 센터로 필터링
+if selected_center:
+    raw = [h for h in raw if
+           h.get("from_center") == selected_center or
+           h.get("to_center") == selected_center or
+           (isinstance(h.get("warehouse"), dict) and h["warehouse"].get("location") == selected_center)]
+
 if not raw:
     st.info("이력이 없습니다.")
     st.stop()

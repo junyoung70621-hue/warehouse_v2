@@ -33,6 +33,14 @@ with st.sidebar:
     if st.button("📊 대시보드", use_container_width=True):
         st.switch_page("pages/10_dashboard.py")
     st.divider()
+    if user_role in ("admin", "materials"):
+        _viewable = ["전체"] + CENTERS
+    else:
+        _viewable = [user_center] if user_center else CENTERS
+    if st.session_state.get("sidebar_center") not in _viewable:
+        st.session_state.pop("sidebar_center", None)
+    selected_center = st.selectbox("센터", _viewable, label_visibility="collapsed", key="sidebar_center")
+    st.divider()
     if st.button("📦 재고 현황", use_container_width=True):
         st.switch_page("pages/02_warehouse.py")
     if st.button("🚚 이동 신청 현황", use_container_width=True):
@@ -64,17 +72,14 @@ import datetime
 
 fc1, fc2, fc3, fc4, fc5 = st.columns([2, 1.2, 1.2, 2, 1])
 
-# 센터 선택: 관리자는 전체, 그 외는 본인 센터 고정
+# 센터는 사이드바 selectbox에서 결정
 with fc1:
     if user_role in ("admin", "materials"):
-        viewable = ["전체"] + CENTERS
-        if st.session_state.get("sidebar_center") not in viewable:
-            st.session_state.pop("sidebar_center", None)
-        selected_center = st.selectbox("센터", viewable, label_visibility="collapsed", key="sidebar_center")
         query_center = None if selected_center == "전체" else selected_center
+        st.caption(f"📌 {selected_center}")
     else:
-        st.info(f"📌 **{user_center}** 센터 사용내역")
         query_center = user_center
+        st.caption(f"📌 {user_center}")
 
 today = datetime.date.today()
 with fc2:

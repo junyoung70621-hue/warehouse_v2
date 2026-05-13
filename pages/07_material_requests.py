@@ -15,7 +15,7 @@ from utils.mail import (
     send_material_request_approved_to_center,
     send_material_request_cancelled,
 )
-from utils.permissions import get_center as _get_center
+from utils.permissions import get_center as _get_center, get_viewable_centers
 from utils.ui import apply_global_css, render_sidebar_header, render_sidebar_user, render_top_bar
 
 st.set_page_config(
@@ -132,6 +132,11 @@ with st.sidebar:
     render_sidebar_header()
     if st.button("📊 대시보드", use_container_width=True):
         st.switch_page("pages/10_dashboard.py")
+    st.divider()
+    viewable = get_viewable_centers(user)
+    if st.session_state.get("sidebar_center") not in viewable:
+        st.session_state.pop("sidebar_center", None)
+    st.selectbox("센터", viewable, label_visibility="collapsed", key="sidebar_center")
     st.divider()
     if st.button("📦 재고 현황", use_container_width=True):
         st.switch_page("pages/02_warehouse.py")
