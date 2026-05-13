@@ -354,6 +354,25 @@ def fetch_usage_history(center: str = None, limit: int = 200) -> list:
 def clear_usage_history_cache():
     fetch_usage_history.clear()
 
+
+# ══════════════════════════════════════════════════════════════════════════
+# 구매 요청 (purchase_requests)
+# ══════════════════════════════════════════════════════════════════════════
+
+@st.cache_data(ttl=30)
+def fetch_purchase_requests(requester_id: str = None) -> list:
+    def _q(sb):
+        q = sb.table("purchase_requests").select("*").order("requested_at", desc=True)
+        if requester_id:
+            q = q.eq("requester_id", requester_id)
+        return q.execute().data or []
+    return _query_with_retry(_q)
+
+
+def clear_purchase_request_cache():
+    fetch_purchase_requests.clear()
+
+
 # ── 개별 자재 이력 조회 (팝업 전용 — 캐시 없음) ──────────────────────────
 def fetch_item_history(item_id: int, limit: int = 50) -> list:
     """

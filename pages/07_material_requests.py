@@ -148,6 +148,9 @@ with st.sidebar:
         if st.button("📊 사용내역", use_container_width=True):
             st.switch_page("pages/08_usage_history.py")
     st.button("📦 자재 요청", use_container_width=True, type="primary")
+    if not is_role("guest"):
+        if st.button("🛒 구매 요청", use_container_width=True):
+            st.switch_page("pages/11_purchase_requests.py")
     if is_role("admin"):
         if st.button("⚙️ 관리자", use_container_width=True):
             st.switch_page("pages/05_admin.py")

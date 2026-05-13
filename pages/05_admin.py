@@ -34,6 +34,8 @@ with st.sidebar:
         st.switch_page("pages/08_usage_history.py")
     if st.button("📦 자재 요청", use_container_width=True):
         st.switch_page("pages/07_material_requests.py")
+    if st.button("🛒 구매 요청", use_container_width=True):
+        st.switch_page("pages/11_purchase_requests.py")
     st.button("⚙️ 관리자", use_container_width=True, type="primary")
     st.divider()
     if st.button("👤 마이페이지", use_container_width=True):

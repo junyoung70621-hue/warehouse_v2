@@ -250,6 +250,60 @@ def send_material_request_reply(
     _send_email(to_email, subject, body)
 
 
+def send_purchase_request(
+    to_emails: list,
+    requester_name: str,
+    requester_center: str,
+    items: list,
+    reason: str,
+    requested_at: str,
+):
+    """구매 요청 알림 메일. items: [{"품명", "수량", "링크"}, ...]"""
+    subject = f"[에이텍모빌리티 자재관리] 구매 요청 — {requester_name} ({requester_center})"
+
+    rows_html = ""
+    for i, it in enumerate(items, 1):
+        link = str(it.get("링크") or "")
+        link_cell = (f'<a href="{link}">{link[:60]}{"..." if len(link) > 60 else ""}</a>'
+                     if link else "-")
+        rows_html += f"""
+        <tr>
+          <td style="padding:5px 10px;text-align:center;">{i}</td>
+          <td style="padding:5px 10px;">{it.get("품명","")}</td>
+          <td style="padding:5px 10px;text-align:right;">{it.get("수량","")}</td>
+          <td style="padding:5px 10px;font-size:12px;">{link_cell}</td>
+        </tr>"""
+
+    reason_block = (f'<p style="margin-top:10px;"><b>구매사유:</b> {reason}</p>'
+                    if reason else "")
+    body = f"""
+    <p>안녕하세요.</p>
+    <p><b>{requester_name}</b> ({requester_center})님으로부터 구매 요청이 접수되었습니다.</p>
+    <p style="color:#555;font-size:13px;">요청일시: {requested_at}</p>
+    {reason_block}
+    <table border="1" cellpadding="0" cellspacing="0"
+           style="border-collapse:collapse;margin:12px 0;font-size:14px;">
+      <thead>
+        <tr style="background:#e8edf5;color:#1a237e;">
+          <th style="padding:6px 12px;">No</th>
+          <th style="padding:6px 12px;">품명</th>
+          <th style="padding:6px 12px;">수량</th>
+          <th style="padding:6px 12px;">링크</th>
+        </tr>
+      </thead>
+      <tbody>{rows_html}</tbody>
+    </table>
+    <p>WMS 시스템에서 확인해 주세요.</p>
+    <hr>
+    <p style="color:gray;font-size:12px;">에이텍모빌리티 자재관리 자동발송 메일입니다.</p>
+    """
+    for email in to_emails:
+        try:
+            _send_email(email, subject, body)
+        except Exception:
+            pass
+
+
 def send_transfer_request(to_email: str, item_name: str,
                            from_center: str, to_center: str, qty: int):
     subject = "[에이텍모빌리티 자재관리] 자재 이동 신청 알림"

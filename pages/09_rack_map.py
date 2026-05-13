@@ -47,6 +47,9 @@ with st.sidebar:
     if not is_role("guest"):
         if st.button("📦 자재 요청", use_container_width=True, key="sidebar_mat_req"):
             st.switch_page("pages/07_material_requests.py")
+    if not is_role("guest"):
+        if st.button("🛒 구매 요청", use_container_width=True):
+            st.switch_page("pages/11_purchase_requests.py")
     if is_role("admin", "materials"):
         st.button("📍 위치 지도", use_container_width=True, type="primary")
     if is_role("admin"):
