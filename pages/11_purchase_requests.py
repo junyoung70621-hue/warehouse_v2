@@ -159,9 +159,11 @@ with tab_new:
     )
     reason = st.text_area("구매사유", placeholder="구매가 필요한 이유를 입력해 주세요.", key="pr_reason")
 
-    valid_items = (df_edit.dropna(subset=["품명"])
-                         .query("품명.str.strip() != ''", engine="python")
-                         .to_dict("records"))
+    _mask = df_edit["품명"].notna() & (df_edit["품명"].astype(str).str.strip() != "")
+    _df_valid = df_edit[_mask].copy()
+    _df_valid["수량"] = _df_valid["수량"].fillna(1).astype(int)
+    _df_valid["링크"] = _df_valid["링크"].fillna("").astype(str)
+    valid_items = _df_valid.to_dict("records")
 
     col_submit, col_excel = st.columns(2)
 
