@@ -28,8 +28,10 @@ with st.sidebar:
     st.divider()
 
     if user_role in ("admin", "materials"):
-        centers_opt     = ["전체"] + CENTERS
-        selected_center = st.selectbox("센터", centers_opt, label_visibility="collapsed")
+        centers_opt = ["전체"] + CENTERS
+        if st.session_state.get("sidebar_center") not in centers_opt:
+            st.session_state.pop("sidebar_center", None)
+        selected_center = st.selectbox("센터", centers_opt, label_visibility="collapsed", key="sidebar_center")
     else:
         selected_center = user_center
         st.markdown(

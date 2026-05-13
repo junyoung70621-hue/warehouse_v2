@@ -68,7 +68,9 @@ fc1, fc2, fc3, fc4, fc5 = st.columns([2, 1.2, 1.2, 2, 1])
 with fc1:
     if user_role in ("admin", "materials"):
         viewable = ["전체"] + CENTERS
-        selected_center = st.selectbox("센터", viewable, label_visibility="collapsed")
+        if st.session_state.get("sidebar_center") not in viewable:
+            st.session_state.pop("sidebar_center", None)
+        selected_center = st.selectbox("센터", viewable, label_visibility="collapsed", key="sidebar_center")
         query_center = None if selected_center == "전체" else selected_center
     else:
         st.info(f"📌 **{user_center}** 센터 사용내역")

@@ -70,7 +70,7 @@ st.markdown("""
 html, body, * { font-family:'Noto Sans KR', sans-serif !important; }
 
 /* ───── 페이지 전환 페이드인 ───── */
-[data-testid="stAppViewContainer"] { animation: wms-fadein 0.15s ease-out !important; }
+body, [data-testid="stAppViewContainer"] { animation: wms-fadein 0.12s ease-out !important; }
 @keyframes wms-fadein { from { opacity:0; } to { opacity:1; } }
 
 /* ───── 숨김 요소 ───── */
@@ -617,9 +617,11 @@ with st.sidebar:
         st.switch_page("pages/10_dashboard.py")
     st.divider()
 
-    # 센터 선택
-    viewable        = get_viewable_centers(user)
-    selected_center = st.selectbox("센터", viewable, label_visibility="collapsed")
+    # 센터 선택 (페이지 이동 후에도 선택값 유지)
+    viewable = get_viewable_centers(user)
+    if st.session_state.get("sidebar_center") not in viewable:
+        st.session_state.pop("sidebar_center", None)
+    selected_center = st.selectbox("센터", viewable, label_visibility="collapsed", key="sidebar_center")
     st.divider()
 
     st.button("📦 재고 현황", use_container_width=True, type="primary")

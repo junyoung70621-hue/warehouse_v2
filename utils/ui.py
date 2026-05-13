@@ -42,8 +42,8 @@ def apply_global_css():
     button[data-testid="baseButton-headerNoPadding"] { display: none !important; }
 
     /* ── 1. 페이지 전환 페이드인 (이전 UI 플래시 방지) ── */
-    [data-testid="stAppViewContainer"] {
-        animation: wms-fadein 0.15s ease-out !important;
+    body, [data-testid="stAppViewContainer"] {
+        animation: wms-fadein 0.12s ease-out !important;
     }
     @keyframes wms-fadein {
         from { opacity: 0; }
