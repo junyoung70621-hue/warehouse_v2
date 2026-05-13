@@ -71,11 +71,28 @@ def apply_global_css():
     section[data-testid="stSidebar"] > div > div { background: #212529 !important; }
     section[data-testid="stSidebar"] { width:220px !important; min-width:220px !important; overflow-y:auto !important; }
 
-    /* 상단 공백 완전 제거 */
-    [data-testid="stSidebarContent"]                  { padding-top:0 !important; margin-top:0 !important; }
-    [data-testid="stSidebarContent"] > div            { padding-top:0 !important; margin-top:0 !important; }
-    section[data-testid="stSidebar"] .block-container { padding-top:0 !important; margin-top:0 !important; }
-    section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] { padding-top:0 !important; gap:0 !important; }
+    /* ── 상/하단 공백 제거 + flexbox 균등 분배 ── */
+    [data-testid="stSidebarContent"] {
+        padding:0 !important; margin:0 !important;
+        display:flex !important; flex-direction:column !important; height:100% !important;
+    }
+    [data-testid="stSidebarContent"] > div {
+        padding:0 !important; margin:0 !important;
+        flex:1 !important; display:flex !important; flex-direction:column !important;
+    }
+    section[data-testid="stSidebar"] .block-container {
+        padding:0 !important; margin:0 !important;
+        flex:1 !important; display:flex !important; flex-direction:column !important;
+    }
+    /* render_sidebar_header 스크립트 요소 → flex 흐름에서 제거 */
+    section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] > div:first-child {
+        display:none !important;
+    }
+    /* 버튼 목록 전체 높이 균등 분배 */
+    section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
+        flex:1 !important; display:flex !important; flex-direction:column !important;
+        justify-content:space-between !important; padding:0 !important; gap:0 !important;
+    }
     section[data-testid="stSidebar"] p,
     section[data-testid="stSidebar"] label { color:#adb5bd !important; font-size:16px !important; }
     section[data-testid="stSidebar"] hr { border-color:#343a40 !important; margin:8px 0 !important; }
@@ -105,10 +122,10 @@ def apply_global_css():
         background:#D81B60 !important; color:#fff !important;
         font-weight:600 !important; border-left:3px solid #ff4081 !important;
     }
-    /* 사이드바 스크롤바 숨김 */
-    section[data-testid="stSidebar"]             { overflow-y:hidden !important; overflow-x:hidden !important; }
-    section[data-testid="stSidebar"] > div > div { overflow-y:auto !important; scrollbar-width:none !important; }
-    section[data-testid="stSidebar"] > div > div::-webkit-scrollbar { display:none !important; }
+    /* 사이드바 스크롤 없음 */
+    section[data-testid="stSidebar"],
+    section[data-testid="stSidebar"] > div,
+    section[data-testid="stSidebar"] > div > div { overflow:hidden !important; }
 
     /* ── 4. 상단 툴바 버튼 ── */
     div[data-testid="stHorizontalBlock"] button,
