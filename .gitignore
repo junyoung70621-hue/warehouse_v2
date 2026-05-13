@@ -1,0 +1,13 @@
+# Streamlit secrets (절대 커밋 금지 — Supabase/Gmail 키 포함)
+.streamlit/secrets.toml
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.env
+
+# 개발 도구
+.vscode/
+.idea/
+*.log
