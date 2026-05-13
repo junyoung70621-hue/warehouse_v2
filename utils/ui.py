@@ -70,6 +70,12 @@ def apply_global_css():
     section[data-testid="stSidebar"] > div,
     section[data-testid="stSidebar"] > div > div { background: #212529 !important; }
     section[data-testid="stSidebar"] { width:220px !important; min-width:220px !important; overflow-y:auto !important; }
+
+    /* 상단 공백 완전 제거 */
+    [data-testid="stSidebarContent"]                  { padding-top:0 !important; margin-top:0 !important; }
+    [data-testid="stSidebarContent"] > div            { padding-top:0 !important; margin-top:0 !important; }
+    section[data-testid="stSidebar"] .block-container { padding-top:0 !important; margin-top:0 !important; }
+    section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] { padding-top:0 !important; gap:0 !important; }
     section[data-testid="stSidebar"] p,
     section[data-testid="stSidebar"] label { color:#adb5bd !important; font-size:16px !important; }
     section[data-testid="stSidebar"] hr { border-color:#343a40 !important; margin:8px 0 !important; }

@@ -87,17 +87,7 @@ section[data-testid="stSidebar"]                {
     top:58px!important; height:calc(100vh - 58px)!important;
 }
 
-/* 최상단 공백 제거 — 경로 5단계 + 높은 명시도 */
-html body section[data-testid="stSidebar"] > div                                     { padding-top:0!important; margin-top:0!important; }
-html body section[data-testid="stSidebar"] > div > div                               { padding-top:0!important; margin-top:0!important; }
-html body section[data-testid="stSidebar"] > div > div > div                         { padding-top:0!important; margin-top:0!important; }
-html body section[data-testid="stSidebar"] > div > div > div > div                   { padding-top:0!important; margin-top:0!important; }
-html body section[data-testid="stSidebar"] > div > div > div > div > div             { padding-top:0!important; margin-top:0!important; }
-html body [data-testid="stSidebarContent"]                                            { padding-top:0!important; margin-top:0!important; }
-html body [data-testid="stSidebarContent"] > div                                     { padding-top:0!important; margin-top:0!important; }
-html body [data-testid="stSidebarContent"] > div > div                               { padding-top:0!important; margin-top:0!important; }
-html body section[data-testid="stSidebar"] .block-container                          { padding-top:0!important; margin-top:0!important; }
-html body section[data-testid="stSidebar"] [data-testid="stVerticalBlock"]            { padding-top:0!important; margin-top:0!important; }
+/* 최상단 공백 제거 — apply_global_css()에서 처리 */
 
 /* 폰트 +2pt (드롭다운 제외) */
 section[data-testid="stSidebar"] p,
