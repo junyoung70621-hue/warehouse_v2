@@ -76,28 +76,22 @@ def apply_global_css():
     section[data-testid="stSidebar"] > div > div { background: #212529 !important; }
     section[data-testid="stSidebar"] { width:220px !important; min-width:220px !important; overflow-y:auto !important; }
 
-    /* ── 상/하단 공백 제거 + flexbox 균등 분배 ── */
-    section[data-testid="stSidebar"] > div,
-    section[data-testid="stSidebar"] > div > div {
-        padding-top:0 !important; margin-top:0 !important;
-        padding-bottom:0 !important; margin-bottom:0 !important;
+    /* ── 상/하단 공백 제거 (Streamlit 전용 타겟팅) ── */
+    [data-testid="stSidebar"] > div:first-child {
+        padding-top: 0rem !important;
+        padding-bottom: 0rem !important;
     }
     [data-testid="stSidebarContent"] {
-        padding:0 !important; margin:0 !important;
-        display:flex !important; flex-direction:column !important; height:100% !important;
-    }
-    [data-testid="stSidebarContent"] > div {
-        padding:0 !important; margin:0 !important;
-        flex:1 !important; display:flex !important; flex-direction:column !important;
+        padding-top: 0 !important;
+        margin-top: 0 !important;
     }
     section[data-testid="stSidebar"] .block-container {
-        padding:0 !important; margin:0 !important;
-        flex:1 !important; display:flex !important; flex-direction:column !important;
+        padding-top: 0 !important;
+        margin-top: 0 !important;
     }
-    /* 버튼 목록 전체 높이 균등 분배 */
     section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
-        flex:1 !important; display:flex !important; flex-direction:column !important;
-        justify-content:space-between !important; padding:0 !important; gap:0 !important;
+        padding-top: 0 !important;
+        gap: 4px !important;
     }
     section[data-testid="stSidebar"] p,
     section[data-testid="stSidebar"] label { color:#adb5bd !important; font-size:16px !important; }
