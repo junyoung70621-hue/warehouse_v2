@@ -8,7 +8,7 @@ from utils.db import get_supabase, fetch_purchase_requests, clear_purchase_reque
 from utils.permissions import get_viewable_centers, get_center as _get_center
 from utils.routing import CENTERS
 from utils.ui import apply_global_css, render_sidebar_header, render_sidebar_user, render_top_bar
-from utils.mail import send_purchase_request
+from utils.mail import send_purchase_request, send_purchase_request_reply
 
 st.set_page_config(
     page_title="에이텍모빌리티 자재관리",
@@ -263,12 +263,35 @@ if tab_all is not None:
                             key=f"pr_status_{req['id']}",
                         )
                         if new_status != status:
+                            _reply_msg = ""
+                            if new_status in ("in_progress", "completed", "rejected"):
+                                _reply_msg = st.text_input(
+                                    "메시지 (선택)",
+                                    key=f"pr_msg_{req['id']}",
+                                    placeholder="신청자에게 전달할 메시지",
+                                )
                             if st.button("저장", key=f"pr_save_{req['id']}", use_container_width=True):
                                 try:
-                                    get_supabase().table("purchase_requests").update({
+                                    _sb = get_supabase()
+                                    _sb.table("purchase_requests").update({
                                         "status": new_status,
                                         "processed_at": datetime.utcnow().isoformat(),
                                     }).eq("id", req["id"]).execute()
+
+                                    # 처리중·완료·거절 → 신청자 회신 메일
+                                    if new_status in ("in_progress", "completed", "rejected"):
+                                        _req_id = req.get("requester_id")
+                                        if _req_id:
+                                            _u = _sb.table("users").select("email").eq("id", _req_id).execute().data
+                                            if _u and _u[0].get("email"):
+                                                send_purchase_request_reply(
+                                                    to_email=_u[0]["email"],
+                                                    requester_name=req["requester_name"],
+                                                    items=req.get("items") or [],
+                                                    status=new_status,
+                                                    reply_msg=_reply_msg,
+                                                )
+
                                     clear_purchase_request_cache()
                                     st.rerun()
                                 except Exception as e:
