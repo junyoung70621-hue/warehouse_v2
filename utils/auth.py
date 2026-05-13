@@ -87,8 +87,11 @@ def reset_password(email: str) -> bool:
 
 # ── 권한 체크 헬퍼 ────────────────────────────────────────────────────────
 def require_login():
-    if not st.session_state.get("user"):
-        st.warning("로그인이 필요합니다.")
+    try:
+        if not st.session_state.get("user"):
+            st.switch_page("pages/01_login.py")
+            st.stop()
+    except Exception:
         st.switch_page("pages/01_login.py")
         st.stop()
 

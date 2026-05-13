@@ -8,7 +8,7 @@ load_dotenv()
 
 
 # ── Supabase 연결 ─────────────────────────────────────────────────────────
-@st.cache_resource(ttl=3600)
+@st.cache_resource
 def get_supabase() -> Client:
     try:
         url = st.secrets["SUPABASE_URL"]
