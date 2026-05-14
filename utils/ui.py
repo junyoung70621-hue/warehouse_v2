@@ -251,17 +251,48 @@ def render_top_bar(title: str, user: dict):
     html, body                       { overflow-y:auto!important; min-height:100vh!important; }
     [data-testid="stAppViewContainer"] { overflow-y:auto!important; }
 
-    /* ── ≡ 영역에 네이티브 토글 버튼 투명 오버레이 ── */
-    [data-testid="stSidebarCollapseButton"],
-    [data-testid="collapsedControl"] {
+    /* ── 사이드바 닫기 버튼: ≡ 제목 영역에 투명 오버레이 ── */
+    [data-testid="stSidebarCollapseButton"] {
         position:fixed!important; top:0!important; left:220px!important;
         width:300px!important; height:58px!important;
         z-index:2000!important; opacity:0!important;
         cursor:pointer!important; background:transparent!important; border:none!important;
     }
-    [data-testid="stSidebarCollapseButton"] button,
-    [data-testid="collapsedControl"] button {
+    [data-testid="stSidebarCollapseButton"] button {
         width:100%!important; height:100%!important; cursor:pointer!important;
+    }
+    /* ── 사이드바 열기 버튼(접혔을 때): 좌측 상단에 크림슨 버튼으로 표시 ── */
+    [data-testid="collapsedControl"] {
+        position:fixed!important; top:9px!important; left:10px!important;
+        width:40px!important; height:40px!important;
+        z-index:2002!important; opacity:1!important;
+        background:rgba(8,14,29,0.92)!important;
+        border:1px solid rgba(225,29,72,0.5)!important;
+        border-radius:4px!important; cursor:pointer!important;
+    }
+    [data-testid="collapsedControl"] button {
+        width:100%!important; height:100%!important;
+        cursor:pointer!important; opacity:1!important;
+    }
+    [data-testid="collapsedControl"] svg { fill:#e11d48!important; }
+    /* ── 모바일: 둘 다 우측 상단 표시 ── */
+    @media screen and (max-width: 768px) {
+        [data-testid="stSidebarCollapseButton"],
+        [data-testid="collapsedControl"] {
+            position:fixed!important; top:9px!important; right:12px!important;
+            left:auto!important; width:40px!important; height:40px!important;
+            opacity:1!important; z-index:2002!important;
+            background:rgba(8,14,29,0.92)!important;
+            border:1px solid rgba(225,29,72,0.5)!important;
+            border-radius:4px!important;
+        }
+        [data-testid="stSidebarCollapseButton"] button,
+        [data-testid="collapsedControl"] button {
+            width:100%!important; height:100%!important;
+            opacity:1!important; cursor:pointer!important;
+        }
+        [data-testid="stSidebarCollapseButton"] svg,
+        [data-testid="collapsedControl"] svg { fill:#e11d48!important; }
     }
     </style>
     <script>
