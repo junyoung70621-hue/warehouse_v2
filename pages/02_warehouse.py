@@ -152,6 +152,9 @@ section[data-testid="stSidebar"]              { overflow-y:hidden!important; ove
 section[data-testid="stSidebar"] > div        { overflow:hidden!important; }
 section[data-testid="stSidebar"] > div > div  { overflow-y:auto!important; scrollbar-width:none!important; }
 section[data-testid="stSidebar"] > div > div::-webkit-scrollbar { display:none!important; }
+@media (max-width:768px) {
+    section[data-testid="stSidebar"] { width:auto!important; min-width:0!important; }
+}
 
 /* ───── 스크롤 ───── */
 html, body { overflow-y:auto!important; min-height:100vh!important; }

@@ -131,10 +131,16 @@ def apply_global_css():
         background:#D81B60 !important; color:#fff !important;
         font-weight:600 !important; border-left:3px solid #ff4081 !important;
     }
-    /* 사이드바 스크롤 없음 */
-    section[data-testid="stSidebar"],
-    section[data-testid="stSidebar"] > div,
-    section[data-testid="stSidebar"] > div > div { overflow:hidden !important; }
+    /* 사이드바 외부는 hidden, 내부 콘텐츠는 스크롤 허용 (스크롤바 숨김) */
+    section[data-testid="stSidebar"]             { overflow:hidden !important; }
+    section[data-testid="stSidebar"] > div       { overflow:hidden !important; }
+    section[data-testid="stSidebar"] > div > div { overflow-y:auto !important; scrollbar-width:none !important; }
+    section[data-testid="stSidebar"] > div > div::-webkit-scrollbar { display:none !important; }
+
+    /* 작은 화면에서 강제 너비 해제 — Streamlit 반응형 레이아웃에 맡김 */
+    @media (max-width: 768px) {
+        section[data-testid="stSidebar"] { width:auto !important; min-width:0 !important; }
+    }
 
     /* ── 5. 상단 툴바 버튼 ── */
     div[data-testid="stHorizontalBlock"] button,
@@ -273,6 +279,13 @@ def render_top_bar(title: str, user: dict):
         function applyState(){
             var sb = document.querySelector('section[data-testid="stSidebar"]');
             if(!sb) return;
+            /* 작은 화면(<768px)에서는 Streamlit 반응형에 맡기고 강제 적용 안 함 */
+            if(window.innerWidth < 768){
+                sb.style.removeProperty('width');
+                sb.style.removeProperty('min-width');
+                sb.style.removeProperty('overflow');
+                return;
+            }
             if(localStorage.getItem(SB_KEY) === '0'){
                 sb.style.setProperty('width','0px','important');
                 sb.style.setProperty('min-width','0px','important');
