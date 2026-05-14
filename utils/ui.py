@@ -31,9 +31,6 @@ def apply_global_css():
         padding: 0 !important;
         margin: 0 !important;
     }
-    /* 사이드바 접기/펼치기 버튼 — JS 클릭용으로 DOM에 유지, 시각적으로만 숨김 */
-    [data-testid="stSidebarCollapseButton"],
-    [data-testid="collapsedControl"] { visibility:hidden !important; }
     button[data-testid="baseButton-headerNoPadding"] { display: none !important; }
 
     /* ── 1. 페이지 전환 오버레이 (별도 div로 처리) ── */

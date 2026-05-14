@@ -76,8 +76,6 @@ body, [data-testid="stAppViewContainer"] { animation: wms-fadein 0.12s ease-out 
 /* ───── 숨김 요소 ───── */
 [data-testid="stSidebarNav"],
 [data-testid="stSidebarHeader"]                  { display:none!important; height:0!important; overflow:hidden!important; padding:0!important; margin:0!important; }
-[data-testid="collapsedControl"],
-[data-testid="stSidebarCollapseButton"]          { visibility:hidden!important; }
 button[data-testid="baseButton-headerNoPadding"] { display:none!important; }
 
 /* ── 사이드바 토글 CSS ── */
