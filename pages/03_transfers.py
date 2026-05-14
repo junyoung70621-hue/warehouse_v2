@@ -12,7 +12,7 @@ st.set_page_config(
     page_title="에이텍모빌리티 자재관리",
     page_icon="🚚",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="auto",
 )
 
 apply_global_css()

@@ -25,7 +25,7 @@ st.set_page_config(
     page_title="에이텍모빌리티 자재관리",
     page_icon="📦",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="auto",
 )
 
 require_login()
@@ -76,19 +76,6 @@ body, [data-testid="stAppViewContainer"] { animation: wms-fadein 0.12s ease-out 
 /* ───── 숨김 요소 ───── */
 [data-testid="stSidebarNav"],
 [data-testid="stSidebarHeader"]                  { display:none!important; height:0!important; overflow:hidden!important; padding:0!important; margin:0!important; }
-[data-testid="collapsedControl"],
-[data-testid="stSidebarCollapseButton"]          { visibility:hidden!important; }
-button[data-testid="baseButton-headerNoPadding"] { display:none!important; }
-
-/* ── 사이드바 토글 CSS ── */
-section[data-testid="stSidebar"] {
-    transition: width 0.2s ease, min-width 0.2s ease !important;
-}
-body.wms-sb-closed section[data-testid="stSidebar"] {
-    width: 0 !important;
-    min-width: 0 !important;
-    overflow: hidden !important;
-}
 [data-testid="stSidebarUserContent"]             { padding-top:0!important; margin-top:0!important; }
 
 /* ───── 기본 헤더 숨김 (커스텀 헤더로 대체) ───── */
@@ -99,7 +86,6 @@ section[data-testid="stSidebar"],
 section[data-testid="stSidebar"] > div,
 section[data-testid="stSidebar"] > div > div    { background:#212529!important; }
 section[data-testid="stSidebar"]                {
-    width:220px!important; min-width:220px!important;
     top:58px!important; height:calc(100vh - 58px)!important;
 }
 
@@ -152,9 +138,6 @@ section[data-testid="stSidebar"]              { overflow-y:hidden!important; ove
 section[data-testid="stSidebar"] > div        { overflow:hidden!important; }
 section[data-testid="stSidebar"] > div > div  { overflow-y:auto!important; scrollbar-width:none!important; }
 section[data-testid="stSidebar"] > div > div::-webkit-scrollbar { display:none!important; }
-@media (max-width:768px) {
-    section[data-testid="stSidebar"] { width:auto!important; min-width:0!important; }
-}
 
 /* ───── 스크롤 ───── */
 html, body { overflow-y:auto!important; min-height:100vh!important; }
@@ -629,6 +612,7 @@ else:
         st.error("이 Streamlit 버전은 다이얼로그를 지원하지 않습니다. 버전을 1.29+ 로 업그레이드하세요.")
 
 # ── 사이드바 ──────────────────────────────────────────────────────────────
+# ── 첫 번째 사이드바 블록 (센터 선택까지) ───────────────────────────────────
 with st.sidebar:
     render_sidebar_header()
     if st.button("📊 대시보드", use_container_width=True):
@@ -640,35 +624,6 @@ with st.sidebar:
     if st.session_state.get("sidebar_center") not in viewable:
         st.session_state.pop("sidebar_center", None)
     selected_center = st.selectbox("센터", viewable, label_visibility="collapsed", key="sidebar_center")
-    st.divider()
-
-    st.button("📦 재고 현황", use_container_width=True, type="primary")
-    if st.button("🚚 이동 신청 현황", use_container_width=True):
-        st.switch_page("pages/03_transfers.py")
-    if st.button("📋 입출고 이력", use_container_width=True):
-        st.switch_page("pages/04_history.py")
-    if not is_role("guest"):
-        if st.button("📊 사용내역", use_container_width=True):
-            st.switch_page("pages/08_usage_history.py")
-    if not is_role("guest"):
-        if st.button("📦 자재 요청", use_container_width=True, key="sidebar_mat_req"):
-            st.switch_page("pages/07_material_requests.py")
-    if not is_role("guest"):
-        if st.button("🛒 구매 요청", use_container_width=True, key="sidebar_pur_req"):
-            st.switch_page("pages/11_purchase_requests.py")
-    if is_role("admin", "materials"):
-        if st.button("📍 위치 지도", use_container_width=True):
-            st.switch_page("pages/09_rack_map.py")
-    if is_role("admin"):
-        if st.button("⚙️ 관리자", use_container_width=True):
-            st.switch_page("pages/05_admin.py")
-    st.divider()
-    if st.button("👤 마이페이지", use_container_width=True):
-        st.switch_page("pages/06_mypage.py")
-    if st.button("🚪 로그아웃", use_container_width=True):
-        st.session_state.user = None
-        st.switch_page("pages/01_login.py")
-    render_sidebar_user(user)
 
 # ── 상단바 ────────────────────────────────────────────────────────────────
 render_top_bar(f"{selected_center} 재고 현황", user)
@@ -699,10 +654,8 @@ df_all     = pd.DataFrame(raw_data) if raw_data else pd.DataFrame()
 if not df_all.empty and "item_name" in df_all.columns:
     df_all = df_all.drop_duplicates(subset=["item_name"], keep="first")
 
-# ── 필터 바 (1행: 검색 + 대/중/소 분류 드롭다운) ─────────────────────────
-n_checked = len(st.session_state.checked_ids)
-
 # 드롭다운 옵션 계산
+n_checked = len(st.session_state.checked_ids)
 _sl = st.session_state.selected_large
 _sm = st.session_state.selected_mid
 large_cats_f = ["전체"] + sorted(categories.keys())
@@ -714,48 +667,72 @@ small_cats_f = ["전체"] + sorted({
     and (_sm == "전체" or r.get("category_mid") == _sm)
 })
 
-fb = st.columns([2.5, 1.0, 1.0, 1.0, 0.85])
-with fb[0]:
+# ── 두 번째 사이드바 블록 (필터 + 네비게이션) ────────────────────────────────
+with st.sidebar:
+    st.divider()
     search_query = st.text_input(
-        "검색", placeholder="자재명 / ERP코드 / 분류명 / 랙번호 검색...",
-        label_visibility="collapsed"
+        "검색", placeholder="자재명 / ERP코드 / 분류명 / 랙번호...",
+        label_visibility="collapsed", key="sidebar_search"
     )
-with fb[1]:
     _lg_idx = large_cats_f.index(_sl) if _sl in large_cats_f else 0
-    new_lg  = st.selectbox("대분류", large_cats_f, index=_lg_idx,
-                            label_visibility="collapsed", key="filter_large")
+    new_lg = st.selectbox("대분류", large_cats_f, index=_lg_idx,
+                           label_visibility="collapsed", key="filter_large")
     if new_lg != _sl:
         st.session_state.selected_large = new_lg
         st.session_state.selected_mid   = "전체"
         st.session_state.selected_small = "전체"
         st.rerun()
-with fb[2]:
     _cur_mid = _sm if _sm in mid_cats_f else "전체"
     _md_idx  = mid_cats_f.index(_cur_mid)
-    new_md   = st.selectbox("중분류", mid_cats_f, index=_md_idx,
-                             label_visibility="collapsed", key="filter_mid")
+    new_md = st.selectbox("중분류", mid_cats_f, index=_md_idx,
+                           label_visibility="collapsed", key="filter_mid")
     if new_md != _sm:
         st.session_state.selected_mid   = new_md
         st.session_state.selected_small = "전체"
         st.rerun()
-with fb[3]:
-    _cur_sm  = st.session_state.get("selected_small","전체")
+    _cur_sm  = st.session_state.get("selected_small", "전체")
     _cur_sm  = _cur_sm if _cur_sm in small_cats_f else "전체"
     _sm_idx  = small_cats_f.index(_cur_sm)
-    new_sm   = st.selectbox("소분류", small_cats_f, index=_sm_idx,
-                             label_visibility="collapsed", key="filter_small")
-    if new_sm != st.session_state.get("selected_small","전체"):
+    new_sm = st.selectbox("소분류", small_cats_f, index=_sm_idx,
+                           label_visibility="collapsed", key="filter_small")
+    if new_sm != st.session_state.get("selected_small", "전체"):
         st.session_state.selected_small = new_sm
         st.rerun()
-with fb[4]:
-    st.write("")
-    if st.button("필터 초기화", use_container_width=True):
+    if st.button("🔄 필터 초기화", use_container_width=True):
         clear_warehouse_cache()
         st.session_state.checked_ids    = []
         st.session_state.selected_large = "전체"
         st.session_state.selected_mid   = "전체"
         st.session_state.selected_small = "전체"
         st.rerun()
+    st.divider()
+    st.button("📦 재고 현황", use_container_width=True, type="primary")
+    if st.button("🚚 이동 신청 현황", use_container_width=True):
+        st.switch_page("pages/03_transfers.py")
+    if st.button("📋 입출고 이력", use_container_width=True):
+        st.switch_page("pages/04_history.py")
+    if not is_role("guest"):
+        if st.button("📊 사용내역", use_container_width=True):
+            st.switch_page("pages/08_usage_history.py")
+    if not is_role("guest"):
+        if st.button("📦 자재 요청", use_container_width=True, key="sidebar_mat_req"):
+            st.switch_page("pages/07_material_requests.py")
+    if not is_role("guest"):
+        if st.button("🛒 구매 요청", use_container_width=True, key="sidebar_pur_req"):
+            st.switch_page("pages/11_purchase_requests.py")
+    if is_role("admin", "materials"):
+        if st.button("📍 위치 지도", use_container_width=True):
+            st.switch_page("pages/09_rack_map.py")
+    if is_role("admin"):
+        if st.button("⚙️ 관리자", use_container_width=True):
+            st.switch_page("pages/05_admin.py")
+    st.divider()
+    if st.button("👤 마이페이지", use_container_width=True):
+        st.switch_page("pages/06_mypage.py")
+    if st.button("🚪 로그아웃", use_container_width=True):
+        st.session_state.user = None
+        st.switch_page("pages/01_login.py")
+    render_sidebar_user(user)
 
 # ── 액션 바 (2행: 기능 버튼) ─────────────────────────────────────────────
 if SHOW_STOCK_BUTTONS:
@@ -1413,6 +1390,7 @@ if st.session_state.checked_ids and st.session_state.show_transfer:
 # ── 분류 필터 값 읽기 (필터 바에서 이미 설정됨) ─────────────────────────
 selected_large = st.session_state.selected_large
 selected_small = st.session_state.get("selected_small", "전체")
+search_query   = st.session_state.get("sidebar_search", "")
 
 # ── 데이터 필터링 ─────────────────────────────────────────────────────────
 df = df_all.copy() if not df_all.empty else pd.DataFrame()
