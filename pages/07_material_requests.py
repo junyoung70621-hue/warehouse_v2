@@ -286,6 +286,7 @@ else:
     ])
 
     def render_user(status_filter=None):
+        tab_key = status_filter or "all"
         try:
             data = fetch_material_requests(status=status_filter, from_center=user_center)
         except Exception as e:
@@ -336,19 +337,19 @@ else:
                 # 본인의 대기중 요청만 취소 가능
                 if status == "pending" and is_mine:
                     st.divider()
-                    cancel_key = f"cancel_confirm_{req_id}"
+                    cancel_key = f"cancel_confirm_{tab_key}_{req_id}"
                     if cancel_key not in st.session_state:
                         st.session_state[cancel_key] = False
 
                     if not st.session_state[cancel_key]:
-                        if st.button("🚫 요청 취소", key=f"cancel_btn_{req_id}",
+                        if st.button("🚫 요청 취소", key=f"cancel_btn_{tab_key}_{req_id}",
                                      use_container_width=True):
                             st.session_state[cancel_key] = True
                             st.rerun()
                     else:
                         st.warning("이 자재 요청을 취소하시겠습니까?")
                         cc1, cc2 = st.columns(2)
-                        if cc1.button("✅ 확인", key=f"cancel_ok_{req_id}",
+                        if cc1.button("✅ 확인", key=f"cancel_ok_{tab_key}_{req_id}",
                                       type="primary", use_container_width=True):
                             update_material_request_status(req_id, "cancelled", user_id)
                             # 자재파트 + 관리자에게 취소 알림 메일
@@ -373,7 +374,7 @@ else:
                             st.session_state[cancel_key] = False
                             st.success("요청이 취소됐습니다. 자재파트/관리자에게 취소 알림이 발송됐습니다.")
                             st.rerun()
-                        if cc2.button("❌ 아니오", key=f"cancel_no_{req_id}",
+                        if cc2.button("❌ 아니오", key=f"cancel_no_{tab_key}_{req_id}",
                                       use_container_width=True):
                             st.session_state[cancel_key] = False
                             st.rerun()
