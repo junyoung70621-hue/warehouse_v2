@@ -1186,6 +1186,7 @@ if CAN_MATERIAL_REQUEST and st.session_state.show_material_request:
                 "강북센터":    "버스",
                 "강동센터":    "버스",
                 "강남센터":    "버스",
+                "고속/시외":   "버스",
                 "택시지원파트": "택시",
                 "AFC지원파트": "철도",
             }
