@@ -37,14 +37,18 @@ def _query_with_retry(query_fn):
 @st.cache_data(ttl=60)
 def fetch_warehouse(location: str = None) -> list:
     def _q(sb):
-        q = sb.table("warehouse").select("*").order("item_name")
+        q = sb.table("warehouse").select(
+            "id, item_name, quantity, rack_no, shelf, box_no, "
+            "category_large, category_mid, category_small, "
+            "location, erp_name, erp_code, repair_manager, item_location, notes"
+        ).order("item_name")
         if location:
             q = q.eq("location", location)
         return q.execute().data or []
     return _query_with_retry(_q)
 
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=300)
 def fetch_categories() -> dict:
     def _q(sb):
         return sb.table("warehouse").select(
@@ -154,7 +158,9 @@ def stock_out(item_id: int, qty: int, user: dict, reason: str) -> bool:
 def fetch_transfers(status: str = None) -> list:
     def _q(sb):
         q = sb.table("transfers").select(
-            "*, warehouse(item_name), users(name)"
+            "id, requester_id, item_id, from_center, to_center, "
+            "quantity, status, requested_at, processed_at, "
+            "warehouse(item_name), users(name)"
         ).order("requested_at", desc=True)
         if status:
             q = q.eq("status", status)
@@ -316,7 +322,9 @@ def fetch_history(
 ) -> list:
     def _q(sb):
         q = sb.table("history").select(
-            "*, warehouse(item_name, location), users(name)"
+            "id, actor_id, item_id, action_type, quantity, reason, "
+            "from_center, to_center, snapshot_qty_before, snapshot_qty_after, acted_at, "
+            "warehouse(item_name, location), users(name)"
         ).order("acted_at", desc=True).limit(limit)
         if item_id:
             q = q.eq("item_id", item_id)
@@ -332,23 +340,17 @@ def clear_history_cache():
 
 @st.cache_data(ttl=30)
 def fetch_usage_history(center: str = None, limit: int = 200) -> list:
-    """
-    사용내역(action_type=out) 조회.
-    center 지정 시 from_center 또는 warehouse.location 기준으로 필터.
-    """
+    """사용내역(action_type=out) 조회. center 지정 시 DB에서 바로 필터링."""
     def _q(sb):
-        return sb.table("history").select(
-            "*, warehouse(item_name, location), users(name)"
-        ).eq("action_type", "out").order("acted_at", desc=True).limit(limit).execute().data or []
-    data = _query_with_retry(_q)
-    if center:
-        data = [
-            r for r in data
-            if r.get("from_center") == center
-            or (isinstance(r.get("warehouse"), dict)
-                and r["warehouse"].get("location") == center)
-        ]
-    return data
+        q = sb.table("history").select(
+            "id, item_id, action_type, quantity, reason, "
+            "from_center, snapshot_qty_before, snapshot_qty_after, acted_at, "
+            "warehouse(item_name, location), users(name)"
+        ).eq("action_type", "out").order("acted_at", desc=True)
+        if center:
+            q = q.eq("from_center", center)
+        return q.limit(limit).execute().data or []
+    return _query_with_retry(_q)
 
 
 def clear_usage_history_cache():
