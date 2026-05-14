@@ -31,6 +31,11 @@ def apply_global_css():
         padding: 0 !important;
         margin: 0 !important;
     }
+    /* 사이드바 접기/펼치기 버튼 — JS 클릭용으로 DOM에 유지, 시각적으로만 숨김 */
+    [data-testid="stSidebarCollapseButton"],
+    [data-testid="collapsedControl"] { visibility:hidden !important; }
+    button[data-testid="baseButton-headerNoPadding"] { display: none !important; }
+
     /* ── 1. 페이지 전환 오버레이 (별도 div로 처리) ── */
 
     /* ── 2. 전체 세로 스크롤 ── */
@@ -73,7 +78,7 @@ def apply_global_css():
     section[data-testid="stSidebar"],
     section[data-testid="stSidebar"] > div,
     section[data-testid="stSidebar"] > div > div { background: #212529 !important; }
-    section[data-testid="stSidebar"] { overflow-y:auto !important; }
+    section[data-testid="stSidebar"] { width:220px !important; min-width:220px !important; overflow-y:auto !important; }
 
     /* ── 상/하단 공백 제거 (Streamlit 전용 타겟팅) ── */
     [data-testid="stSidebar"] > div:first-child {
@@ -126,9 +131,16 @@ def apply_global_css():
         background:#D81B60 !important; color:#fff !important;
         font-weight:600 !important; border-left:3px solid #ff4081 !important;
     }
-    /* 사이드바 내부 스크롤 (스크롤바 숨김) */
+    /* 사이드바 외부는 hidden, 내부 콘텐츠는 스크롤 허용 (스크롤바 숨김) */
+    section[data-testid="stSidebar"]             { overflow:hidden !important; }
+    section[data-testid="stSidebar"] > div       { overflow:hidden !important; }
     section[data-testid="stSidebar"] > div > div { overflow-y:auto !important; scrollbar-width:none !important; }
     section[data-testid="stSidebar"] > div > div::-webkit-scrollbar { display:none !important; }
+
+    /* 작은 화면에서 강제 너비 해제 — Streamlit 반응형 레이아웃에 맡김 */
+    @media (max-width: 768px) {
+        section[data-testid="stSidebar"] { width:auto !important; min-width:0 !important; }
+    }
 
     /* ── 5. 상단 툴바 버튼 ── */
     div[data-testid="stHorizontalBlock"] button,
@@ -228,7 +240,7 @@ def render_top_bar(title: str, user: dict):
     st.markdown("""
     <style>
     header[data-testid="stHeader"]   { visibility:hidden!important; }
-    section[data-testid="stSidebar"] { top:58px!important; height:calc(100vh - 58px)!important; }
+    section[data-testid="stSidebar"] { top:58px!important; height:calc(100vh - 58px)!important; transition:width 0.2s ease,min-width 0.2s ease!important; }
     .main .block-container           { padding-top:0.8rem!important; padding-bottom:3rem!important; max-width:100%!important; overflow:visible!important; }
     html, body                       { overflow-y:auto!important; min-height:100vh!important; }
     [data-testid="stAppViewContainer"] { overflow-y:auto!important; }
@@ -260,6 +272,47 @@ def render_top_bar(title: str, user: dict):
         }
         zapSidebar();
         [200,600,1500].forEach(function(t){setTimeout(zapSidebar,t);});
+
+        /* ── 사이드바 토글 — window 변수 방식
+           페이지 로드 시 항상 열림, Streamlit 재렌더링에서는 상태 유지 ── */
+        if(typeof window._wmsSbOpen === 'undefined') window._wmsSbOpen = true;
+
+        function applyState(){
+            var sb = document.querySelector('section[data-testid="stSidebar"]');
+            if(!sb) return;
+            if(window.innerWidth < 768){
+                sb.style.removeProperty('width');
+                sb.style.removeProperty('min-width');
+                sb.style.removeProperty('overflow');
+                return;
+            }
+            if(!window._wmsSbOpen){
+                sb.style.setProperty('width','0px','important');
+                sb.style.setProperty('min-width','0px','important');
+                sb.style.setProperty('overflow','hidden','important');
+            } else {
+                sb.style.removeProperty('width');
+                sb.style.removeProperty('min-width');
+                sb.style.removeProperty('overflow');
+            }
+        }
+
+        function doToggle(){
+            window._wmsSbOpen = !window._wmsSbOpen;
+            applyState();
+        }
+
+        function bindToggle(){
+            document.querySelectorAll('[data-wms-menu]').forEach(function(el){
+                if(el._wmsBound) return;
+                el._wmsBound = true;
+                el.addEventListener('click', doToggle);
+            });
+            applyState();
+        }
+
+        bindToggle();
+        [200,600,1500].forEach(function(t){setTimeout(bindToggle,t);});
     })();
     </script>
     """, unsafe_allow_html=True)
@@ -276,10 +329,10 @@ def render_top_bar(title: str, user: dict):
         <div style="flex:1;background:#ffffff;display:flex;align-items:center;
                     justify-content:space-between;padding:0 24px;
                     border-bottom:1px solid #e0e5ee;">
-            <span
+            <span data-wms-menu="1"
                   style="font-family:'Noto Sans KR',sans-serif;font-size:16px;
-                         font-weight:700;color:#1a2035;"
-                  >
+                         font-weight:700;color:#1a2035;cursor:pointer;user-select:none;"
+                  title="사이드바 열기/닫기">
                 ≡&nbsp; {title}
             </span>
             <div style="display:flex;align-items:center;gap:16px;">
