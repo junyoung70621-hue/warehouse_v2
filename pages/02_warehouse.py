@@ -79,6 +79,16 @@ body, [data-testid="stAppViewContainer"] { animation: wms-fadein 0.12s ease-out 
 [data-testid="collapsedControl"],
 [data-testid="stSidebarCollapseButton"]          { visibility:hidden!important; }
 button[data-testid="baseButton-headerNoPadding"] { display:none!important; }
+
+/* ── 사이드바 토글 CSS ── */
+section[data-testid="stSidebar"] {
+    transition: width 0.2s ease, min-width 0.2s ease !important;
+}
+body.wms-sb-closed section[data-testid="stSidebar"] {
+    width: 0 !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+}
 [data-testid="stSidebarUserContent"]             { padding-top:0!important; margin-top:0!important; }
 
 /* ───── 기본 헤더 숨김 (커스텀 헤더로 대체) ───── */

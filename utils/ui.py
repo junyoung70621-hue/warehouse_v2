@@ -238,6 +238,18 @@ def render_top_bar(title: str, user: dict):
     .main .block-container           { padding-top:0.8rem!important; padding-bottom:3rem!important; max-width:100%!important; overflow:visible!important; }
     html, body                       { overflow-y:auto!important; min-height:100vh!important; }
     [data-testid="stAppViewContainer"] { overflow-y:auto!important; }
+
+    /* ── 사이드바 토글 CSS ── */
+    section[data-testid="stSidebar"] {
+        transition: width 0.2s ease, min-width 0.2s ease !important;
+    }
+    body.wms-sb-closed section[data-testid="stSidebar"] {
+        width: 0 !important;
+        min-width: 0 !important;
+        overflow: hidden !important;
+    }
+    body.wms-sb-closed [data-testid="stTopbar"],
+    body.wms-sb-closed .wms-topbar-logo { display:none!important; }
     </style>
     <script>
     (function(){
@@ -267,13 +279,9 @@ def render_top_bar(title: str, user: dict):
         zapSidebar();
         [200,600,1500].forEach(function(t){setTimeout(zapSidebar,t);});
 
-        /* ── 사이드바 토글 (≡ 클릭) ── */
+        /* ── 사이드바 토글 (≡ 클릭) — body 클래스 방식 ── */
         function doToggle(){
-            var btn=document.querySelector('[data-testid="stSidebarCollapseButton"] button')||
-                    document.querySelector('[data-testid="stSidebarCollapseButton"]')||
-                    document.querySelector('[data-testid="collapsedControl"] button')||
-                    document.querySelector('[data-testid="collapsedControl"]');
-            if(btn) btn.click();
+            document.body.classList.toggle('wms-sb-closed');
         }
         function bindToggle(){
             document.querySelectorAll('[data-wms-menu]').forEach(function(el){
