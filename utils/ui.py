@@ -33,6 +33,10 @@ def apply_global_css():
     }
     button[data-testid="baseButton-headerNoPadding"] { display: none !important; }
     header[data-testid="stHeader"] { visibility:hidden !important; }
+    footer, [data-testid="stFooter"] { display:none !important; }
+    #MainMenu { display:none !important; }
+    [data-testid="stToolbar"] { display:none !important; }
+    [data-testid="stDecoration"] { display:none !important; }
 
     /* ── 1. 페이지 전환 오버레이 (별도 div로 처리) ── */
 
