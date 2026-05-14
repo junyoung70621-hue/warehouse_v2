@@ -3,3 +3,9 @@ hideSidebarNav = true
 
 [client]
 toolbarMode = "viewer"
+
+[theme]
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#212529"
+textColor = "#1a2035"
+primaryColor = "#D81B60"

@@ -41,14 +41,7 @@ def apply_global_css():
     }
     button[data-testid="baseButton-headerNoPadding"] { display: none !important; }
 
-    /* ── 1. 페이지 전환 페이드인 (이전 UI 플래시 방지) ── */
-    body, [data-testid="stAppViewContainer"] {
-        animation: wms-fadein 0.12s ease-out !important;
-    }
-    @keyframes wms-fadein {
-        from { opacity: 0; }
-        to   { opacity: 1; }
-    }
+    /* ── 1. 페이지 전환 오버레이 (별도 div로 처리) ── */
 
     /* ── 2. 전체 세로 스크롤 ── */
     html, body {
@@ -205,6 +198,15 @@ def apply_global_css():
         padding: 2px 7px !important;
         border-radius: 10px !important;
         display: inline-block;
+    }
+
+    /* ── 페이지 전환 페이드인 ── */
+    @keyframes wms-fadein {
+        from { opacity: 0; }
+        to   { opacity: 1; }
+    }
+    [data-testid="stAppViewContainer"] {
+        animation: wms-fadein 0.1s ease-out !important;
     }
     </style>
     """, unsafe_allow_html=True)
