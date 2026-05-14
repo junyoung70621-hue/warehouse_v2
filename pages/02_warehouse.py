@@ -341,7 +341,11 @@ if _st_dialog is not None:
         _center    = _get_center(_user)
 
         can_edit = (_role == "admin")
-        can_view = can_edit or (item_loc == _center)
+        can_view = (
+            can_edit or
+            (item_loc == _center) or
+            (_center == "자재센터" and _role != "guest")
+        )
 
         if not can_view:
             st.error("🔒 이 자재의 이력을 볼 권한이 없습니다. (본인 센터 자재만 조회 가능)")
