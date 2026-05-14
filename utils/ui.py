@@ -37,6 +37,9 @@ def apply_global_css():
     #MainMenu { display:none !important; }
     [data-testid="stToolbar"] { display:none !important; }
     [data-testid="stDecoration"] { display:none !important; }
+    [data-testid="stStatusWidget"] { display:none !important; }
+    button[title*="Streamlit"] { display:none !important; }
+    a[href*="streamlit.io"] { display:none !important; }
 
     /* ── 1. 페이지 전환 오버레이 (별도 div로 처리) ── */
 
