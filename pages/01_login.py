@@ -26,6 +26,20 @@ apply_global_css()
 st.markdown("""
 <style>
 .main .block-container { max-width:480px!important; padding-top:3rem!important; }
+div[data-testid="stTextInput"] input {
+    background:#1e2d45 !important;
+    border-color:rgba(255,255,255,0.25) !important;
+    color:#f1f5f9 !important;
+    font-size:14px !important;
+    height:40px !important;
+}
+div[data-testid="stTextInput"] input::placeholder {
+    color:rgba(255,255,255,0.35) !important;
+}
+div[data-testid="stTextInput"] input:focus {
+    border-color:rgba(225,29,72,0.7) !important;
+    box-shadow:0 0 0 2px rgba(225,29,72,0.15) !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -51,14 +65,54 @@ tab_login, tab_register, tab_reset = st.tabs([
 ])
 
 with tab_login:
+    # localStorage에 저장된 아이디 불러오기 (페이지 로드 시 입력창 자동 완성)
+    st.markdown("""
+    <script>
+    (function(){
+        function loadSavedId(){
+            var saved = localStorage.getItem('wms_saved_id');
+            if(!saved) return;
+            var inputs = document.querySelectorAll('[data-testid="stTextInput"] input[type="text"]');
+            if(!inputs.length) return;
+            var inp = inputs[0];
+            if(inp.value) return;
+            var setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;
+            setter.call(inp, saved);
+            inp.dispatchEvent(new Event('input',{bubbles:true}));
+            inp.dispatchEvent(new Event('change',{bubbles:true}));
+        }
+        [500,1100,2200].forEach(function(t){ setTimeout(loadSavedId, t); });
+    })();
+    </script>
+    """, unsafe_allow_html=True)
+
+    remember_me = st.checkbox(
+        "아이디 저장",
+        value=bool(st.session_state.get("saved_id")),
+        key="remember_cb"
+    )
+
     with st.form("form_login"):
-        username  = st.text_input("아이디")
+        username  = st.text_input("아이디", value=st.session_state.get("saved_id", ""))
         password  = st.text_input("비밀번호", type="password")
         submitted = st.form_submit_button("로그인", use_container_width=True)
+
     if submitted:
         if not username or not password:
             st.warning("아이디와 비밀번호를 입력하세요.")
         else:
+            if remember_me:
+                st.session_state.saved_id = username
+                st.markdown(
+                    f"<script>localStorage.setItem('wms_saved_id','{username}');</script>",
+                    unsafe_allow_html=True
+                )
+            else:
+                st.session_state.pop("saved_id", None)
+                st.markdown(
+                    "<script>localStorage.removeItem('wms_saved_id');</script>",
+                    unsafe_allow_html=True
+                )
             user = login(username, password)
             if user:
                 st.session_state.user = user

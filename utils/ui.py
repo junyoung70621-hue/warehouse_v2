@@ -142,8 +142,13 @@ def apply_global_css():
     /* ── 6. 입력/셀렉트 다크 ── */
     div[data-testid="stTextInput"] input {
         font-size:12px !important; height:34px !important;
-        background:#0f1829 !important; border-color:rgba(255,255,255,0.1) !important;
-        color:#e2e8f0 !important; border-radius:4px !important;
+        background:#1e2d45 !important; border-color:rgba(255,255,255,0.25) !important;
+        color:#f1f5f9 !important; border-radius:4px !important;
+    }
+    div[data-testid="stTextInput"] input::placeholder { color:rgba(255,255,255,0.35) !important; }
+    div[data-testid="stTextInput"] input:focus {
+        border-color:rgba(225,29,72,0.7) !important;
+        box-shadow:0 0 0 2px rgba(225,29,72,0.15) !important;
     }
     div[data-testid="stHorizontalBlock"] button,
     div[data-testid="stHorizontalBlock"] [data-testid="stDownloadButton"] button {

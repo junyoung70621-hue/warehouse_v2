@@ -52,11 +52,11 @@ def render_kpi_cards(df_wh: "pd.DataFrame", transit_count: int):
         col.markdown(f"""
         <div style="background:#131b2e;border:1px solid rgba(255,255,255,0.07);
                     border-radius:4px;padding:14px 16px;border-left:3px solid {color};">
-            <div style="font-size:9px;font-weight:700;color:#475569;
+            <div style="font-size:9px;font-weight:700;color:#94a3b8;
                         letter-spacing:0.12em;text-transform:uppercase;margin-bottom:8px;">{label}</div>
-            <div style="font-size:26px;font-weight:700;color:{color};line-height:1;
+            <div style="font-size:26px;font-weight:700;color:#ffffff;line-height:1;
                         font-family:'JetBrains Mono','Roboto Mono',monospace;">{value}</div>
-            <div style="font-size:10px;color:#475569;margin-top:6px;">{sub}</div>
+            <div style="font-size:10px;color:#cbd5e1;margin-top:6px;">{sub}</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -104,6 +104,13 @@ section[data-testid="stSidebar"] [data-testid="stSelectbox"] { margin-bottom:4px
 /* 필터 입력 */
 div[data-testid="stTextInput"] input {
     font-size:13px!important; height:34px!important; border-radius:4px!important;
+    background:#1e2d45!important; border-color:rgba(255,255,255,0.25)!important;
+    color:#f1f5f9!important;
+}
+div[data-testid="stTextInput"] input::placeholder { color:rgba(255,255,255,0.35)!important; }
+div[data-testid="stTextInput"] input:focus {
+    border-color:rgba(225,29,72,0.7)!important;
+    box-shadow:0 0 0 2px rgba(225,29,72,0.15)!important;
 }
 div[data-testid="stSelectbox"] [data-baseweb="select"] > div {
     height:34px!important; min-height:34px!important;
@@ -699,20 +706,18 @@ else:
     ab = st.columns([0.72, 0.72, 0.82, 0.95, 0.95, 0.82, 4.0])
 
 with ab[0]:
-    sample_buf = make_excel_buffer(
-        pd.DataFrame(columns=list(EXCEL_COL_MAP.values())), "양식"
-    )
-    st.download_button("📋 양식", data=sample_buf,
-        file_name="WMS_업로드_양식.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        use_container_width=True)
+    if user_role in ("admin", "materials"):
+        sample_buf = make_excel_buffer(
+            pd.DataFrame(columns=list(EXCEL_COL_MAP.values())), "양식"
+        )
+        st.download_button("📋 양식", data=sample_buf,
+            file_name="WMS_업로드_양식.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True)
 with ab[1]:
     if user_role in ("admin", "materials"):
         if st.button("⬆️ 업로드", use_container_width=True):
             st.session_state.show_upload = not st.session_state.show_upload
-    else:
-        st.button("⬆️ 업로드", use_container_width=True, disabled=True,
-                  help="관리자 및 자재파트만 업로드 가능")
 with ab[2]:
     if not df_all.empty:
         dl_df = df_all[[c for c in EXCEL_COL_MAP if c in df_all.columns]].copy()
