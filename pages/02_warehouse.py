@@ -190,8 +190,14 @@ div[data-testid="stRadio"] label       { font-size:12px!important; }
 div[data-testid="stCaptionContainer"] p { font-size:11px!important; }
 div[data-testid="column"]              { padding:0px 2px!important; }
 
-
+@keyframes wms-page-fade-out {
+    0%   { opacity: 1; }
+    100% { opacity: 0; }
+}
 </style>
+<div style="position:fixed;inset:0;background:#fff;z-index:1000;
+            pointer-events:none;
+            animation:wms-page-fade-out 0.18s ease-out forwards;"></div>
 """, unsafe_allow_html=True)
 
 # ── 컬럼 매핑 ─────────────────────────────────────────────────────────────
@@ -1167,19 +1173,38 @@ if CAN_MATERIAL_REQUEST and st.session_state.show_material_request:
         else:
             hub_df = pd.DataFrame(hub_items)
 
+            _BUS_ONLY_CENTERS = {"강서센터", "강북센터", "강동센터", "강남센터"}
+            if selected_center in _BUS_ONLY_CENTERS:
+                if "category_large" in hub_df.columns:
+                    hub_df = hub_df[hub_df["category_large"] == "버스"]
+                st.info("ℹ️ 해당 센터는 **버스 자재**만 요청 가능합니다.")
+
             # 검색 필터
+            _is_bus_restricted = selected_center in _BUS_ONLY_CENTERS
+            _req_placeholder = (
+                "버스 자재명 / 중분류 / ERP코드 검색..."
+                if _is_bus_restricted
+                else "자재명 / 대분류 / 중분류 / ERP코드..."
+            )
             req_search = st.text_input(
-                "자재 검색", placeholder="자재명 / 대분류 / 중분류 / ERP코드...",
+                "자재 검색", placeholder=_req_placeholder,
                 key="req_search_input", label_visibility="collapsed"
             )
             filtered_hub = hub_df.copy()
             if req_search.strip():
-                mask = (
-                    filtered_hub.get("item_name",      pd.Series(dtype=str)).str.contains(req_search, case=False, na=False) |
-                    filtered_hub.get("category_large", pd.Series(dtype=str)).str.contains(req_search, case=False, na=False) |
-                    filtered_hub.get("category_mid",   pd.Series(dtype=str)).str.contains(req_search, case=False, na=False) |
-                    filtered_hub.get("erp_code",       pd.Series(dtype=str)).str.contains(req_search, case=False, na=False)
-                )
+                if _is_bus_restricted:
+                    mask = (
+                        filtered_hub.get("item_name", pd.Series(dtype=str)).str.contains(req_search, case=False, na=False) |
+                        filtered_hub.get("category_mid", pd.Series(dtype=str)).str.contains(req_search, case=False, na=False) |
+                        filtered_hub.get("erp_code",  pd.Series(dtype=str)).str.contains(req_search, case=False, na=False)
+                    )
+                else:
+                    mask = (
+                        filtered_hub.get("item_name",      pd.Series(dtype=str)).str.contains(req_search, case=False, na=False) |
+                        filtered_hub.get("category_large", pd.Series(dtype=str)).str.contains(req_search, case=False, na=False) |
+                        filtered_hub.get("category_mid",   pd.Series(dtype=str)).str.contains(req_search, case=False, na=False) |
+                        filtered_hub.get("erp_code",       pd.Series(dtype=str)).str.contains(req_search, case=False, na=False)
+                    )
                 filtered_hub = filtered_hub[mask]
 
             if filtered_hub.empty:
