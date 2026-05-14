@@ -5,6 +5,7 @@ hideSidebarNav = true
 toolbarMode = "viewer"
 
 [theme]
-backgroundColor = "#ffffff"
-textColor = "#1a2035"
-primaryColor = "#D81B60"
+backgroundColor = "#0b1326"
+secondaryBackgroundColor = "#131b2e"
+textColor = "#e2e8f0"
+primaryColor = "#e11d48"

@@ -5,7 +5,7 @@ import io
 import hashlib
 from utils.auth import require_login, is_role
 from utils.db import (
-    fetch_warehouse, fetch_categories,
+    fetch_warehouse, fetch_categories, fetch_transfers,
     stock_in, stock_out, create_transfer,
     clear_warehouse_cache, clear_history_cache, clear_usage_history_cache,
     get_supabase, fetch_item_history, update_item,
@@ -36,6 +36,31 @@ user_id   = user["id"]
 user_role = user["role"]
 user_name = user["name"]
 
+# ── KPI 카드 ──────────────────────────────────────────────────────────────
+def render_kpi_cards(df_wh: "pd.DataFrame", transit_count: int):
+    total = len(df_wh) if not df_wh.empty else 0
+    low   = int((df_wh["quantity"] < 10).sum()) if not df_wh.empty else 0
+    zero  = int((df_wh["quantity"] == 0).sum()) if not df_wh.empty else 0
+    cards = [
+        ("#22d3ee", "TOTAL SKUs",       str(total),         "전체 자재 종류"),
+        ("#f59e0b", "LOW STOCK ALERTS", str(low),           "수량 10 미만"),
+        ("#22d3ee", "IN-TRANSIT",       str(transit_count), "이동 신청 대기"),
+        ("#e11d48", "ZERO STOCK",       str(zero),          "재고 없음"),
+    ]
+    cols = st.columns(4)
+    for col, (color, label, value, sub) in zip(cols, cards):
+        col.markdown(f"""
+        <div style="background:#131b2e;border:1px solid rgba(255,255,255,0.07);
+                    border-radius:4px;padding:14px 16px;border-left:3px solid {color};">
+            <div style="font-size:9px;font-weight:700;color:#475569;
+                        letter-spacing:0.12em;text-transform:uppercase;margin-bottom:8px;">{label}</div>
+            <div style="font-size:26px;font-weight:700;color:{color};line-height:1;
+                        font-family:'JetBrains Mono','Roboto Mono',monospace;">{value}</div>
+            <div style="font-size:10px;color:#475569;margin-top:6px;">{sub}</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+
 # ── 세션 초기화 ───────────────────────────────────────────────────────────
 defaults = {
     "selected_mid":      "전체",
@@ -61,147 +86,45 @@ for k, v in defaults.items():
     if k not in st.session_state:
         st.session_state[k] = v
 
-# ── CSS ──────────────────────────────────────────────────────────────────
+# ── CSS (02_warehouse 전용 보완 — apply_global_css 다크 테마 기반) ─────────
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap');
+/* 사이드바 위치 (render_top_bar에서 top:58px 처리하지만 명시적 유지) */
+section[data-testid="stSidebar"] { top:58px!important; height:calc(100vh - 58px)!important; }
+section[data-testid="stSidebar"] > div > div { overflow-y:auto!important; scrollbar-width:none!important; }
+section[data-testid="stSidebar"] > div > div::-webkit-scrollbar { display:none!important; }
+[data-testid="stSidebarUserContent"] { padding-top:0!important; margin-top:0!important; }
 
-/* ───── 전체 폰트 ───── */
-html, body, * { font-family:'Noto Sans KR', sans-serif !important; }
-
-/* ───── 페이지 전환 페이드인 ───── */
-body, [data-testid="stAppViewContainer"] { animation: wms-fadein 0.12s ease-out !important; }
-@keyframes wms-fadein { from { opacity:0; } to { opacity:1; } }
-
-/* ───── 숨김 요소 ───── */
-[data-testid="stSidebarNav"],
-[data-testid="stSidebarHeader"]                  { display:none!important; height:0!important; overflow:hidden!important; padding:0!important; margin:0!important; }
-button[data-testid="baseButton-headerNoPadding"] { display:none!important; }
-
-/* ── 사이드바 토글 CSS ── */
-section[data-testid="stSidebar"] {
-    transition: width 0.2s ease, min-width 0.2s ease !important;
-}
-body.wms-sb-closed section[data-testid="stSidebar"] {
-    width: 0 !important;
-    min-width: 0 !important;
-    overflow: hidden !important;
-}
-[data-testid="stSidebarUserContent"]             { padding-top:0!important; margin-top:0!important; }
-
-/* ───── 기본 헤더 숨김 (커스텀 헤더로 대체) ───── */
-header[data-testid="stHeader"]                   { visibility:hidden!important; }
-
-/* ───── 다크 사이드바 (#212529) ───── */
-section[data-testid="stSidebar"],
-section[data-testid="stSidebar"] > div,
-section[data-testid="stSidebar"] > div > div    { background:#212529!important; }
-section[data-testid="stSidebar"]                {
-    width:220px!important; min-width:220px!important;
-    top:58px!important; height:calc(100vh - 58px)!important;
-}
-
-/* 최상단 공백 제거 — apply_global_css()에서 처리 */
-
-/* 폰트 +2pt (드롭다운 제외) */
-section[data-testid="stSidebar"] p,
-section[data-testid="stSidebar"] label          { color:#adb5bd!important; font-size:17px!important; }
-/* 드롭다운 크기 고정 */
-section[data-testid="stSidebar"] [data-testid="stSelectbox"] *,
-section[data-testid="stSidebar"] [data-baseweb="select"] *  { font-size:13px!important; }
-section[data-testid="stSidebar"] hr             { border-color:#343a40!important; margin:8px 0!important; }
-
-/* 셀렉트박스 — 위아래 여백 + 선택된 값 포함 모든 텍스트 흰색 */
-section[data-testid="stSidebar"] [data-testid="stSelectbox"] {
-    margin-bottom:6px!important;
-}
-section[data-testid="stSidebar"] [data-baseweb="select"] > div {
-    background:#2b3035!important; border-color:#495057!important;
-}
-section[data-testid="stSidebar"] [data-baseweb="select"] span,
-section[data-testid="stSidebar"] [data-baseweb="select"] div,
-section[data-testid="stSidebar"] [data-baseweb="singleValue"],
+/* 셀렉트박스 전체 옵션 — 흰색 유지 */
 section[data-testid="stSidebar"] [data-baseweb="select"] [data-baseweb="singleValue"],
 section[data-testid="stSidebar"] [class*="single-value"],
-section[data-testid="stSidebar"] [data-baseweb="select"] input { color:#fff!important; }
-section[data-testid="stSidebar"] [data-baseweb="select"] svg   { fill:#adb5bd!important; }
+section[data-testid="stSidebar"] [data-baseweb="select"] [data-baseweb="singleValue"] { color:#e2e8f0!important; }
+section[data-testid="stSidebar"] [data-testid="stSelectbox"] { margin-bottom:4px!important; }
 
-/* 버튼 — 세로 간격 축소 (스크롤 없이 전체 표시) */
-section[data-testid="stSidebar"] button {
-    background:transparent!important; border:none!important;
-    color:#adb5bd!important; text-align:left!important;
-    justify-content:flex-start!important;
-    padding:5px 12px!important; border-radius:7px!important;
-    font-size:16px!important; height:auto!important;
-    min-height:36px!important; white-space:nowrap!important;
-    margin:2px 0!important; width:100%!important;
-}
-section[data-testid="stSidebar"] button:hover {
-    background:rgba(255,255,255,0.07)!important; color:#f8f9fa!important;
-}
-/* 활성 메뉴 — 와인색 #D81B60 */
-section[data-testid="stSidebar"] button[kind="primary"] {
-    background:#D81B60!important; color:#fff!important; font-weight:600!important;
-    border-left:3px solid #ff4081!important;
-}
-
-/* 사이드바 스크롤바 완전 숨김 */
-section[data-testid="stSidebar"]              { overflow-y:hidden!important; overflow-x:hidden!important; }
-section[data-testid="stSidebar"] > div        { overflow:hidden!important; }
-section[data-testid="stSidebar"] > div > div  { overflow-y:auto!important; scrollbar-width:none!important; }
-section[data-testid="stSidebar"] > div > div::-webkit-scrollbar { display:none!important; }
-@media (max-width:768px) {
-    section[data-testid="stSidebar"] { width:auto!important; min-width:0!important; }
-}
-
-/* ───── 스크롤 ───── */
-html, body { overflow-y:auto!important; min-height:100vh!important; }
-[data-testid="stAppViewContainer"],
-[data-testid="stAppViewBlockContainer"] { overflow-y:auto!important; height:auto!important; }
-.main { overflow-y:auto!important; min-height:100vh!important; }
-[data-testid="stTabsContent"] { overflow-y:visible!important; padding-bottom:2rem!important; }
-
-/* ───── 메인 레이아웃 ───── */
-.main .block-container {
-    padding-top:0.8rem!important; padding-bottom:3rem!important;
-    overflow:visible!important; max-width:100%!important;
-}
-hr { margin:2px 0 4px 0!important; }
-
-/* ───── 필터 바 입력 ───── */
+/* 필터 입력 */
 div[data-testid="stTextInput"] input {
-    font-size:13px!important; height:34px!important;
-    border-color:#dee2e6!important; border-radius:6px!important;
+    font-size:13px!important; height:34px!important; border-radius:4px!important;
 }
 div[data-testid="stSelectbox"] [data-baseweb="select"] > div {
     height:34px!important; min-height:34px!important;
-    border-color:#dee2e6!important; border-radius:6px!important;
-    font-size:13px!important;
+    border-radius:4px!important; font-size:13px!important;
 }
 
-/* ───── 툴바·공통 버튼 (메인 컨텐츠 한정, 사이드바 제외) ───── */
+/* 메인 버튼 */
 .main div[data-testid="stHorizontalBlock"] button,
 .main div[data-testid="stHorizontalBlock"] [data-testid="stDownloadButton"] button {
     white-space:nowrap!important; font-size:12px!important;
     padding:0 8px!important; height:32px!important; min-height:32px!important;
-    border-radius:6px!important;
+    border-radius:4px!important;
 }
 
-/* ───── 테이블 헤더 — 연한 회색(#f1f3f5) + 진한 텍스트 ───── */
-[data-testid="stDataEditor"] th {
-    background-color:#f1f3f5!important; color:#333!important;
-    font-weight:700!important; font-size:12px!important;
-    border-bottom:2px solid #dee2e6!important; white-space:nowrap!important;
-    position:sticky!important; top:0!important; z-index:10!important;
-}
-[data-testid="stDataEditor"] td { font-size:12px!important; padding:2px 6px!important; }
-
-/* ───── 기타 ───── */
+/* 기타 */
 div[data-testid="stRadio"] label       { font-size:12px!important; }
-div[data-testid="stCaptionContainer"] p { font-size:11px!important; }
+div[data-testid="stCaptionContainer"] p { font-size:11px!important; color:#475569!important; }
 div[data-testid="column"]              { padding:0px 2px!important; }
-
-
+hr { margin:2px 0 4px 0!important; border-color:rgba(255,255,255,0.07)!important; }
+[data-testid="stTabsContent"] { overflow-y:visible!important; padding-bottom:2rem!important; }
+.main .block-container { padding-top:0.6rem!important; padding-bottom:3rem!important; overflow:visible!important; max-width:100%!important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -700,6 +623,16 @@ categories = fetch_categories()
 df_all     = pd.DataFrame(raw_data) if raw_data else pd.DataFrame()
 if not df_all.empty and "item_name" in df_all.columns:
     df_all = df_all.drop_duplicates(subset=["item_name"], keep="first")
+
+# ── KPI 카드 렌더링 ───────────────────────────────────────────────────────
+try:
+    _pending = fetch_transfers("pending")
+    _transit = sum(1 for t in _pending
+                   if t.get("from_center") == selected_center
+                   or t.get("to_center")   == selected_center)
+except Exception:
+    _transit = 0
+render_kpi_cards(df_all, _transit)
 
 # ── 필터 바 (1행: 검색 + 대/중/소 분류 드롭다운) ─────────────────────────
 n_checked = len(st.session_state.checked_ids)
@@ -1571,12 +1504,13 @@ else:
     if "단" in disp_df.columns:
         disp_df["단"] = pd.to_numeric(disp_df["단"].replace("", None), errors="coerce")
 
+    _max_qty = max(int(df_all["quantity"].max()) if not df_all.empty and "quantity" in df_all.columns else 100, 100)
     if IS_MAIN_HUB:
         col_cfg = {
             "☑":       st.column_config.CheckboxColumn("☑",      width=30),
             "No":      st.column_config.NumberColumn("No",       width=45),
             "자재명":  st.column_config.TextColumn("자재명",      width=200),
-            "수량":    st.column_config.NumberColumn("수량",      width=65),
+            "수량":    st.column_config.ProgressColumn("수량", format="%d개", min_value=0, max_value=_max_qty, width=100),
             "대분류":  st.column_config.TextColumn("대분류",      width=90),
             "중분류":  st.column_config.TextColumn("중분류",      width=90),
             "소분류":  st.column_config.TextColumn("소분류",      width=90),
@@ -1592,7 +1526,7 @@ else:
             "☑":      st.column_config.CheckboxColumn("☑",       width=30),
             "No":     st.column_config.NumberColumn("No",        width=45),
             "자재명": st.column_config.TextColumn("자재명",       width=260),
-            "수량":   st.column_config.NumberColumn("수량",       width=65),
+            "수량":   st.column_config.ProgressColumn("수량", format="%d개", min_value=0, max_value=_max_qty, width=100),
             "대분류": st.column_config.TextColumn("대분류",       width=110),
             "중분류": st.column_config.TextColumn("중분류",       width=110),
             "소분류": st.column_config.TextColumn("소분류",       width=110),

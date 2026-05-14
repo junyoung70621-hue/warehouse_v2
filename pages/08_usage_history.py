@@ -33,13 +33,6 @@ with st.sidebar:
     if st.button("📊 대시보드", use_container_width=True):
         st.switch_page("pages/10_dashboard.py")
     st.divider()
-    if user_role in ("admin", "materials"):
-        _viewable = ["전체"] + CENTERS
-    else:
-        _viewable = [user_center] if user_center else CENTERS
-    if st.session_state.get("sidebar_center") not in _viewable:
-        st.session_state.pop("sidebar_center", None)
-    selected_center = st.selectbox("센터", _viewable, label_visibility="collapsed", key="sidebar_center")
 
     render_sidebar_section("재고 관리")
     if st.button("📦 재고 현황", use_container_width=True):
@@ -81,16 +74,22 @@ st.divider()
 # ── 필터 ──────────────────────────────────────────────────────────────────
 import datetime
 
-fc1, fc2, fc3, fc4, fc5 = st.columns([2, 1.2, 1.2, 2, 1])
+fc1, fc2, fc3, fc4, fc5 = st.columns([1.8, 1.2, 1.2, 2, 1])
 
-# 센터는 사이드바 selectbox에서 결정
 with fc1:
-    if user_role in ("admin", "materials"):
+    if is_role("admin", "materials"):
+        selected_center = st.selectbox(
+            "센터", ["전체"] + CENTERS,
+            label_visibility="collapsed", key="usage_center_sel"
+        )
         query_center = None if selected_center == "전체" else selected_center
-        st.caption(f"📌 {selected_center}")
     else:
-        query_center = user_center
-        st.caption(f"📌 {user_center}")
+        selected_center = user_center or ""
+        query_center    = user_center
+        st.selectbox(
+            "센터", [selected_center] if selected_center else [""],
+            label_visibility="collapsed", disabled=True, key="usage_center_sel"
+        )
 
 today = datetime.date.today()
 with fc2:
@@ -186,7 +185,7 @@ with pd.ExcelWriter(buf, engine="openpyxl") as writer:
     df.to_excel(writer, index=False, sheet_name="사용내역")
 buf.seek(0)
 
-fname = f"{selected_center if user_role in ('admin','materials') else user_center}_사용내역.xlsx"
+fname = f"{selected_center or user_center}_사용내역.xlsx"
 st.download_button(
     "⬇️ 사용내역 엑셀 다운로드", data=buf,
     file_name=fname,

@@ -16,10 +16,10 @@ _LOGO_B64 = _load_logo()
 
 
 def apply_global_css():
-    """전체 페이지 공통 CSS — WMS 스타일."""
+    """전체 페이지 공통 CSS — Industrial Precision 다크 테마."""
     st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
     html, body, * { font-family:'Noto Sans KR', sans-serif !important; }
     /* ── 0. 사이드바 내부 헤더/네비 완전 제거 ── */
     [data-testid="stSidebarNav"],
@@ -72,141 +72,123 @@ def apply_global_css():
     }
     hr { margin: 3px 0 8px 0 !important; }
 
-    /* ── 4. 다크 사이드바 (#212529) ── */
+    /* ── 4. 사이드바 (Industrial Dark) ── */
     section[data-testid="stSidebar"],
     section[data-testid="stSidebar"] > div,
-    section[data-testid="stSidebar"] > div > div { background: #212529 !important; }
-    section[data-testid="stSidebar"] { width:220px !important; min-width:220px !important; overflow-y:auto !important; }
+    section[data-testid="stSidebar"] > div > div { background:#080e1d !important; }
+    section[data-testid="stSidebar"] {
+        border-right:1px solid rgba(255,255,255,0.06) !important;
+        overflow-y:auto !important;
+    }
+    [data-testid="stSidebarContent"]    { padding-top:0 !important; margin-top:0 !important; }
+    [data-testid="stSidebarUserContent"]{ padding-top:0 !important; margin-top:0 !important; }
+    section[data-testid="stSidebar"] .block-container  { padding-top:0 !important; margin-top:0 !important; }
+    section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] { padding-top:0 !important; gap:2px !important; }
+    section[data-testid="stSidebar"] > div > div { overflow-y:auto !important; scrollbar-width:none !important; }
+    section[data-testid="stSidebar"] > div > div::-webkit-scrollbar { display:none !important; }
 
-    /* ── 상/하단 공백 제거 (Streamlit 전용 타겟팅) ── */
-    [data-testid="stSidebar"] > div:first-child {
-        padding-top: 0 !important;
-        padding-bottom: 0 !important;
-    }
-    [data-testid="stSidebarContent"] {
-        padding-top: 0 !important;
-        margin-top: 0 !important;
-    }
-    [data-testid="stSidebarUserContent"] {
-        padding-top: 0 !important;
-        margin-top: 0 !important;
-    }
-    section[data-testid="stSidebar"] .block-container {
-        padding-top: 0 !important;
-        margin-top: 0 !important;
-    }
-    section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
-        padding-top: 0 !important;
-        gap: 4px !important;
-    }
     section[data-testid="stSidebar"] p,
-    section[data-testid="stSidebar"] label { color:#adb5bd !important; font-size:16px !important; }
-    section[data-testid="stSidebar"] hr { border-color:#343a40 !important; margin:8px 0 !important; }
-    /* 드롭다운(셀렉트박스) 폰트 크기 고정 — 제외 */
+    section[data-testid="stSidebar"] label { color:#475569 !important; font-size:12px !important; }
+    section[data-testid="stSidebar"] hr    { border-color:rgba(255,255,255,0.06) !important; margin:6px 0 !important; }
+
     section[data-testid="stSidebar"] [data-testid="stSelectbox"] *,
     section[data-testid="stSidebar"] [data-baseweb="select"] * { font-size:13px !important; }
     section[data-testid="stSidebar"] [data-baseweb="select"] > div {
-        background:#2b3035 !important; border-color:#495057 !important;
+        background:#0f1829 !important; border-color:rgba(255,255,255,0.1) !important;
     }
     section[data-testid="stSidebar"] [data-baseweb="select"] span,
     section[data-testid="stSidebar"] [data-baseweb="select"] div,
     section[data-testid="stSidebar"] [data-baseweb="singleValue"],
-    section[data-testid="stSidebar"] [data-baseweb="select"] input { color:#fff !important; }
-    section[data-testid="stSidebar"] [data-baseweb="select"] svg  { fill:#adb5bd !important; }
+    section[data-testid="stSidebar"] [data-baseweb="select"] input { color:#e2e8f0 !important; }
+    section[data-testid="stSidebar"] [data-baseweb="select"] svg   { fill:#475569 !important; }
+
     section[data-testid="stSidebar"] button {
         background:transparent !important; border:none !important;
-        color:#adb5bd !important; text-align:left !important;
-        justify-content:flex-start !important;
-        padding:6px 12px !important; border-radius:8px !important;
-        font-size:16px !important; height:auto !important;
-        min-height:36px !important; white-space:nowrap !important;
-        margin:2px 0 !important; width:100% !important;
+        color:#ffffff !important; font-weight:400 !important;
+        text-align:left !important; justify-content:flex-start !important;
+        padding:5px 14px 5px 12px !important; border-radius:4px !important;
+        font-size:15px !important; height:auto !important;
+        min-height:34px !important; white-space:nowrap !important;
+        margin:1px 6px !important; width:calc(100% - 12px) !important;
+        border-left:3px solid transparent !important;
     }
-    section[data-testid="stSidebar"] button:hover {
-        background:rgba(255,255,255,0.07) !important; color:#f8f9fa !important;
+    section[data-testid="stSidebar"] button p,
+    section[data-testid="stSidebar"] button span,
+    section[data-testid="stSidebar"] button div {
+        color:#ffffff !important; font-weight:400 !important; font-size:15px !important;
     }
-    section[data-testid="stSidebar"] button[kind="primary"] {
-        background:#D81B60 !important; color:#fff !important;
-        font-weight:600 !important; border-left:3px solid #ff4081 !important;
+    section[data-testid="stSidebar"] button:hover,
+    section[data-testid="stSidebar"] button:hover p,
+    section[data-testid="stSidebar"] button:hover span {
+        background:rgba(255,255,255,0.06) !important; color:#fff !important;
+        border-left-color:rgba(225,29,72,0.4) !important;
     }
-    /* 사이드바 외부는 hidden, 내부 콘텐츠는 스크롤 허용 (스크롤바 숨김) */
-    section[data-testid="stSidebar"]             { overflow:hidden !important; }
-    section[data-testid="stSidebar"] > div       { overflow:hidden !important; }
-    section[data-testid="stSidebar"] > div > div { overflow-y:auto !important; scrollbar-width:none !important; }
-    section[data-testid="stSidebar"] > div > div::-webkit-scrollbar { display:none !important; }
+    section[data-testid="stSidebar"] button[kind="primary"],
+    section[data-testid="stSidebar"] button[kind="primary"] p,
+    section[data-testid="stSidebar"] button[kind="primary"] span {
+        background:rgba(225,29,72,0.13) !important; color:#fff !important;
+        font-weight:700 !important; border-left:3px solid #e11d48 !important;
+    }
 
-    /* 작은 화면에서 강제 너비 해제 — Streamlit 반응형 레이아웃에 맡김 */
-    @media (max-width: 768px) {
-        section[data-testid="stSidebar"] { width:auto !important; min-width:0 !important; }
-    }
+    /* ── 5. 스크롤 ── */
+    html, body { overflow-y:auto !important; min-height:100vh !important; }
+    [data-testid="stAppViewContainer"],
+    [data-testid="stAppViewBlockContainer"] { overflow-y:auto !important; height:auto !important; }
+    .main { overflow-y:auto !important; min-height:100vh !important; }
+    [data-testid="stTabsContent"] { overflow-y:visible !important; padding-bottom:2rem !important; }
+    .main .block-container { overflow:visible !important; padding-top:0.6rem !important; padding-bottom:3rem !important; max-width:100% !important; }
+    hr { margin:2px 0 4px 0 !important; border-color:rgba(255,255,255,0.07) !important; }
 
-    /* ── 5. 상단 툴바 버튼 ── */
+    /* ── 6. 입력/셀렉트 다크 ── */
+    div[data-testid="stTextInput"] input {
+        font-size:12px !important; height:34px !important;
+        background:#0f1829 !important; border-color:rgba(255,255,255,0.1) !important;
+        color:#e2e8f0 !important; border-radius:4px !important;
+    }
     div[data-testid="stHorizontalBlock"] button,
     div[data-testid="stHorizontalBlock"] [data-testid="stDownloadButton"] button {
-        white-space: nowrap !important;
-        font-size: 12px !important;
-        padding: 0 8px !important;
-        height: 34px !important;
-        min-height: 34px !important;
-        line-height: 34px !important;
-    }
-    div[data-testid="stTextInput"] input {
-        font-size: 12px !important;
-        height: 34px !important;
+        white-space:nowrap !important; font-size:12px !important;
+        padding:0 8px !important; height:32px !important; min-height:32px !important;
+        border-radius:4px !important;
     }
 
-    /* ── 6. data_editor (팝업 내 미니 테이블) ── */
+    /* ── 7. 데이터 에디터 ── */
+    [data-testid="stDataEditor"] { border:1px solid rgba(255,255,255,0.08) !important; border-radius:4px !important; }
     [data-testid="stDataEditor"] th {
-        background-color: #e8edf5 !important;
-        color: #1a237e !important;
-        font-weight: 700 !important;
-        font-size: 12px !important;
-        border-bottom: 2px solid #7986cb !important;
-        white-space: nowrap !important;
-        position: sticky !important;
-        top: 0 !important;
-        z-index: 10 !important;
+        background:#080e1d !important; color:#475569 !important;
+        font-weight:700 !important; font-size:11px !important;
+        text-transform:uppercase !important; letter-spacing:0.07em !important;
+        border-bottom:1px solid rgba(255,255,255,0.1) !important; white-space:nowrap !important;
+        position:sticky !important; top:0 !important; z-index:10 !important;
     }
     [data-testid="stDataEditor"] td {
-        font-size: 13px !important;
-        padding: 2px 8px !important;
+        font-size:12px !important; padding:3px 8px !important;
+        color:#cbd5e1 !important; border-bottom:1px solid rgba(255,255,255,0.04) !important;
     }
 
-    /* ── 7. 공통 컴포넌트 ── */
-    div[data-testid="stRadio"] label     { font-size: 12px !important; }
-    div[data-testid="stCaptionContainer"] p { font-size: 11px !important; }
-    div[data-testid="column"]             { padding: 0 2px !important; }
-    div[data-testid="stSelectbox"] label  { font-size: 12px !important; }
+    /* ── 8. 공통 컴포넌트 ── */
+    div[data-testid="stRadio"] label      { font-size:12px !important; }
+    div[data-testid="stCaptionContainer"] p { font-size:11px !important; color:#475569 !important; }
+    div[data-testid="column"]             { padding:0 2px !important; }
+    div[data-testid="stSelectbox"] label  { font-size:12px !important; }
+    [data-testid="stMetricValue"]         { font-size:16px !important; }
+    [data-testid="stMetricLabel"]         { font-size:11px !important; color:#475569 !important; }
+    [data-testid="stVerticalBlockBorderWrapper"] { margin-bottom:4px !important; }
 
-    [data-testid="stTabsContent"] {
-        overflow-y: visible !important;
-        padding-bottom: 2rem !important;
-    }
-
-    [data-testid="stMetricValue"] { font-size: 16px !important; }
-    [data-testid="stMetricLabel"] { font-size: 11px !important; }
-
-    [data-testid="stVerticalBlockBorderWrapper"] { margin-bottom: 4px !important; }
-
-    /* 역할 배지 흰색 텍스트 */
+    /* ── 9. 역할 배지 ── */
     .wms-role-badge {
-        background: #d81b60 !important;
-        color: #ffffff !important;
-        font-size: 10px !important;
-        font-weight: 600 !important;
-        padding: 2px 7px !important;
-        border-radius: 10px !important;
-        display: inline-block;
+        background:#e11d48 !important; color:#fff !important;
+        font-size:10px !important; font-weight:600 !important;
+        padding:2px 7px !important; border-radius:10px !important; display:inline-block;
     }
 
-    /* ── 페이지 전환 페이드인 ── */
-    @keyframes wms-fadein {
-        from { opacity: 0; }
-        to   { opacity: 1; }
+    /* ── 10. 애니메이션 ── */
+    @keyframes wms-fadein { from { opacity:0; } to { opacity:1; } }
+    @keyframes wms-pulse  {
+        0%,100% { opacity:1; box-shadow:0 0 4px #22d3ee; }
+        50%     { opacity:0.6; box-shadow:0 0 10px #22d3ee; }
     }
-    [data-testid="stAppViewContainer"] {
-        animation: wms-fadein 0.1s ease-out !important;
-    }
+    [data-testid="stAppViewContainer"] { animation:wms-fadein 0.1s ease-out !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -217,11 +199,15 @@ def render_sidebar_header():
 
 
 def render_sidebar_section(label: str):
-    """SNB 섹션 구분 레이블."""
+    """SNB 섹션 구분 레이블 — Industrial Precision."""
     st.markdown(
-        f"<div style='color:#6c757d;font-size:10px;font-weight:700;"
-        f"letter-spacing:1.5px;text-transform:uppercase;"
-        f"padding:12px 12px 3px 14px;margin-top:4px;'>{label}</div>",
+        f"<div style='display:flex;align-items:center;gap:8px;"
+        f"padding:14px 12px 19px 14px;margin-top:2px;'>"
+        f"<div style='width:14px;height:1px;background:rgba(225,29,72,0.5);flex-shrink:0;'></div>"
+        f"<span style='color:#e2e8f0;font-size:11px;font-weight:700;"
+        f"letter-spacing:0.15em;text-transform:uppercase;white-space:nowrap;'>{label}</span>"
+        f"<div style='flex:1;height:1px;background:rgba(255,255,255,0.05);'></div>"
+        f"</div>",
         unsafe_allow_html=True
     )
 
@@ -248,10 +234,23 @@ def render_top_bar(title: str, user: dict):
     st.markdown("""
     <style>
     header[data-testid="stHeader"]   { visibility:hidden!important; }
-    section[data-testid="stSidebar"] { top:58px!important; height:calc(100vh - 58px)!important; transition:width 0.2s ease,min-width 0.2s ease!important; }
+    section[data-testid="stSidebar"] { top:58px!important; height:calc(100vh - 58px)!important; }
     .main .block-container           { padding-top:0.8rem!important; padding-bottom:3rem!important; max-width:100%!important; overflow:visible!important; }
     html, body                       { overflow-y:auto!important; min-height:100vh!important; }
     [data-testid="stAppViewContainer"] { overflow-y:auto!important; }
+
+    /* ── ≡ 영역에 네이티브 토글 버튼 투명 오버레이 ── */
+    [data-testid="stSidebarCollapseButton"],
+    [data-testid="collapsedControl"] {
+        position:fixed!important; top:0!important; left:220px!important;
+        width:300px!important; height:58px!important;
+        z-index:2000!important; opacity:0!important;
+        cursor:pointer!important; background:transparent!important; border:none!important;
+    }
+    [data-testid="stSidebarCollapseButton"] button,
+    [data-testid="collapsedControl"] button {
+        width:100%!important; height:100%!important; cursor:pointer!important;
+    }
     </style>
     <script>
     (function(){
@@ -281,73 +280,48 @@ def render_top_bar(title: str, user: dict):
         zapSidebar();
         [200,600,1500].forEach(function(t){setTimeout(zapSidebar,t);});
 
-        /* ── 사이드바 토글 — window 변수 방식
-           페이지 로드 시 항상 열림, Streamlit 재렌더링에서는 상태 유지 ── */
-        if(typeof window._wmsSbOpen === 'undefined') window._wmsSbOpen = true;
-
-        function applyState(){
-            var sb = document.querySelector('section[data-testid="stSidebar"]');
-            if(!sb) return;
-            if(window.innerWidth < 768){
-                sb.style.removeProperty('width');
-                sb.style.removeProperty('min-width');
-                sb.style.removeProperty('overflow');
-                return;
-            }
-            if(!window._wmsSbOpen){
-                sb.style.setProperty('width','0px','important');
-                sb.style.setProperty('min-width','0px','important');
-                sb.style.setProperty('overflow','hidden','important');
-            } else {
-                sb.style.removeProperty('width');
-                sb.style.removeProperty('min-width');
-                sb.style.removeProperty('overflow');
-            }
-        }
-
-        function doToggle(){
-            window._wmsSbOpen = !window._wmsSbOpen;
-            applyState();
-        }
-
-        function bindToggle(){
-            document.querySelectorAll('[data-wms-menu]').forEach(function(el){
-                if(el._wmsBound) return;
-                el._wmsBound = true;
-                el.addEventListener('click', doToggle);
-            });
-            applyState();
-        }
-
-        bindToggle();
-        [200,600,1500].forEach(function(t){setTimeout(bindToggle,t);});
     })();
     </script>
     """, unsafe_allow_html=True)
-    # 상단바 HTML
+    # 상단바 HTML — Industrial Precision
     st.markdown(f"""
     <div style="position:fixed;top:0;left:0;right:0;height:58px;
+                background:rgba(8,14,29,0.95);
+                backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
                 display:flex;align-items:stretch;z-index:1001;
-                box-shadow:0 2px 8px rgba(0,0,0,0.12);">
-        <div style="width:220px;flex-shrink:0;background:#212529;
+                border-bottom:1px solid rgba(255,255,255,0.07);
+                box-shadow:0 2px 24px rgba(0,0,0,0.5);">
+        <div style="width:220px;flex-shrink:0;background:#050b17;
                     display:flex;align-items:center;justify-content:center;
-                    padding:0 14px;border-bottom:1px solid #343a40;">
+                    padding:0 14px;border-right:1px solid rgba(255,255,255,0.06);">
             {_logo}
         </div>
-        <div style="flex:1;background:#ffffff;display:flex;align-items:center;
-                    justify-content:space-between;padding:0 24px;
-                    border-bottom:1px solid #e0e5ee;">
-            <span data-wms-menu="1"
-                  style="font-family:'Noto Sans KR',sans-serif;font-size:16px;
-                         font-weight:700;color:#1a2035;cursor:pointer;user-select:none;"
-                  title="사이드바 열기/닫기">
+        <div style="flex:1;display:flex;align-items:center;
+                    justify-content:space-between;padding:0 20px;">
+            <span style="font-family:'Noto Sans KR',sans-serif;font-size:15px;
+                         font-weight:700;color:#e2e8f0;user-select:none;letter-spacing:0.01em;
+                         cursor:pointer;" title="사이드바 열기/닫기">
                 ≡&nbsp; {title}
             </span>
-            <div style="display:flex;align-items:center;gap:16px;">
-                <span style="font-size:13px;color:#333;font-weight:500;">
-                    {_uc} {_nm} ({_rl})
-                </span>
-                <span style="font-size:12px;color:#999;">{_date}</span>
+            <div style="display:flex;align-items:center;gap:18px;">
+                <div style="display:flex;align-items:center;gap:7px;">
+                    <div style="width:7px;height:7px;border-radius:50%;background:#22d3ee;
+                                animation:wms-pulse 2s ease-in-out infinite;"></div>
+                    <span style="font-size:9px;color:#22d3ee;font-weight:700;
+                                 letter-spacing:0.12em;font-family:'JetBrains Mono',monospace;">
+                        SYSTEM: OPERATIONAL
+                    </span>
+                </div>
+                <div style="width:1px;height:20px;background:rgba(255,255,255,0.1);"></div>
+                <div style="display:flex;align-items:center;gap:6px;">
+                    <span style="font-size:13px;color:#e2e8f0;font-weight:600;">{_uc}</span>
+                    <span style="color:#334155;font-size:13px;">·</span>
+                    <span style="font-size:13px;color:#e2e8f0;font-weight:600;">{_nm}</span>
+                    <span style="color:#334155;font-size:13px;">·</span>
+                    <span style="font-size:13px;color:#475569;">{_rl}</span>
+                </div>
+                <span style="font-size:12px;color:#e2e8f0;font-weight:700;
+                             font-family:'JetBrains Mono',monospace;">{_date}</span>
             </div>
         </div>
     </div>
@@ -355,19 +329,33 @@ def render_top_bar(title: str, user: dict):
 
 
 def render_sidebar_user(user: dict):
-    """사이드바 하단: 유저 이름·센터·역할 배지"""
-    _rl_map = {"admin":"관리자","materials":"자재파트",
-               "manager":"센터장","user":"일반","guest":"게스트"}
-    _rl = _rl_map.get(user.get("role","guest"), user.get("role","guest"))
+    """사이드바 하단: 유저 카드 — Industrial Precision."""
+    _rl_map = {"admin":"ADMIN","materials":"MATERIALS",
+               "manager":"MANAGER","user":"USER","guest":"GUEST"}
+    _rl = _rl_map.get(user.get("role","guest"), user.get("role","guest").upper())
     _uc = user.get("assigned_center") or user.get("center","")
     _nm = user.get("name","")
-    st.divider()
+    _init = _nm[:1] if _nm else "U"
     st.markdown(f"""
-    <div style="padding:4px 4px 10px 4px;">
-        <div style="display:flex;align-items:center;gap:6px;">
-            <span style="color:#c8cdd8;font-size:13px;font-weight:600;">{_nm}</span>
-            <span class="wms-role-badge">{_rl}</span>
+    <div style="margin:8px 8px 12px 8px;padding:10px 12px;
+                background:#0d1526;border:1px solid rgba(255,255,255,0.07);
+                border-radius:4px;border-left:3px solid #e11d48;">
+        <div style="display:flex;align-items:center;gap:9px;">
+            <div style="width:30px;height:30px;border-radius:4px;flex-shrink:0;
+                        background:rgba(225,29,72,0.18);border:1px solid rgba(225,29,72,0.35);
+                        display:flex;align-items:center;justify-content:center;
+                        font-size:13px;font-weight:700;color:#e11d48;">{_init}</div>
+            <div style="min-width:0;">
+                <div style="color:#e2e8f0;font-size:12px;font-weight:600;
+                            white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{_nm}</div>
+                <div style="display:flex;align-items:center;gap:5px;margin-top:2px;">
+                    <span style="font-size:9px;font-weight:700;color:#e11d48;
+                                 letter-spacing:0.08em;font-family:'JetBrains Mono',monospace;">{_rl}</span>
+                    <span style="color:#334155;font-size:9px;">·</span>
+                    <span style="color:#475569;font-size:10px;
+                                 white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{_uc}</span>
+                </div>
+            </div>
         </div>
-        <div style="color:#6c757d;font-size:11px;margin-top:3px;">{_uc}</div>
     </div>
     """, unsafe_allow_html=True)
