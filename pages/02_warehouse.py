@@ -1180,7 +1180,6 @@ if CAN_MATERIAL_REQUEST and st.session_state.show_material_request:
                 "강남센터":    "버스",
                 "택시지원파트": "택시",
                 "AFC지원파트": "철도",
-                "리페어팀":    "수리",
             }
             _restrict_cat = _CENTER_CATEGORY_RESTRICT.get(selected_center)
             if _restrict_cat:
