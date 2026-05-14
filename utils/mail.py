@@ -62,6 +62,28 @@ def send_register_complete(to_email: str, name: str, center: str):
     _send_email(to_email, subject, body)
 
 
+def send_register_approved(to_email: str, name: str, center: str):
+    """관리자 승인 완료 시 신청자에게 발송."""
+    subject = "[에이텍모빌리티 자재관리] 회원가입이 승인되었습니다"
+    body = f"""
+    <p>안녕하세요, <b>{name}</b>님.</p>
+    <p>에이텍모빌리티 자재관리 시스템 회원가입이 <b style="color:#2e7d32;">승인</b>되었습니다.</p>
+    <table border="1" cellpadding="6" cellspacing="0"
+           style="border-collapse:collapse; margin:12px 0; font-size:14px;">
+      <tr style="background:#e8edf5; color:#1a237e;">
+        <th style="padding:6px 14px;">항목</th>
+        <th style="padding:6px 14px;">내용</th>
+      </tr>
+      <tr><td style="padding:5px 14px;">이름</td><td style="padding:5px 14px;"><b>{name}</b></td></tr>
+      <tr><td style="padding:5px 14px;">소속 센터</td><td style="padding:5px 14px;">{center or '미지정'}</td></tr>
+    </table>
+    <p>지금 바로 로그인하여 서비스를 이용하실 수 있습니다.</p>
+    <hr>
+    <p style="color:gray; font-size:12px;">에이텍모빌리티 자재관리 자동발송 메일입니다.</p>
+    """
+    _send_email(to_email, subject, body)
+
+
 def send_register_notify_admin(
     to_emails: list,
     name: str,

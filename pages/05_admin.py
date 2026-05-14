@@ -110,6 +110,15 @@ with tab_users:
                         if c4.button("✅ 승인", key=f"approve_user_{u['id']}",
                                      type="primary", use_container_width=True):
                             sb.table("users").update({"is_approved":True}).eq("id",u["id"]).execute()
+                            try:
+                                from utils.mail import send_register_approved
+                                send_register_approved(
+                                    u.get("email",""),
+                                    u["name"],
+                                    u.get("assigned_center","") or u.get("center",""),
+                                )
+                            except Exception:
+                                pass
                             st.success(f"{u['name']} 승인 완료!")
                             st.rerun()
                     # 계정 삭제
@@ -187,6 +196,15 @@ with tab_pending:
                             "role":assign_role,
                             "assigned_center":None if assign_center=="미지정" else assign_center,
                         }).eq("id",u["id"]).execute()
+                        try:
+                            from utils.mail import send_register_approved
+                            send_register_approved(
+                                u.get("email",""),
+                                u["name"],
+                                None if assign_center=="미지정" else assign_center,
+                            )
+                        except Exception:
+                            pass
                         st.success(f"✅ {u['name']} 승인 완료!")
                         st.rerun()
                 with a4:
