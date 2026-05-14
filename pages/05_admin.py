@@ -59,7 +59,10 @@ tab_users, tab_pending = st.tabs(["👥 전체 회원 목록","✅ 가입 승인
 
 with tab_users:
     st.subheader("전체 회원 목록")
-    res   = sb.table("users").select("*").order("created_at", desc=True).execute()
+    try:
+        res = sb.table("users").select("*").order("created_at", desc=True).execute()
+    except Exception:
+        res = sb.table("users").select("*").execute()
     users = res.data or []
     if not users:
         st.info("등록된 회원이 없습니다.")
@@ -93,12 +96,15 @@ with tab_users:
                         label_visibility="collapsed"
                     )
                     if c3.button("💾 저장", key=f"save_{u['id']}", use_container_width=True):
-                        sb.table("users").update({
-                            "role": new_role,
-                            "assigned_center": None if new_center=="미지정" else new_center,
-                        }).eq("id", u["id"]).execute()
-                        st.success(f"{u['name']} 변경 완료!")
-                        st.rerun()
+                        try:
+                            sb.table("users").update({
+                                "role": new_role,
+                                "assigned_center": None if new_center=="미지정" else new_center,
+                            }).eq("id", u["id"]).execute()
+                            st.success(f"{u['name']} 변경 완료!")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"저장 실패: {e}")
                 is_approved = u.get("is_approved",False)
                 c4.write("✅ 승인됨" if is_approved else "⏳ 미승인")
                 if u["id"] != user["id"]:
@@ -160,7 +166,10 @@ with tab_users:
 with tab_pending:
     st.subheader("승인 대기 중인 회원")
     st.caption("권한과 소속 센터를 지정한 후 승인하세요.")
-    res     = sb.table("users").select("*").eq("is_approved",False).order("created_at").execute()
+    try:
+        res = sb.table("users").select("*").eq("is_approved",False).order("created_at").execute()
+    except Exception:
+        res = sb.table("users").select("*").eq("is_approved",False).execute()
     pending = res.data or []
     if not pending:
         st.success("승인 대기 중인 회원이 없습니다.")
