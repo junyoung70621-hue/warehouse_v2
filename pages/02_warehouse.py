@@ -1173,17 +1173,25 @@ if CAN_MATERIAL_REQUEST and st.session_state.show_material_request:
         else:
             hub_df = pd.DataFrame(hub_items)
 
-            _BUS_ONLY_CENTERS = {"강서센터", "강북센터", "강동센터", "강남센터"}
-            if selected_center in _BUS_ONLY_CENTERS:
+            _CENTER_CATEGORY_RESTRICT = {
+                "강서센터":    "버스",
+                "강북센터":    "버스",
+                "강동센터":    "버스",
+                "강남센터":    "버스",
+                "택시지원파트": "택시",
+                "AFC지원파트": "철도",
+                "리페어팀":    "수리",
+            }
+            _restrict_cat = _CENTER_CATEGORY_RESTRICT.get(selected_center)
+            if _restrict_cat:
                 if "category_large" in hub_df.columns:
-                    hub_df = hub_df[hub_df["category_large"] == "버스"]
-                st.info("ℹ️ 해당 센터는 **버스 자재**만 요청 가능합니다.")
+                    hub_df = hub_df[hub_df["category_large"] == _restrict_cat]
+                st.info(f"ℹ️ 해당 센터는 **{_restrict_cat} 자재**만 요청 가능합니다.")
 
             # 검색 필터
-            _is_bus_restricted = selected_center in _BUS_ONLY_CENTERS
             _req_placeholder = (
-                "버스 자재명 / 중분류 / ERP코드 검색..."
-                if _is_bus_restricted
+                f"{_restrict_cat} 자재명 / 중분류 / ERP코드 검색..."
+                if _restrict_cat
                 else "자재명 / 대분류 / 중분류 / ERP코드..."
             )
             req_search = st.text_input(
@@ -1192,11 +1200,11 @@ if CAN_MATERIAL_REQUEST and st.session_state.show_material_request:
             )
             filtered_hub = hub_df.copy()
             if req_search.strip():
-                if _is_bus_restricted:
+                if _restrict_cat:
                     mask = (
-                        filtered_hub.get("item_name", pd.Series(dtype=str)).str.contains(req_search, case=False, na=False) |
+                        filtered_hub.get("item_name",    pd.Series(dtype=str)).str.contains(req_search, case=False, na=False) |
                         filtered_hub.get("category_mid", pd.Series(dtype=str)).str.contains(req_search, case=False, na=False) |
-                        filtered_hub.get("erp_code",  pd.Series(dtype=str)).str.contains(req_search, case=False, na=False)
+                        filtered_hub.get("erp_code",     pd.Series(dtype=str)).str.contains(req_search, case=False, na=False)
                     )
                 else:
                     mask = (
