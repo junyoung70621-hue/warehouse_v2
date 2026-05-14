@@ -7,7 +7,7 @@ from utils.auth import require_login, is_role
 from utils.db import get_supabase, fetch_purchase_requests, clear_purchase_request_cache
 from utils.permissions import get_viewable_centers, get_center as _get_center
 from utils.routing import CENTERS
-from utils.ui import apply_global_css, render_sidebar_header, render_sidebar_user, render_top_bar
+from utils.ui import apply_global_css, render_sidebar_header, render_sidebar_section, render_sidebar_user, render_top_bar
 from utils.mail import send_purchase_request, send_purchase_request_reply
 
 st.set_page_config(
@@ -38,7 +38,8 @@ with st.sidebar:
     if st.session_state.get("sidebar_center") not in viewable:
         st.session_state.pop("sidebar_center", None)
     st.selectbox("센터", viewable, label_visibility="collapsed", key="sidebar_center")
-    st.divider()
+
+    render_sidebar_section("재고 관리")
     if st.button("📦 재고 현황", use_container_width=True):
         st.switch_page("pages/02_warehouse.py")
     if st.button("🚚 이동 신청 현황", use_container_width=True):
@@ -48,17 +49,21 @@ with st.sidebar:
     if not is_role("guest"):
         if st.button("📊 사용내역", use_container_width=True):
             st.switch_page("pages/08_usage_history.py")
+
     if not is_role("guest"):
-        if st.button("📦 자재 요청", use_container_width=True):
+        render_sidebar_section("요청")
+        if st.button("📦 자재 요청", use_container_width=True, key="sidebar_mat_req"):
             st.switch_page("pages/07_material_requests.py")
-    if not is_role("guest"):
         st.button("🛒 구매 요청", use_container_width=True, type="primary")
+
     if is_role("admin", "materials"):
+        render_sidebar_section("관리")
         if st.button("📍 위치 지도", use_container_width=True):
             st.switch_page("pages/09_rack_map.py")
     if is_role("admin"):
         if st.button("⚙️ 관리자", use_container_width=True):
             st.switch_page("pages/05_admin.py")
+
     st.divider()
     if st.button("👤 마이페이지", use_container_width=True):
         st.switch_page("pages/06_mypage.py")

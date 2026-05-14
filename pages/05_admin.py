@@ -1,9 +1,9 @@
 ﻿# pages/05_admin.py
 import streamlit as st
-from utils.auth import require_role
+from utils.auth import require_role, is_role
 from utils.db import get_supabase
 from utils.routing import CENTERS
-from utils.ui import apply_global_css, render_sidebar_header, render_sidebar_user, render_top_bar
+from utils.ui import apply_global_css, render_sidebar_header, render_sidebar_section, render_sidebar_user, render_top_bar
 
 st.set_page_config(
     page_title="에이텍모빌리티 자재관리",
@@ -24,6 +24,8 @@ with st.sidebar:
     if st.button("📊 대시보드", use_container_width=True):
         st.switch_page("pages/10_dashboard.py")
     st.divider()
+
+    render_sidebar_section("재고 관리")
     if st.button("📦 재고 현황", use_container_width=True):
         st.switch_page("pages/02_warehouse.py")
     if st.button("🚚 이동 신청 현황", use_container_width=True):
@@ -32,11 +34,18 @@ with st.sidebar:
         st.switch_page("pages/04_history.py")
     if st.button("📊 사용내역", use_container_width=True):
         st.switch_page("pages/08_usage_history.py")
-    if st.button("📦 자재 요청", use_container_width=True):
+
+    render_sidebar_section("요청")
+    if st.button("📦 자재 요청", use_container_width=True, key="sidebar_mat_req"):
         st.switch_page("pages/07_material_requests.py")
-    if st.button("🛒 구매 요청", use_container_width=True):
+    if st.button("🛒 구매 요청", use_container_width=True, key="sidebar_pur_req"):
         st.switch_page("pages/11_purchase_requests.py")
+
+    render_sidebar_section("관리")
+    if st.button("📍 위치 지도", use_container_width=True):
+        st.switch_page("pages/09_rack_map.py")
     st.button("⚙️ 관리자", use_container_width=True, type="primary")
+
     st.divider()
     if st.button("👤 마이페이지", use_container_width=True):
         st.switch_page("pages/06_mypage.py")
