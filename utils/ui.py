@@ -234,22 +234,10 @@ def render_top_bar(title: str, user: dict):
     st.markdown("""
     <style>
     header[data-testid="stHeader"]   { visibility:hidden!important; }
-    section[data-testid="stSidebar"] { top:58px!important; height:calc(100vh - 58px)!important; }
+    section[data-testid="stSidebar"] { top:58px!important; height:calc(100vh - 58px)!important; transition:width 0.2s ease,min-width 0.2s ease!important; }
     .main .block-container           { padding-top:0.8rem!important; padding-bottom:3rem!important; max-width:100%!important; overflow:visible!important; }
     html, body                       { overflow-y:auto!important; min-height:100vh!important; }
     [data-testid="stAppViewContainer"] { overflow-y:auto!important; }
-
-    /* ── 사이드바 토글 CSS ── */
-    section[data-testid="stSidebar"] {
-        transition: width 0.2s ease, min-width 0.2s ease !important;
-    }
-    body.wms-sb-closed section[data-testid="stSidebar"] {
-        width: 0 !important;
-        min-width: 0 !important;
-        overflow: hidden !important;
-    }
-    body.wms-sb-closed [data-testid="stTopbar"],
-    body.wms-sb-closed .wms-topbar-logo { display:none!important; }
     </style>
     <script>
     (function(){
@@ -279,17 +267,38 @@ def render_top_bar(title: str, user: dict):
         zapSidebar();
         [200,600,1500].forEach(function(t){setTimeout(zapSidebar,t);});
 
-        /* ── 사이드바 토글 (≡ 클릭) — body 클래스 방식 ── */
-        function doToggle(){
-            document.body.classList.toggle('wms-sb-closed');
+        /* ── 사이드바 토글 — localStorage + 인라인 style !important 방식 ── */
+        var SB_KEY = 'wms_sb_open';
+
+        function applyState(){
+            var sb = document.querySelector('section[data-testid="stSidebar"]');
+            if(!sb) return;
+            if(localStorage.getItem(SB_KEY) === '0'){
+                sb.style.setProperty('width','0px','important');
+                sb.style.setProperty('min-width','0px','important');
+                sb.style.setProperty('overflow','hidden','important');
+            } else {
+                sb.style.removeProperty('width');
+                sb.style.removeProperty('min-width');
+                sb.style.removeProperty('overflow');
+            }
         }
+
+        function doToggle(){
+            var isOpen = localStorage.getItem(SB_KEY) !== '0';
+            localStorage.setItem(SB_KEY, isOpen ? '0' : '1');
+            applyState();
+        }
+
         function bindToggle(){
             document.querySelectorAll('[data-wms-menu]').forEach(function(el){
                 if(el._wmsBound) return;
-                el._wmsBound=true;
+                el._wmsBound = true;
                 el.addEventListener('click', doToggle);
             });
+            applyState();
         }
+
         bindToggle();
         [200,600,1500].forEach(function(t){setTimeout(bindToggle,t);});
     })();
