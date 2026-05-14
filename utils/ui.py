@@ -32,6 +32,7 @@ def apply_global_css():
         margin: 0 !important;
     }
     button[data-testid="baseButton-headerNoPadding"] { display: none !important; }
+    header[data-testid="stHeader"] { visibility:hidden !important; }
 
     /* ── 1. 페이지 전환 오버레이 (별도 div로 처리) ── */
 
