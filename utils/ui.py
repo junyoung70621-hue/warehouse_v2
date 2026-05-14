@@ -216,6 +216,16 @@ def render_sidebar_header():
     pass
 
 
+def render_sidebar_section(label: str):
+    """SNB 섹션 구분 레이블."""
+    st.markdown(
+        f"<div style='color:#6c757d;font-size:10px;font-weight:700;"
+        f"letter-spacing:1.5px;text-transform:uppercase;"
+        f"padding:12px 12px 3px 14px;margin-top:4px;'>{label}</div>",
+        unsafe_allow_html=True
+    )
+
+
 def render_top_bar(title: str, user: dict):
     """공통 고정 상단바: ATEC 로고 | 페이지 제목 | 유저 정보/날짜.
     상단바 위치 CSS(header 숨김, sidebar top 58px, 본문 패딩)도 함께 주입."""
