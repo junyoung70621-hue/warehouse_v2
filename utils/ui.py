@@ -33,6 +33,8 @@ def apply_global_css():
     }
     button[data-testid="baseButton-headerNoPadding"] { display: none !important; }
     header[data-testid="stHeader"] { visibility:hidden !important; }
+    [data-testid="stSidebarCollapseButton"],
+    [data-testid="collapsedControl"] { display:none !important; }
     footer, [data-testid="stFooter"] { display:none !important; }
     #MainMenu { display:none !important; }
     [data-testid="stToolbar"] { display:none !important; }
