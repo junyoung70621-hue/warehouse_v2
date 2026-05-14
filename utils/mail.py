@@ -62,6 +62,39 @@ def send_register_complete(to_email: str, name: str, center: str):
     _send_email(to_email, subject, body)
 
 
+def send_register_notify_admin(
+    to_emails: list,
+    name: str,
+    username: str,
+    email: str,
+    center: str,
+):
+    """회원가입 신청 시 관리자에게 발송."""
+    subject = f"[에이텍모빌리티 자재관리] 새 회원가입 신청 — {name} ({center})"
+    body = f"""
+    <p>안녕하세요.</p>
+    <p>새로운 회원가입 신청이 접수되었습니다. WMS 시스템에서 승인 처리해 주세요.</p>
+    <table border="1" cellpadding="6" cellspacing="0"
+           style="border-collapse:collapse; margin:12px 0; font-size:14px;">
+      <tr style="background:#e8edf5; color:#1a237e;">
+        <th style="padding:6px 14px;">항목</th>
+        <th style="padding:6px 14px;">내용</th>
+      </tr>
+      <tr><td style="padding:5px 14px;">이름</td><td style="padding:5px 14px;"><b>{name}</b></td></tr>
+      <tr><td style="padding:5px 14px;">아이디</td><td style="padding:5px 14px;">{username}</td></tr>
+      <tr><td style="padding:5px 14px;">이메일</td><td style="padding:5px 14px;">{email}</td></tr>
+      <tr><td style="padding:5px 14px;">소속 센터</td><td style="padding:5px 14px;">{center}</td></tr>
+    </table>
+    <hr>
+    <p style="color:gray; font-size:12px;">에이텍모빌리티 자재관리 자동발송 메일입니다.</p>
+    """
+    for to in to_emails:
+        try:
+            _send_email(to, subject, body)
+        except Exception:
+            pass
+
+
 def send_material_request(
     to_emails: list,
     from_center: str,

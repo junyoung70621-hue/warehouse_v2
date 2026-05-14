@@ -54,8 +54,16 @@ def register(
         }).execute()
         st.success("회원가입 완료! 관리자 승인 후 로그인하세요.")
         try:
-            from utils.mail import send_register_complete
+            from utils.mail import send_register_complete, send_register_notify_admin
             send_register_complete(email, name, center)
+            admin_emails = [
+                u["email"]
+                for u in (sb.table("users").select("email")
+                            .eq("role", "admin").eq("is_approved", True).execute().data or [])
+                if u.get("email")
+            ]
+            if admin_emails:
+                send_register_notify_admin(admin_emails, name, username, email, center)
         except Exception:
             pass
         return True
