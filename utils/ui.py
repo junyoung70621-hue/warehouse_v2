@@ -31,14 +31,9 @@ def apply_global_css():
         padding: 0 !important;
         margin: 0 !important;
     }
-    /* ≡ 위에 투명 오버레이로 사이드바 열기/닫기 버튼 배치 */
+    /* 사이드바 접기/펼치기 버튼 — JS 클릭용으로 DOM에 유지, 시각적으로만 숨김 */
     [data-testid="stSidebarCollapseButton"],
-    [data-testid="collapsedControl"] {
-        position:fixed !important; top:0 !important; left:220px !important;
-        width:80px !important; height:58px !important;
-        z-index:9999 !important; opacity:0 !important; cursor:pointer !important;
-        background:transparent !important; border:none !important;
-    }
+    [data-testid="collapsedControl"] { visibility:hidden !important; }
     button[data-testid="baseButton-headerNoPadding"] { display: none !important; }
 
     /* ── 1. 페이지 전환 오버레이 (별도 div로 처리) ── */
@@ -247,12 +242,10 @@ def render_top_bar(title: str, user: dict):
     <script>
     (function(){
         function zapSidebar(){
-            /* 사이드바 헤더(stSidebarHeader) 완전 제거 */
             var hdr=document.querySelector('[data-testid="stSidebarHeader"]');
             if(hdr){ hdr.style.setProperty('display','none','important'); }
             var nav=document.querySelector('[data-testid="stSidebarNav"]');
             if(nav){ nav.style.setProperty('display','none','important'); }
-            /* 패딩/마진 제거 */
             var sels=[
                 'section[data-testid="stSidebar"] > div',
                 'section[data-testid="stSidebar"] > div > div',
@@ -272,9 +265,25 @@ def render_top_bar(title: str, user: dict):
             });
         }
         zapSidebar();
-        setTimeout(zapSidebar,200);
-        setTimeout(zapSidebar,600);
-        setTimeout(zapSidebar,1500);
+        [200,600,1500].forEach(function(t){setTimeout(zapSidebar,t);});
+
+        /* ── 사이드바 토글 (≡ 클릭) ── */
+        function doToggle(){
+            var btn=document.querySelector('[data-testid="stSidebarCollapseButton"] button')||
+                    document.querySelector('[data-testid="stSidebarCollapseButton"]')||
+                    document.querySelector('[data-testid="collapsedControl"] button')||
+                    document.querySelector('[data-testid="collapsedControl"]');
+            if(btn) btn.click();
+        }
+        function bindToggle(){
+            document.querySelectorAll('[data-wms-menu]').forEach(function(el){
+                if(el._wmsBound) return;
+                el._wmsBound=true;
+                el.addEventListener('click', doToggle);
+            });
+        }
+        bindToggle();
+        [200,600,1500].forEach(function(t){setTimeout(bindToggle,t);});
     })();
     </script>
     """, unsafe_allow_html=True)
@@ -291,7 +300,8 @@ def render_top_bar(title: str, user: dict):
         <div style="flex:1;background:#ffffff;display:flex;align-items:center;
                     justify-content:space-between;padding:0 24px;
                     border-bottom:1px solid #e0e5ee;">
-            <span style="font-family:'Noto Sans KR',sans-serif;font-size:16px;
+            <span data-wms-menu="1"
+                  style="font-family:'Noto Sans KR',sans-serif;font-size:16px;
                          font-weight:700;color:#1a2035;cursor:pointer;user-select:none;"
                   title="사이드바 열기/닫기">
                 ≡&nbsp; {title}
