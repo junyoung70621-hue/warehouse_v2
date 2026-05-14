@@ -53,6 +53,11 @@ def register(
             "is_approved":   False
         }).execute()
         st.success("회원가입 완료! 관리자 승인 후 로그인하세요.")
+        try:
+            from utils.mail import send_register_complete
+            send_register_complete(email, name, center)
+        except Exception:
+            pass
         return True
     except Exception as e:
         st.error(f"회원가입 오류: {e}")

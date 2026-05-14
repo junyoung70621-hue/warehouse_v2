@@ -39,6 +39,29 @@ def send_temp_password(to_email: str, name: str, temp_pw: str):
     _send_email(to_email, subject, body)
 
 
+def send_register_complete(to_email: str, name: str, center: str):
+    """회원가입 완료 시 신청자에게 발송."""
+    subject = "[에이텍모빌리티 자재관리] 회원가입 신청이 완료되었습니다"
+    body = f"""
+    <p>안녕하세요, <b>{name}</b>님.</p>
+    <p>에이텍모빌리티 자재관리 시스템에 회원가입 신청이 정상적으로 접수되었습니다.</p>
+    <table border="1" cellpadding="6" cellspacing="0"
+           style="border-collapse:collapse; margin:12px 0; font-size:14px;">
+      <tr style="background:#e8edf5; color:#1a237e;">
+        <th style="padding:6px 14px;">항목</th>
+        <th style="padding:6px 14px;">내용</th>
+      </tr>
+      <tr><td style="padding:5px 14px;">이름</td><td style="padding:5px 14px;"><b>{name}</b></td></tr>
+      <tr><td style="padding:5px 14px;">소속 센터</td><td style="padding:5px 14px;">{center}</td></tr>
+      <tr><td style="padding:5px 14px;">상태</td><td style="padding:5px 14px; color:#e65100;"><b>관리자 승인 대기 중</b></td></tr>
+    </table>
+    <p>관리자 승인 후 로그인이 가능합니다. 승인까지 잠시 기다려 주세요.</p>
+    <hr>
+    <p style="color:gray; font-size:12px;">에이텍모빌리티 자재관리 자동발송 메일입니다.</p>
+    """
+    _send_email(to_email, subject, body)
+
+
 def send_material_request(
     to_emails: list,
     from_center: str,
