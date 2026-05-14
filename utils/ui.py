@@ -273,20 +273,20 @@ def render_top_bar(title: str, user: dict):
         zapSidebar();
         [200,600,1500].forEach(function(t){setTimeout(zapSidebar,t);});
 
-        /* ── 사이드바 토글 — localStorage + 인라인 style !important 방식 ── */
-        var SB_KEY = 'wms_sb_open';
+        /* ── 사이드바 토글 — window 변수 방식
+           페이지 로드 시 항상 열림, Streamlit 재렌더링에서는 상태 유지 ── */
+        if(typeof window._wmsSbOpen === 'undefined') window._wmsSbOpen = true;
 
         function applyState(){
             var sb = document.querySelector('section[data-testid="stSidebar"]');
             if(!sb) return;
-            /* 작은 화면(<768px)에서는 Streamlit 반응형에 맡기고 강제 적용 안 함 */
             if(window.innerWidth < 768){
                 sb.style.removeProperty('width');
                 sb.style.removeProperty('min-width');
                 sb.style.removeProperty('overflow');
                 return;
             }
-            if(localStorage.getItem(SB_KEY) === '0'){
+            if(!window._wmsSbOpen){
                 sb.style.setProperty('width','0px','important');
                 sb.style.setProperty('min-width','0px','important');
                 sb.style.setProperty('overflow','hidden','important');
@@ -298,8 +298,7 @@ def render_top_bar(title: str, user: dict):
         }
 
         function doToggle(){
-            var isOpen = localStorage.getItem(SB_KEY) !== '0';
-            localStorage.setItem(SB_KEY, isOpen ? '0' : '1');
+            window._wmsSbOpen = !window._wmsSbOpen;
             applyState();
         }
 
