@@ -7,7 +7,7 @@ from utils.permissions import get_center as _get_center, get_viewable_centers
 
 st.set_page_config(
     page_title="에이텍모빌리티 자재관리",
-    page_icon="📍",
+    page_icon="favicon_32.png",
     layout="wide",
     initial_sidebar_state="expanded",
 )

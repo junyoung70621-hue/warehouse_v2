@@ -18,7 +18,7 @@ _LOGIN_LOGO = _logo_b64("logo.png")
 
 st.set_page_config(
     page_title="에이텍모빌리티 자재관리",
-    page_icon="🔐",
+    page_icon="favicon_32.png",
     layout="centered"
 )
 
