@@ -162,7 +162,7 @@ with tab_new:
         key="pr_items_editor",
         hide_index=True,
     )
-    reason = st.text_area("구매사유", placeholder="구매가 필요한 이유를 입력해 주세요.", key="pr_reason")
+    reason = st.text_area("구매사유", placeholder="품의서에 들어갈 구매사유 문구를 입력해주세요.", key="pr_reason")
 
     _mask = df_edit["품명"].notna() & (df_edit["품명"].astype(str).str.strip() != "")
     _df_valid = df_edit[_mask].copy()
