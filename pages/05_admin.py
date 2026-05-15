@@ -47,6 +47,8 @@ with st.sidebar:
     st.button("⚙️ 관리자", use_container_width=True, type="primary")
 
     st.divider()
+    if st.button("💬 문의하기", use_container_width=True):
+        st.switch_page("pages/12_inquiry.py")
     if st.button("👤 마이페이지", use_container_width=True):
         st.switch_page("pages/06_mypage.py")
     if st.button("🚪 로그아웃", use_container_width=True):

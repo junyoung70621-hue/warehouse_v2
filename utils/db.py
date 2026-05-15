@@ -358,6 +358,58 @@ def clear_usage_history_cache():
 
 
 # ══════════════════════════════════════════════════════════════════════════
+# 문의하기 (inquiries)
+# ══════════════════════════════════════════════════════════════════════════
+
+@st.cache_data(ttl=30)
+def fetch_inquiries(requester_id: str = None) -> list:
+    def _q(sb):
+        q = sb.table("inquiries").select("*").order("created_at", desc=True)
+        if requester_id:
+            q = q.eq("requester_id", requester_id)
+        return q.execute().data or []
+    return _query_with_retry(_q)
+
+
+def submit_inquiry(requester_id: str, requester_name: str, requester_email: str,
+                   from_center: str, title: str, content: str) -> bool:
+    try:
+        get_supabase().table("inquiries").insert({
+            "requester_id":    requester_id,
+            "requester_name":  requester_name,
+            "requester_email": requester_email,
+            "from_center":     from_center,
+            "title":           title,
+            "content":         content,
+            "status":          "pending",
+        }).execute()
+        clear_inquiry_cache()
+        return True
+    except Exception as e:
+        st.error(f"문의 등록 오류: {e}")
+        return False
+
+
+def answer_inquiry(inquiry_id: str, reply: str, answered_by_name: str) -> bool:
+    try:
+        get_supabase().table("inquiries").update({
+            "reply":            reply,
+            "status":           "answered",
+            "answered_at":      "now()",
+            "answered_by_name": answered_by_name,
+        }).eq("id", inquiry_id).execute()
+        clear_inquiry_cache()
+        return True
+    except Exception as e:
+        st.error(f"답변 등록 오류: {e}")
+        return False
+
+
+def clear_inquiry_cache():
+    fetch_inquiries.clear()
+
+
+# ══════════════════════════════════════════════════════════════════════════
 # 구매 요청 (purchase_requests)
 # ══════════════════════════════════════════════════════════════════════════
 

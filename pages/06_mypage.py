@@ -70,6 +70,8 @@ with st.sidebar:
             st.switch_page("pages/05_admin.py")
 
     st.divider()
+    if st.button("💬 문의하기", use_container_width=True):
+        st.switch_page("pages/12_inquiry.py")
     st.button("👤 마이페이지", use_container_width=True, type="primary")
     if st.button("🚪 로그아웃", use_container_width=True):
         st.session_state.user = None

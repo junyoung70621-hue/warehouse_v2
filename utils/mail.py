@@ -446,6 +446,42 @@ def send_purchase_request_reply(
         pass
 
 
+def send_inquiry_to_admin(
+    to_emails: list,
+    requester_name: str,
+    from_center: str,
+    title: str,
+    content: str,
+):
+    """문의하기 접수 시 관리자에게 발송."""
+    subject = f"[에이텍모빌리티 자재관리] 문의 접수 — {requester_name} ({from_center})"
+    body = f"""
+    <p>안녕하세요.</p>
+    <p><b>{requester_name}</b> ({from_center})님으로부터 문의가 접수되었습니다.</p>
+    <table border="1" cellpadding="6" cellspacing="0"
+           style="border-collapse:collapse; margin:12px 0; font-size:14px;">
+      <tr style="background:#e8edf5; color:#1a237e;">
+        <th style="padding:6px 14px;">항목</th>
+        <th style="padding:6px 14px;">내용</th>
+      </tr>
+      <tr><td style="padding:5px 14px;">작성자</td><td style="padding:5px 14px;"><b>{requester_name}</b></td></tr>
+      <tr><td style="padding:5px 14px;">소속</td><td style="padding:5px 14px;">{from_center}</td></tr>
+      <tr><td style="padding:5px 14px;">제목</td><td style="padding:5px 14px;"><b>{title}</b></td></tr>
+    </table>
+    <p><b>문의 내용:</b></p>
+    <p style="background:#f5f5f5; padding:10px 14px;
+              border-left:4px solid #e11d48; font-size:14px; white-space:pre-wrap;">{content}</p>
+    <p>WMS 시스템 문의하기 페이지에서 답변해 주세요.</p>
+    <hr>
+    <p style="color:gray; font-size:12px;">에이텍모빌리티 자재관리 자동발송 메일입니다.</p>
+    """
+    for email in to_emails:
+        try:
+            _send_email(email, subject, body)
+        except Exception:
+            pass
+
+
 def send_transfer_request(to_email: str, item_name: str,
                            from_center: str, to_center: str, qty: int):
     subject = "[에이텍모빌리티 자재관리] 자재 이동 신청 알림"
