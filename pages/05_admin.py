@@ -45,6 +45,8 @@ with st.sidebar:
     if st.button("📍 위치 지도", use_container_width=True):
         st.switch_page("pages/09_rack_map.py")
     st.button("⚙️ 관리자", use_container_width=True, type="primary")
+    if st.button("🟢 접속 현황", use_container_width=True):
+        st.switch_page("pages/13_online_users.py")
 
     st.divider()
     if st.button("💬 문의하기", use_container_width=True):
@@ -219,6 +221,46 @@ def render_user_list(users_list, tab_key):
     )
 
 
+# ── 회원 현황 요약 카드 ───────────────────────────────────────────────────
+try:
+    _all   = sb.table("users").select("id, role, is_approved").execute().data or []
+    _appr  = [u for u in _all if u.get("is_approved")]
+    _pend  = [u for u in _all if not u.get("is_approved")]
+    _roles = {}
+    for u in _appr:
+        r = ROLE_LABELS.get(u.get("role","guest"), u.get("role","guest"))
+        _roles[r] = _roles.get(r, 0) + 1
+
+    _c1, _c2, _c3, _c4 = st.columns(4)
+    _card = (
+        "background:#0d1526;border:1px solid rgba(255,255,255,0.07);"
+        "border-radius:6px;padding:14px 18px;border-left:3px solid {color};"
+    )
+    _c1.markdown(
+        f"<div style='{_card.format(color='#e11d48')}'>"
+        f"<div style='font-size:11px;color:#475569;letter-spacing:0.1em;'>전체 회원</div>"
+        f"<div style='font-size:28px;font-weight:700;color:#e2e8f0;margin-top:4px;'>{len(_all)}</div>"
+        f"</div>", unsafe_allow_html=True)
+    _c2.markdown(
+        f"<div style='{_card.format(color='#22d3ee')}'>"
+        f"<div style='font-size:11px;color:#475569;letter-spacing:0.1em;'>승인된 회원</div>"
+        f"<div style='font-size:28px;font-weight:700;color:#22d3ee;margin-top:4px;'>{len(_appr)}</div>"
+        f"</div>", unsafe_allow_html=True)
+    _c3.markdown(
+        f"<div style='{_card.format(color='#f59e0b')}'>"
+        f"<div style='font-size:11px;color:#475569;letter-spacing:0.1em;'>승인 대기</div>"
+        f"<div style='font-size:28px;font-weight:700;color:#f59e0b;margin-top:4px;'>{len(_pend)}</div>"
+        f"</div>", unsafe_allow_html=True)
+    _role_str = "  ·  ".join(f"{k} {v}" for k, v in _roles.items())
+    _c4.markdown(
+        f"<div style='{_card.format(color='#475569')}'>"
+        f"<div style='font-size:11px;color:#475569;letter-spacing:0.1em;'>권한 분포</div>"
+        f"<div style='font-size:11px;color:#94a3b8;margin-top:8px;line-height:1.8;'>{_role_str or '-'}</div>"
+        f"</div>", unsafe_allow_html=True)
+except Exception:
+    pass
+
+st.divider()
 tab_search, tab_users, tab_pending = st.tabs(["🔍 회원 검색", "👥 전체 회원 목록", "✅ 가입 승인 대기"])
 
 with tab_search:

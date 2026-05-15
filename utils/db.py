@@ -358,6 +358,30 @@ def clear_usage_history_cache():
 
 
 # ══════════════════════════════════════════════════════════════════════════
+# 접속 현황 (last_seen)
+# ══════════════════════════════════════════════════════════════════════════
+
+def update_last_seen(user_id: str):
+    """현재 사용자의 last_seen_at 갱신 — 페이지 로드마다 호출."""
+    try:
+        get_supabase().table("users").update(
+            {"last_seen_at": "now()"}
+        ).eq("id", user_id).execute()
+    except Exception:
+        pass
+
+
+def fetch_users_online_status() -> list:
+    """전체 승인된 사용자 목록 + last_seen_at 반환 (캐시 없음 — 항상 최신)."""
+    try:
+        return get_supabase().table("users").select(
+            "id, name, role, center, assigned_center, last_seen_at"
+        ).eq("is_approved", True).order("last_seen_at", desc=True, nullsfirst=False).execute().data or []
+    except Exception:
+        return []
+
+
+# ══════════════════════════════════════════════════════════════════════════
 # 문의하기 (inquiries)
 # ══════════════════════════════════════════════════════════════════════════
 

@@ -305,14 +305,53 @@ def apply_global_css():
     [data-testid="stMetricLabel"]         { font-size:11px !important; color:#475569 !important; }
     [data-testid="stVerticalBlockBorderWrapper"] { margin-bottom:4px !important; }
 
-    /* ── 9. 역할 배지 ── */
+    /* ── 9. 메인 버튼 — 사이드바 스타일 통일 ── */
+    .main button {
+        background: transparent !important;
+        border: 1px solid rgba(255,255,255,0.15) !important;
+        color: #e2e8f0 !important;
+        font-weight: 500 !important;
+        box-shadow: none !important;
+        transition: background 0.15s, border-color 0.15s !important;
+    }
+    .main button:hover {
+        background: rgba(255,255,255,0.06) !important;
+        border-color: rgba(225,29,72,0.5) !important;
+        color: #fff !important;
+    }
+    .main button p, .main button span, .main button div {
+        color: inherit !important;
+        font-weight: inherit !important;
+        font-size: inherit !important;
+    }
+    .main button[kind="primary"] {
+        background: rgba(225,29,72,0.2) !important;
+        border-color: rgba(225,29,72,0.5) !important;
+        color: #fff !important;
+        font-weight: 600 !important;
+    }
+    .main button[kind="primary"]:hover {
+        background: rgba(225,29,72,0.3) !important;
+        border-color: rgba(225,29,72,0.75) !important;
+    }
+    .main [data-testid="stDownloadButton"] button {
+        background: transparent !important;
+        border: 1px solid rgba(255,255,255,0.15) !important;
+        color: #e2e8f0 !important;
+    }
+    .main [data-testid="stDownloadButton"] button:hover {
+        background: rgba(255,255,255,0.06) !important;
+        border-color: rgba(225,29,72,0.5) !important;
+    }
+
+    /* ── 10. 역할 배지 ── */
     .wms-role-badge {
         background:#e11d48 !important; color:#fff !important;
         font-size:10px !important; font-weight:600 !important;
         padding:2px 7px !important; border-radius:10px !important; display:inline-block;
     }
 
-    /* ── 10. 애니메이션 ── */
+    /* ── 11. 애니메이션 ── */
     @keyframes wms-fadein { from { opacity:0; } to { opacity:1; } }
     @keyframes wms-pulse  {
         0%,100% { opacity:1; box-shadow:0 0 4px #22d3ee; }

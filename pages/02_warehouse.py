@@ -593,6 +593,8 @@ with st.sidebar:
     if is_role("admin"):
         if st.button("⚙️ 관리자", use_container_width=True):
             st.switch_page("pages/05_admin.py")
+        if st.button("🟢 접속 현황", use_container_width=True):
+            st.switch_page("pages/13_online_users.py")
 
     st.divider()
     if st.button("💬 문의하기", use_container_width=True):

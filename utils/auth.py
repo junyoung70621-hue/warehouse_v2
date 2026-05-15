@@ -104,6 +104,12 @@ def require_login():
         if not st.session_state.get("user"):
             st.switch_page("pages/01_login.py")
             st.stop()
+        else:
+            try:
+                from utils.db import update_last_seen
+                update_last_seen(st.session_state.user["id"])
+            except Exception:
+                pass
     except Exception:
         st.switch_page("pages/01_login.py")
         st.stop()
