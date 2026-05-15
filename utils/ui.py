@@ -238,7 +238,9 @@ def apply_global_css():
     section[data-testid="stSidebar"] button[kind="primary"] p,
     section[data-testid="stSidebar"] button[kind="primary"] span {
         background:rgba(225,29,72,0.13) !important; color:#fff !important;
-        font-weight:700 !important; border-left:3px solid #e11d48 !important;
+        font-weight:700 !important;
+        border-left:3px solid transparent !important;
+        outline:none !important; box-shadow:none !important;
     }
 
     /* ── 5. 스크롤 ── */
