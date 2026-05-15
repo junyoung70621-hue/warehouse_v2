@@ -82,12 +82,15 @@ def classify_terminal(raw) -> tuple[str, str]:
 
     n = len(digits)
 
-    # ── 9자리 (더 긴 prefix가 먼저 오도록) ──
+    # ── 승하차·운전자 계열 (8~9자리) ──
+    if n in (8, 9):
+        if digits.startswith("1560"):  return "B800", "승하차"
+        if digits.startswith("1553"):  return "B710", "승하차"
+        if digits.startswith("1551"):  return "B620", "승하차"
+        if digits.startswith("1451"):  return "B620", "운전자"
+
+    # ── 표출기·통합단말기 계열 (9자리) ──
     if n == 9:
-        if digits.startswith("15600"): return "B800", "승하차"
-        if digits.startswith("15530"): return "B710", "승하차"
-        if digits.startswith("15510"): return "B620", "승하차"
-        if digits.startswith("14510"): return "B620", "운전자"
         if digits.startswith("5600"):  return "B800", "표출기"
         if digits.startswith("5500"):  return "B800", "통합단말기"
         if digits.startswith("4550"):  return "B710", "표출기"
