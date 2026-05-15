@@ -284,6 +284,17 @@ def gen_handover_xlsx(rows: list, from_c: str, to_c: str, mv_date: date) -> byte
             for ci, val in enumerate([idx, row.device_type, row.sub_type, row.cnt], 1):
                 c = ws.cell(r, ci, val); c.font = norm10; c.alignment = ca; c.border = bdr
             r += 1
+        # 합계 행
+        total_fill = PatternFill("solid", fgColor="FFF2CC")
+        bold_total = Font(name="맑은 고딕", bold=True, size=10)
+        ws.merge_cells(f"A{r}:C{r}")
+        c = ws.cell(r, 1, "합계"); c.font = bold_total; c.alignment = ca
+        c.fill = total_fill; c.border = bdr
+        ws.cell(r, 2).fill = total_fill; ws.cell(r, 2).border = bdr
+        ws.cell(r, 3).fill = total_fill; ws.cell(r, 3).border = bdr
+        c4 = ws.cell(r, 4, len(rows)); c4.font = bold_total; c4.alignment = ca
+        c4.fill = total_fill; c4.border = bdr
+        r += 1
 
     r += 2
     ws.merge_cells(f"A{r}:F{r}")
