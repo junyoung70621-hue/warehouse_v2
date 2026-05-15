@@ -422,17 +422,6 @@ def render_top_bar(title: str, user: dict):
                 ≡&nbsp; {title}
             </span>
             <div style="display:flex;align-items:center;gap:18px;">
-                <a href="/inquiry"
-                   style="font-size:11px;color:rgba(255,255,255,0.55);font-weight:500;
-                          text-decoration:none;padding:3px 10px;border-radius:4px;
-                          border:1px solid rgba(255,255,255,0.12);
-                          font-family:'Noto Sans KR',sans-serif;letter-spacing:0.03em;
-                          transition:color 0.15s,border-color 0.15s,background 0.15s;
-                          white-space:nowrap;"
-                   onmouseover="this.style.color='#fff';this.style.borderColor='rgba(225,29,72,0.5)';this.style.background='rgba(225,29,72,0.1)'"
-                   onmouseout="this.style.color='rgba(255,255,255,0.55)';this.style.borderColor='rgba(255,255,255,0.12)';this.style.background='transparent'">
-                    문의하기
-                </a>
                 <div style="display:flex;align-items:center;gap:7px;">
                     <div style="width:7px;height:7px;border-radius:50%;background:#22d3ee;
                                 animation:wms-pulse 2s ease-in-out infinite;"></div>
