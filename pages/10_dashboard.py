@@ -25,6 +25,8 @@ user_center = _get_center(user)
 with st.sidebar:
     render_sidebar_header()
     st.button("📊 대시보드(자재)", use_container_width=True, type="primary")
+    if st.button("📟 대시보드(단말기)", use_container_width=True):
+        st.switch_page("pages/14_terminal_dashboard.py")
     st.divider()
 
     if user_role in ("admin", "materials"):
