@@ -34,6 +34,10 @@ user        = st.session_state.user
 user_role   = user["role"]
 user_center = _get_center(user)
 
+if user_role != "admin":
+    st.error("접근 권한이 없습니다.")
+    st.stop()
+
 _is_admin   = user_role == "admin"
 _is_jjae    = user_center == "자재센터"
 _can_up_out = user_role in ("admin", "materials")           # 출고 업로드 권한

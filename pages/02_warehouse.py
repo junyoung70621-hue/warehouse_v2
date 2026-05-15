@@ -561,8 +561,9 @@ with st.sidebar:
     render_sidebar_header()
     if st.button("📊 대시보드(자재)", use_container_width=True):
         st.switch_page("pages/10_dashboard.py")
-    if st.button("📟 대시보드(단말기)", use_container_width=True):
-        st.switch_page("pages/14_terminal_dashboard.py")
+    if is_role("admin"):
+        if st.button("📟 대시보드(단말기)", use_container_width=True):
+            st.switch_page("pages/14_terminal_dashboard.py")
     st.divider()
 
     # 센터 선택 (페이지 이동 후에도 선택값 유지)
