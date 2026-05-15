@@ -30,7 +30,7 @@ if user_role == "guest":
 # ── 사이드바 ──────────────────────────────────────────────────────────────
 with st.sidebar:
     render_sidebar_header()
-    if st.button("📊 대시보드", use_container_width=True):
+    if st.button("📊 대시보드(자재)", use_container_width=True):
         st.switch_page("pages/10_dashboard.py")
     st.divider()
 

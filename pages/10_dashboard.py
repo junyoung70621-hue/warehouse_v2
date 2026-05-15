@@ -24,7 +24,7 @@ user_center = _get_center(user)
 # ── 사이드바 ──────────────────────────────────────────────────────────────
 with st.sidebar:
     render_sidebar_header()
-    st.button("📊 대시보드", use_container_width=True, type="primary")
+    st.button("📊 대시보드(자재)", use_container_width=True, type="primary")
     st.divider()
 
     if user_role in ("admin", "materials"):
@@ -77,7 +77,7 @@ with st.sidebar:
         st.switch_page("pages/01_login.py")
     render_sidebar_user(user)
 
-render_top_bar("대시보드", user)
+render_top_bar("대시보드(자재)", user)
 st.markdown("## 📊 자재 현황 대시보드")
 st.divider()
 

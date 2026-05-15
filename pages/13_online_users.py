@@ -1,4 +1,4 @@
-# pages/13_online_users.py
+﻿# pages/13_online_users.py
 import streamlit as st
 from datetime import datetime, timezone, timedelta
 from utils.auth import require_role, is_role
@@ -56,7 +56,7 @@ def _since(last_seen_str):
 # ── 사이드바 ──────────────────────────────────────────────────────────────
 with st.sidebar:
     render_sidebar_header()
-    if st.button("📊 대시보드", use_container_width=True):
+    if st.button("📊 대시보드(자재)", use_container_width=True):
         st.switch_page("pages/10_dashboard.py")
     st.divider()
 
