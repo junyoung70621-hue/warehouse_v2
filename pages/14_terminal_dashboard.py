@@ -141,17 +141,13 @@ def build_pivot(rows: list) -> pd.DataFrame:
 # ══════════════════════════════════════════════════════════════════════════════
 
 def parse_terminal_excel(uploaded_file) -> pd.DataFrame | None:
-    """헤더=3번 행(header=2) 기준으로 파싱. XLS/XLSX 모두 시도."""
-    kwargs = dict(header=2, dtype=str)
+    """헤더=3번 행(header=2) 기준으로 파싱. .xlsx 전용(openpyxl)."""
     try:
-        return pd.read_excel(uploaded_file, engine="openpyxl", **kwargs).dropna(how="all").reset_index(drop=True)
-    except Exception:
-        pass
-    try:
-        uploaded_file.seek(0)
-        return pd.read_excel(uploaded_file, engine="xlrd", **kwargs).dropna(how="all").reset_index(drop=True)
+        return pd.read_excel(
+            uploaded_file, engine="openpyxl", header=2, dtype=str
+        ).dropna(how="all").reset_index(drop=True)
     except Exception as e:
-        st.error(f"파일 파싱 실패: {e}  ·  .xlsx 형식으로 저장 후 다시 시도해 주세요.")
+        st.error(f"파일 읽기 실패: {e}")
         return None
 
 
@@ -326,9 +322,10 @@ def _upload_section(direction: str, from_c: str, to_c_fixed: str | None, key_pre
         st.markdown(f"**도착 센터:** `{to_c}`")
 
     mv_date = st.date_input("이동 날짜", value=date.today(), key=f"{key_prefix}_date")
+    st.caption("⚠️ .xls 파일은 Excel에서 열어 **다른 이름으로 저장 → xlsx** 후 업로드하세요.")
     uploaded = st.file_uploader(
-        "엑셀 파일 (3번 행 = 헤더)",
-        type=["xls", "xlsx"],
+        "엑셀 파일 (.xlsx, 3번 행 = 헤더)",
+        type=["xlsx"],
         key=f"{key_prefix}_file",
         help="단말기 이동신청서 양식. 1·2번 행은 제목으로 간주해 자동 건너뜁니다.",
     )
