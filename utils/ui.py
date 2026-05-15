@@ -445,6 +445,106 @@ def render_top_bar(title: str, user: dict):
     </div>
     """, unsafe_allow_html=True)
 
+    # ── 시범운영 배너 ──────────────────────────────────────────────────────
+    st.markdown("""
+    <style>
+    #wms-notice-banner {
+        position: fixed;
+        top: 58px; left: 0; right: 0; height: 28px;
+        background: linear-gradient(90deg,
+            rgba(225,29,72,0.06), rgba(225,29,72,0.13), rgba(225,29,72,0.06));
+        border-bottom: 1px solid rgba(225,29,72,0.22);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        z-index: 1000;
+    }
+    #wms-notice-banner .nb-dot {
+        width: 5px; height: 5px; border-radius: 50%;
+        background: #e11d48;
+        animation: wms-pulse 2s ease-in-out infinite;
+        flex-shrink: 0;
+    }
+    #wms-notice-banner .nb-text {
+        font-size: 11px; color: rgba(252,165,165,0.85);
+        font-family: 'Noto Sans KR', sans-serif;
+        letter-spacing: 0.05em; font-weight: 500;
+        user-select: none;
+    }
+    #wms-notice-banner .nb-close {
+        position: absolute; right: 14px;
+        background: none; border: none;
+        color: rgba(255,255,255,0.28);
+        font-size: 14px; cursor: pointer;
+        line-height: 1; padding: 2px 5px;
+        border-radius: 3px;
+        transition: color 0.15s, background 0.15s;
+    }
+    #wms-notice-banner .nb-close:hover {
+        color: rgba(255,255,255,0.8);
+        background: rgba(255,255,255,0.06);
+    }
+    /* 배너 표시 시 사이드바·본문 위치 조정 */
+    body.wms-notice-on section[data-testid="stSidebar"] {
+        top: 86px !important;
+        height: calc(100vh - 86px) !important;
+    }
+    body.wms-notice-on .main .block-container {
+        padding-top: calc(0.8rem + 28px) !important;
+    }
+    </style>
+
+    <div id="wms-notice-banner">
+        <div class="nb-dot"></div>
+        <span class="nb-text">시범운영 중 &mdash; 오류 발생 시 관리자에게 문의해 주세요.</span>
+        <button id="wms-notice-close" class="nb-close" title="닫기">&#x2715;</button>
+    </div>
+
+    <script>
+    (function(){
+        var KEY = 'wms_notice_v1';
+        function lsGet(){ try{ return localStorage.getItem(KEY); }catch(e){ return null; } }
+        function lsSet(){ try{ localStorage.setItem(KEY,'1'); }catch(e){} }
+
+        function hideAll(){
+            document.querySelectorAll('#wms-notice-banner').forEach(function(el){
+                el.style.setProperty('display','none','important');
+            });
+            document.body.classList.remove('wms-notice-on');
+        }
+        function showAll(){
+            document.querySelectorAll('#wms-notice-banner').forEach(function(el){
+                el.style.removeProperty('display');
+            });
+            document.body.classList.add('wms-notice-on');
+        }
+        function apply(){
+            lsGet() === '1' ? hideAll() : showAll();
+        }
+
+        /* document 캡처 이벤트 위임 — 요소 교체/중복에 무관하게 동작 */
+        if(!window._wmsNoticeInit){
+            window._wmsNoticeInit = true;
+            document.addEventListener('click', function(e){
+                var t = e.target;
+                if(t.id === 'wms-notice-close' ||
+                   (t.parentElement && t.parentElement.id === 'wms-notice-close')){
+                    e.stopPropagation();
+                    e.preventDefault();
+                    lsSet();
+                    hideAll();
+                }
+            }, true);
+        }
+
+        apply();
+        [150,500,1200].forEach(function(t){ setTimeout(apply, t); });
+        new MutationObserver(apply).observe(document.body,{childList:true,subtree:true});
+    })();
+    </script>
+    """, unsafe_allow_html=True)
+
 
 def render_sidebar_user(user: dict):
     """사이드바 하단: 유저 카드 — Industrial Precision."""
