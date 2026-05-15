@@ -141,10 +141,12 @@ def build_pivot(rows: list) -> pd.DataFrame:
 # ══════════════════════════════════════════════════════════════════════════════
 
 def parse_terminal_excel(uploaded_file) -> pd.DataFrame | None:
-    """헤더=3번 행(header=2) 기준으로 파싱. .xlsx 전용(openpyxl)."""
+    """헤더=3번 행(header=2) 기준으로 파싱. xlsx→openpyxl, xls→xlrd."""
+    fname = getattr(uploaded_file, "name", "")
+    engine = "xlrd" if fname.lower().endswith(".xls") else "openpyxl"
     try:
         return pd.read_excel(
-            uploaded_file, engine="openpyxl", header=2, dtype=str
+            uploaded_file, engine=engine, header=2, dtype=str
         ).dropna(how="all").reset_index(drop=True)
     except Exception as e:
         st.error(f"파일 읽기 실패: {e}")
@@ -322,10 +324,9 @@ def _upload_section(direction: str, from_c: str, to_c_fixed: str | None, key_pre
         st.markdown(f"**도착 센터:** `{to_c}`")
 
     mv_date = st.date_input("이동 날짜", value=date.today(), key=f"{key_prefix}_date")
-    st.caption("⚠️ .xls 파일은 Excel에서 열어 **다른 이름으로 저장 → xlsx** 후 업로드하세요.")
     uploaded = st.file_uploader(
-        "엑셀 파일 (.xlsx, 3번 행 = 헤더)",
-        type=["xlsx"],
+        "엑셀 파일 (.xls / .xlsx, 3번 행 = 헤더)",
+        type=["xls", "xlsx"],
         key=f"{key_prefix}_file",
         help="단말기 이동신청서 양식. 1·2번 행은 제목으로 간주해 자동 건너뜁니다.",
     )
