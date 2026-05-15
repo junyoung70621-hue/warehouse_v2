@@ -422,7 +422,7 @@ def render_top_bar(title: str, user: dict):
                 ≡&nbsp; {title}
             </span>
             <div style="display:flex;align-items:center;gap:18px;">
-                <a href="/12_inquiry"
+                <a href="/inquiry"
                    style="font-size:11px;color:rgba(255,255,255,0.55);font-weight:500;
                           text-decoration:none;padding:3px 10px;border-radius:4px;
                           border:1px solid rgba(255,255,255,0.12);
