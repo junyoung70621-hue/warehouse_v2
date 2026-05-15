@@ -237,86 +237,106 @@ def save_terminal(records: list) -> bool:
 
 def gen_handover_xlsx(rows: list, from_c: str, to_c: str, mv_date: date) -> bytes:
     wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = "인수인계증"
 
-    bold14  = Font(name="맑은 고딕", bold=True, size=14)
-    bold11  = Font(name="맑은 고딕", bold=True, size=11)
-    norm10  = Font(name="맑은 고딕", size=10)
-    ca      = Alignment(horizontal="center", vertical="center", wrap_text=False)
-    thin    = Side(style="thin")
-    bdr     = Border(left=thin, right=thin, top=thin, bottom=thin)
-    gray    = PatternFill("solid", fgColor="D9D9D9")
-    lblue   = PatternFill("solid", fgColor="BDD7EE")
+    # 공통 스타일
+    bold14      = Font(name="맑은 고딕", bold=True, size=14)
+    bold11      = Font(name="맑은 고딕", bold=True, size=11)
+    bold10      = Font(name="맑은 고딕", bold=True, size=10)
+    norm10      = Font(name="맑은 고딕", size=10)
+    ca          = Alignment(horizontal="center", vertical="center")
+    la          = Alignment(horizontal="left",   vertical="center")
+    thin        = Side(style="thin")
+    bdr         = Border(left=thin, right=thin, top=thin, bottom=thin)
+    gray        = PatternFill("solid", fgColor="D9D9D9")
+    lblue       = PatternFill("solid", fgColor="BDD7EE")
+    total_fill  = PatternFill("solid", fgColor="FFF2CC")
 
-    for col_letter, width in zip("ABCDEF", [6, 18, 14, 10, 14, 16]):
-        ws.column_dimensions[col_letter].width = width
+    date_str = mv_date.strftime("%Y-%m-%d")
 
-    r = 1
-    ws.merge_cells(f"A{r}:F{r}")
-    c = ws.cell(r, 1, "단말기 이동 인수인계증")
-    c.font = bold14; c.alignment = ca
-    ws.row_dimensions[r].height = 32
+    def _write_header(ws, title: str):
+        """공통 상단 헤더: 제목 / 출발·도착센터 / 날짜·총수량"""
+        ws.column_dimensions["A"].width = 6
+        ws.column_dimensions["B"].width = 18
 
-    r = 2
-    for ci, (lbl, val) in enumerate(
-        [("날짜", mv_date.strftime("%Y-%m-%d")), ("출발", from_c), ("도착", to_c)], start=1
-    ):
-        ws.cell(r, ci * 2 - 1, lbl).font = bold11
-        ws.cell(r, ci * 2, val).font = norm10
+        # 제목
+        ws.merge_cells("A1:F1")
+        c = ws.cell(1, 1, title); c.font = bold14; c.alignment = ca
+        ws.row_dimensions[1].height = 30
 
-    r = 3
-    ws.cell(r, 1, "총 수량").font = bold11
-    ws.cell(r, 2, f"{len(rows):,}대").font = norm10
+        # 출발·도착·날짜
+        info = [("출발센터", from_c), ("도착센터", to_c), ("날짜", date_str)]
+        for ci, (lbl, val) in enumerate(info, start=1):
+            lc = ws.cell(2, ci * 2 - 1, lbl); lc.font = bold11; lc.alignment = la
+            vc = ws.cell(2, ci * 2,     val); vc.font = norm10;  vc.alignment = la
+
+        ws.cell(3, 1, "총 수량").font = bold11
+        ws.cell(3, 2, f"{len(rows):,}대").font = norm10
+
+    # ══ 시트1: 요약 ══════════════════════════════════════════════════════════
+    ws1 = wb.active
+    ws1.title = "1. 요약"
+    for col, w in zip("ABCD", [6, 16, 14, 10]):
+        ws1.column_dimensions[col].width = w
+
+    _write_header(ws1, "단말기 이동 인수인계증 — 요약")
 
     r = 5
-    ws.merge_cells(f"A{r}:D{r}")
-    h = ws.cell(r, 1, "종류별 요약"); h.font = bold11; h.alignment = ca; h.fill = lblue
+    ws1.merge_cells(f"A{r}:D{r}")
+    h = ws1.cell(r, 1, "종류별 수량 요약"); h.font = bold11; h.alignment = ca; h.fill = lblue
     r += 1
     for ci, hdr in enumerate(["No", "단말기종류", "유형", "수량"], 1):
-        c = ws.cell(r, ci, hdr); c.font = bold11; c.alignment = ca
+        c = ws1.cell(r, ci, hdr); c.font = bold11; c.alignment = ca
         c.fill = gray; c.border = bdr
     r += 1
 
     if rows:
-        s_df = pd.DataFrame(rows).groupby(["device_type", "sub_type"]).size().reset_index(name="cnt")
+        s_df = (
+            pd.DataFrame(rows)
+            .groupby(["device_type", "sub_type"], sort=False)
+            .size().reset_index(name="cnt")
+        )
         for idx, row in enumerate(s_df.itertuples(), 1):
             for ci, val in enumerate([idx, row.device_type, row.sub_type, row.cnt], 1):
-                c = ws.cell(r, ci, val); c.font = norm10; c.alignment = ca; c.border = bdr
+                c = ws1.cell(r, ci, val); c.font = norm10; c.alignment = ca; c.border = bdr
             r += 1
         # 합계 행
-        total_fill = PatternFill("solid", fgColor="FFF2CC")
-        bold_total = Font(name="맑은 고딕", bold=True, size=10)
-        ws.merge_cells(f"A{r}:C{r}")
-        c = ws.cell(r, 1, "합계"); c.font = bold_total; c.alignment = ca
+        ws1.merge_cells(f"A{r}:C{r}")
+        c = ws1.cell(r, 1, "합계");    c.font = bold10; c.alignment = ca
         c.fill = total_fill; c.border = bdr
-        ws.cell(r, 2).fill = total_fill; ws.cell(r, 2).border = bdr
-        ws.cell(r, 3).fill = total_fill; ws.cell(r, 3).border = bdr
-        c4 = ws.cell(r, 4, len(rows)); c4.font = bold_total; c4.alignment = ca
+        for col in (2, 3):
+            ws1.cell(r, col).fill = total_fill; ws1.cell(r, col).border = bdr
+        c4 = ws1.cell(r, 4, len(rows)); c4.font = bold10; c4.alignment = ca
         c4.fill = total_fill; c4.border = bdr
         r += 1
 
-    r += 2
-    ws.merge_cells(f"A{r}:F{r}")
-    h = ws.cell(r, 1, "단말기 상세 목록"); h.font = bold11; h.alignment = ca; h.fill = lblue
+    r += 3
+    for ci, lbl in [(1, "인도자"), (3, "인수자")]:
+        ws1.cell(r, ci, lbl).font = bold11
     r += 1
-    for ci, hdr in enumerate(["No", "TRCN_ID", "단말기종류", "유형", "출발센터", "도착센터"], 1):
-        c = ws.cell(r, ci, hdr); c.font = bold11; c.alignment = ca
+    ws1.cell(r, 1, "(서명)").alignment = ca
+    ws1.cell(r, 3, "(서명)").alignment = ca
+
+    # ══ 시트2: 상세 ══════════════════════════════════════════════════════════
+    ws2 = wb.create_sheet("2. 상세")
+    ws2.column_dimensions["A"].width = 6
+    ws2.column_dimensions["B"].width = 20
+
+    _write_header(ws2, "단말기 이동 인수인계증 — 상세")
+
+    r = 5
+    ws2.merge_cells(f"A{r}:B{r}")
+    h = ws2.cell(r, 1, "단말기 IH 목록"); h.font = bold11; h.alignment = ca; h.fill = lblue
+    r += 1
+    for ci, hdr in enumerate(["No", "IH (TRCN_ID)"], 1):
+        c = ws2.cell(r, ci, hdr); c.font = bold11; c.alignment = ca
         c.fill = gray; c.border = bdr
     r += 1
-    for idx, row in enumerate(rows, 1):
-        vals = [idx, row.get("trcn_id"), row.get("device_type"),
-                row.get("sub_type"), row.get("from_center"), row.get("to_center")]
-        for ci, val in enumerate(vals, 1):
-            c = ws.cell(r, ci, val); c.font = norm10; c.alignment = ca; c.border = bdr
-        r += 1
 
-    r += 3
-    for ci, lbl in [(1, "인도자"), (4, "인수자")]:
-        ws.cell(r, ci, lbl).font = bold11
-    r += 1
-    ws.cell(r, 1, "(서명)").alignment = ca
-    ws.cell(r, 4, "(서명)").alignment = ca
+    sorted_ids = sorted(row.get("trcn_id", "") for row in rows)
+    for idx, trcn in enumerate(sorted_ids, 1):
+        ws2.cell(r, 1, idx).font  = norm10; ws2.cell(r, 1).alignment = ca; ws2.cell(r, 1).border = bdr
+        ws2.cell(r, 2, trcn).font = norm10; ws2.cell(r, 2).alignment = ca; ws2.cell(r, 2).border = bdr
+        r += 1
 
     buf = io.BytesIO()
     wb.save(buf)
