@@ -234,13 +234,25 @@ def apply_global_css():
         background:rgba(255,255,255,0.06) !important; color:#fff !important;
         border-left-color:rgba(225,29,72,0.4) !important;
     }
-    section[data-testid="stSidebar"] button[kind="primary"],
+    section[data-testid="stSidebar"] button[kind="primary"] {
+        background: transparent !important;
+        border: none !important; outline: none !important; box-shadow: none !important;
+        color: #fff !important; font-weight: 700 !important;
+        position: relative !important;
+    }
     section[data-testid="stSidebar"] button[kind="primary"] p,
     section[data-testid="stSidebar"] button[kind="primary"] span {
-        background:rgba(225,29,72,0.13) !important; color:#fff !important;
-        font-weight:700 !important;
-        border-left:3px solid transparent !important;
-        outline:none !important; box-shadow:none !important;
+        color: #fff !important; font-weight: 700 !important;
+        position: relative !important; z-index: 1 !important;
+    }
+    section[data-testid="stSidebar"] button[kind="primary"]::before {
+        content: "" !important;
+        position: absolute !important;
+        inset: 0 !important;
+        background: rgba(225,29,72,0.25) !important;
+        border-radius: 4px !important;
+        pointer-events: none !important;
+        z-index: 0 !important;
     }
 
     /* ── 5. 스크롤 ── */
