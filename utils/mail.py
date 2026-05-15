@@ -446,6 +446,42 @@ def send_purchase_request_reply(
         pass
 
 
+def send_inquiry_reply(
+    to_email: str,
+    requester_name: str,
+    title: str,
+    original_content: str,
+    reply: str,
+    answered_by_name: str,
+):
+    """문의 답변 완료 시 신청자에게 발송."""
+    subject = f"[에이텍모빌리티 자재관리] 문의 답변 — {title}"
+    body = f"""
+    <p>안녕하세요, <b>{requester_name}</b>님.</p>
+    <p>문의하신 내용에 대해 답변이 등록되었습니다.</p>
+    <table border="1" cellpadding="6" cellspacing="0"
+           style="border-collapse:collapse; margin:12px 0; font-size:14px;">
+      <tr style="background:#e8edf5; color:#1a237e;">
+        <th style="padding:6px 14px;">제목</th>
+        <td style="padding:6px 14px;"><b>{title}</b></td>
+      </tr>
+    </table>
+    <p><b>문의 내용:</b></p>
+    <p style="background:#f5f5f5; padding:10px 14px;
+              border-left:4px solid #bdbdbd; font-size:14px; white-space:pre-wrap;">{original_content}</p>
+    <p><b>답변:</b></p>
+    <p style="background:#f5f5f5; padding:10px 14px;
+              border-left:4px solid #e11d48; font-size:14px; white-space:pre-wrap;">{reply}</p>
+    <p style="color:#555; font-size:13px;">답변자: {answered_by_name}</p>
+    <hr>
+    <p style="color:gray; font-size:12px;">에이텍모빌리티 자재관리 자동발송 메일입니다.</p>
+    """
+    try:
+        _send_email(to_email, subject, body)
+    except Exception:
+        pass
+
+
 def send_inquiry_to_admin(
     to_emails: list,
     requester_name: str,

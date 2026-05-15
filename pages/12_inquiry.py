@@ -6,7 +6,7 @@ from utils.db import (
     fetch_inquiries, submit_inquiry, answer_inquiry,
     clear_inquiry_cache, get_supabase,
 )
-from utils.mail import send_inquiry_to_admin
+from utils.mail import send_inquiry_to_admin, send_inquiry_reply
 from utils.ui import apply_global_css, render_sidebar_header, render_sidebar_section, render_sidebar_user, render_top_bar
 
 st.set_page_config(
@@ -57,6 +57,15 @@ def reply_dialog(inq: dict):
             if not reply.strip():
                 st.warning("답변 내용을 입력해 주세요.")
             elif answer_inquiry(inq["id"], reply.strip(), user_name):
+                if inq.get("requester_email"):
+                    send_inquiry_reply(
+                        inq["requester_email"],
+                        inq.get("requester_name", ""),
+                        inq["title"],
+                        inq["content"],
+                        reply.strip(),
+                        user_name,
+                    )
                 st.success("답변이 등록되었습니다. 창을 닫으면 목록이 갱신됩니다.")
     with col2:
         if st.button("닫기", use_container_width=True, key=f"close_reply_{inq['id']}"):
