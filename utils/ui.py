@@ -441,22 +441,24 @@ def render_sidebar_user(user: dict):
     _nm = user.get("name","")
     _init = _nm[:1] if _nm else "U"
     st.markdown(f"""
-    <div style="margin:8px 8px 12px 8px;padding:10px 12px;
+    <div style="margin:6px 6px 10px 6px;padding:8px 10px;
                 background:#0d1526;border:1px solid rgba(255,255,255,0.07);
-                border-radius:4px;border-left:3px solid #e11d48;">
-        <div style="display:flex;align-items:center;gap:9px;">
-            <div style="width:30px;height:30px;border-radius:4px;flex-shrink:0;
+                border-radius:4px;border-left:3px solid #e11d48;box-sizing:border-box;">
+        <div style="display:flex;align-items:center;gap:8px;min-width:0;overflow:hidden;">
+            <div style="width:26px;height:26px;border-radius:4px;flex-shrink:0;
                         background:rgba(225,29,72,0.18);border:1px solid rgba(225,29,72,0.35);
                         display:flex;align-items:center;justify-content:center;
-                        font-size:13px;font-weight:700;color:#e11d48;">{_init}</div>
-            <div style="min-width:0;">
-                <div style="color:#e2e8f0;font-size:12px;font-weight:600;
+                        font-size:12px;font-weight:700;color:#e11d48;">{_init}</div>
+            <div style="min-width:0;flex:1;overflow:hidden;">
+                <div style="color:#e2e8f0;font-size:11px;font-weight:600;
                             white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{_nm}</div>
-                <div style="display:flex;align-items:center;gap:5px;margin-top:2px;">
+                <div style="display:flex;align-items:center;gap:4px;margin-top:2px;
+                            min-width:0;overflow:hidden;">
                     <span style="font-size:9px;font-weight:700;color:#e11d48;
-                                 letter-spacing:0.08em;font-family:'JetBrains Mono',monospace;">{_rl}</span>
-                    <span style="color:#334155;font-size:9px;">·</span>
-                    <span style="color:#475569;font-size:10px;
+                                 letter-spacing:0.06em;font-family:'JetBrains Mono',monospace;
+                                 flex-shrink:0;">{_rl}</span>
+                    <span style="color:#334155;font-size:9px;flex-shrink:0;">·</span>
+                    <span style="color:#475569;font-size:9px;min-width:0;
                                  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{_uc}</span>
                 </div>
             </div>
