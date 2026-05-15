@@ -57,8 +57,7 @@ def reply_dialog(inq: dict):
             if not reply.strip():
                 st.warning("답변 내용을 입력해 주세요.")
             elif answer_inquiry(inq["id"], reply.strip(), user_name):
-                st.success("답변이 등록되었습니다.")
-                st.rerun()
+                st.success("답변이 등록되었습니다. 창을 닫으면 목록이 갱신됩니다.")
     with col2:
         if st.button("닫기", use_container_width=True, key=f"close_reply_{inq['id']}"):
             st.rerun()
