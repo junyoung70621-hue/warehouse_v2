@@ -503,7 +503,7 @@ def render_top_bar(title: str, user: dict):
 
     <script>
     (function(){
-        var KEY = 'wms_notice_v1';
+        var KEY = 'wms_notice_v2';
         function lsGet(){ try{ return localStorage.getItem(KEY); }catch(e){ return null; } }
         function lsSet(){ try{ localStorage.setItem(KEY,'1'); }catch(e){} }
 
