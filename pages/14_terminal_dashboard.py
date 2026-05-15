@@ -360,6 +360,14 @@ def _upload_section(direction: str, from_c: str, to_c_fixed: str | None, key_pre
     c1.metric("✅ 분류 성공", f"{len(valid)}")
     c2.metric("⚠️ 미분류", f"{len(inv)}")
 
+    if not inv.empty:
+        with st.expander(f"⚠️ 미분류 항목 확인 ({len(inv)}건)", expanded=True):
+            st.caption("아래 TRCN_ID는 분류 규칙에 매칭되지 않아 저장에서 제외됩니다.")
+            inv_show = inv[[trcn_col, "_trcn"]].copy()
+            inv_show.columns = ["원본값", "추출값(숫자)"]
+            inv_show["자릿수"] = inv_show["추출값(숫자)"].str.len()
+            st.dataframe(inv_show, use_container_width=True, hide_index=True)
+
     if valid.empty:
         st.warning("분류 가능한 단말기가 없습니다. 컬럼을 확인하세요.")
         return
