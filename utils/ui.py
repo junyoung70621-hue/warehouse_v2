@@ -47,14 +47,15 @@ def apply_global_css():
         max-width: 220px !important;
     }
 
-    /* ── 사이드바 닫기 버튼 ‹ ── */
-    [data-testid="stSidebarCollapseButton"] {
+    /* ── 사이드바 닫기 버튼 ‹ (section 포함 높은 specificity로 사이드바 button 공통룰 무력화) ── */
+    section[data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"] {
         visibility: visible !important;
         position: fixed !important;
         top: 78px !important;
         left: 218px !important;
         width: 20px !important;
         height: 36px !important;
+        min-height: 20px !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
@@ -66,21 +67,22 @@ def apply_global_css():
         z-index: 1010 !important;
         padding: 0 !important;
         margin: 0 !important;
+        text-align: center !important;
         transition: background 0.15s, border-color 0.15s !important;
     }
-    [data-testid="stSidebarCollapseButton"]:hover {
+    section[data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"]:hover {
         background: rgba(225,29,72,0.12) !important;
         border-color: rgba(225,29,72,0.5) !important;
     }
-    [data-testid="stSidebarCollapseButton"] svg { display: none !important; }
-    [data-testid="stSidebarCollapseButton"]::after {
+    section[data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"] svg { display: none !important; }
+    section[data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"]::after {
         content: "‹";
         color: #64748b;
         font-size: 20px;
         font-weight: 500;
         line-height: 1;
     }
-    [data-testid="stSidebarCollapseButton"]:hover::after { color: #e11d48; }
+    section[data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"]:hover::after { color: #e11d48; }
 
     /* ── 사이드바 열기 버튼 › ── */
     [data-testid="collapsedControl"] {
