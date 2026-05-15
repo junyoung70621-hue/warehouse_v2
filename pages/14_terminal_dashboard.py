@@ -257,7 +257,7 @@ def gen_handover_xlsx(rows: list, from_c: str, to_c: str, mv_date: date) -> byte
     date_str = mv_date.strftime("%Y-%m-%d")
 
     # A열 153px ≈ 20 Excel 문자 너비 (7.5px/char 기준)
-    for col, w in zip("ABCD", [20, 20, 14, 14]):
+    for col, w in zip("ABCD", [10, 20, 14, 14]):
         ws.column_dimensions[col].width = w
 
     def _header(start_r: int, title: str):
