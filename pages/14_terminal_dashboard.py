@@ -256,23 +256,32 @@ def gen_handover_xlsx(rows: list, from_c: str, to_c: str, mv_date: date) -> byte
 
     date_str = mv_date.strftime("%Y-%m-%d")
 
-    for col, w in zip("ABCD", [6, 16, 14, 10]):
+    # A열 153px ≈ 20 Excel 문자 너비 (7.5px/char 기준)
+    for col, w in zip("ABCD", [20, 20, 14, 14]):
         ws.column_dimensions[col].width = w
 
     def _header(start_r: int, title: str):
+        # 제목
         ws.merge_cells(f"A{start_r}:D{start_r}")
         c = ws.cell(start_r, 1, title); c.font = bold14; c.alignment = ca
         ws.row_dimensions[start_r].height = 30
 
-        info = [("출발센터", from_c), ("도착센터", to_c), ("날짜", date_str)]
-        for ci, (lbl, val) in enumerate(info, start=1):
+        # 출발센터 / 도착센터 → 2행
+        for ci, (lbl, val) in enumerate([("출발센터", from_c), ("도착센터", to_c)], start=1):
             ws.cell(start_r + 1, ci * 2 - 1, lbl).font = bold11
             ws.cell(start_r + 1, ci * 2 - 1).alignment = la
             ws.cell(start_r + 1, ci * 2,     val).font = norm10
             ws.cell(start_r + 1, ci * 2    ).alignment = la
 
-        ws.cell(start_r + 2, 1, "총 수량").font = bold11
-        ws.cell(start_r + 2, 2, f"{len(rows):,}대").font = norm10
+        # 날짜 / 총수량 → 3행 (4열 내 배치)
+        ws.cell(start_r + 2, 1, "날짜").font    = bold11
+        ws.cell(start_r + 2, 1).alignment       = la
+        ws.cell(start_r + 2, 2, date_str).font  = norm10
+        ws.cell(start_r + 2, 2).alignment       = la
+        ws.cell(start_r + 2, 3, "총 수량").font = bold11
+        ws.cell(start_r + 2, 3).alignment       = la
+        ws.cell(start_r + 2, 4, f"{len(rows):,}대").font = norm10
+        ws.cell(start_r + 2, 4).alignment       = la
 
     # ── 1페이지: 요약 ─────────────────────────────────────────────────────────
     _header(1, "단말기 이동 인수인계증 — 요약")
