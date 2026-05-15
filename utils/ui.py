@@ -47,7 +47,7 @@ def apply_global_css():
         max-width: 220px !important;
     }
 
-    /* ── 사이드바 닫기 버튼 ‹ (section 포함 높은 specificity로 사이드바 button 공통룰 무력화) ── */
+    /* ── 사이드바 닫기 버튼 ‹ — collapsedControl과 동일한 div>button 패턴 ── */
     section[data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"] {
         visibility: visible !important;
         position: fixed !important;
@@ -55,7 +55,6 @@ def apply_global_css():
         left: 218px !important;
         width: 20px !important;
         height: 36px !important;
-        min-height: 20px !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
@@ -67,22 +66,38 @@ def apply_global_css():
         z-index: 1010 !important;
         padding: 0 !important;
         margin: 0 !important;
-        text-align: center !important;
         transition: background 0.15s, border-color 0.15s !important;
     }
     section[data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"]:hover {
         background: rgba(225,29,72,0.12) !important;
         border-color: rgba(225,29,72,0.5) !important;
     }
+    /* 내부 button: 투명하게, 컨테이너 꽉 채움 */
+    section[data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"] button {
+        background: transparent !important;
+        border: none !important;
+        width: 100% !important;
+        height: 100% !important;
+        min-height: 0 !important;
+        cursor: pointer !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        white-space: nowrap !important;
+    }
     section[data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"] svg { display: none !important; }
-    section[data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"]::after {
+    /* ‹ 문자: 내부 button::after에 부착 (collapsedControl과 동일 패턴) */
+    section[data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"] button::after {
         content: "‹";
         color: #64748b;
         font-size: 20px;
         font-weight: 500;
         line-height: 1;
     }
-    section[data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"]:hover::after { color: #e11d48; }
+    section[data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"]:hover button::after { color: #e11d48; }
+    section[data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"]::after { content: "" !important; display: none !important; }
 
     /* ── 사이드바 열기 버튼 › ── */
     [data-testid="collapsedControl"] {
