@@ -383,11 +383,20 @@ def _upload_section(direction: str, from_c: str, to_c_fixed: str | None, key_pre
     st.dataframe(s_df, use_container_width=True, hide_index=True)
 
     dups   = check_dups(valid["_trcn"].tolist(), mv_date, direction)
+    dup_df = valid[valid["_trcn"].isin(dups)]
     new_df = valid[~valid["_trcn"].isin(dups)]
-    if dups:
-        st.warning(f"⚠️ {len(dups)}건 중복 자동 제외")
+
+    if not dup_df.empty:
+        st.warning(f"⚠️ {len(dup_df)}건이 같은 날짜·방향으로 이미 DB에 존재합니다.")
+        dup_show = dup_df[[trcn_col, "_trcn", "_dtype", "_stype"]].copy()
+        dup_show.columns = ["원본값", "TRCN_ID", "기종", "유형"]
+        st.dataframe(dup_show, use_container_width=True, hide_index=True)
+        force = st.checkbox("중복 무시하고 강제 저장", key=f"{key_prefix}_force")
+        if force:
+            new_df = valid.copy()
+
     if new_df.empty:
-        st.error("저장할 신규 데이터가 없습니다.")
+        st.error("저장할 데이터가 없습니다.")
         return
 
     st.info(f"저장 예정: **{len(new_df)}건** / {from_c} → {to_c} / {mv_date}")
