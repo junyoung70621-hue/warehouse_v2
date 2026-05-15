@@ -316,7 +316,7 @@ def gen_handover_xlsx(rows: list, from_c: str, to_c: str, mv_date: date) -> byte
         r += 1
 
     r += 3
-    for ci, lbl in [(1, "인도자"), (3, "인수자")]:
+    for ci, lbl in [(1, "인계자"), (3, "인수자")]:
         ws.cell(r, ci, lbl).font = bold11
     r += 1
     ws.cell(r, 1, "(서명)").alignment = ca
