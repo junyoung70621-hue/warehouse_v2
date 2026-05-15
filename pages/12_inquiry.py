@@ -120,7 +120,7 @@ if is_role("admin"):
 
     tab_pending, tab_all = st.tabs([f"미답변 ({sum(1 for i in all_inqs if i['status']=='pending')})", f"전체 ({len(all_inqs)})"])
 
-    def _render_inquiry_list(inqs):
+    def _render_inquiry_list(inqs, tab_key):
         if not inqs:
             st.info("문의 내역이 없습니다.")
             return
@@ -155,13 +155,13 @@ if is_role("admin"):
                         )
                         st.caption(f"답변자: {inq.get('answered_by_name','')}  |  {(inq.get('answered_at') or '')[:16].replace('T',' ')}")
                 with col_btn:
-                    if st.button("답변", key=f"reply_btn_{inq['id']}", use_container_width=True):
+                    if st.button("답변", key=f"reply_btn_{tab_key}_{inq['id']}", use_container_width=True):
                         reply_dialog(inq)
 
     with tab_pending:
-        _render_inquiry_list([i for i in all_inqs if i["status"] == "pending"])
+        _render_inquiry_list([i for i in all_inqs if i["status"] == "pending"], "pending")
     with tab_all:
-        _render_inquiry_list(all_inqs)
+        _render_inquiry_list(all_inqs, "all")
 
 
 # ══════════════════════════════════════════════════════════════════════════
