@@ -385,9 +385,22 @@ def render_top_bar(title: str, user: dict):
     """공통 고정 상단바: ATEC 로고 | 페이지 제목 | 유저 정보/날짜.
     상단바 위치 CSS(header 숨김, sidebar top 58px, 본문 패딩)도 함께 주입."""
     from datetime import datetime
+    from utils.auth import SESSION_TIMEOUT
     _now  = datetime.now()
     _days = ["월","화","수","목","금","토","일"]
     _date = f"{_now.year}.{_now.month:02d}.{_now.day:02d} ({_days[_now.weekday()]})"
+    # 세션 남은 시간 (마지막 활동 기준)
+    _last_act = st.session_state.get("last_activity")
+    if _last_act:
+        _remaining = max(0, SESSION_TIMEOUT - (_now - _last_act).total_seconds())
+        _rh, _rrem = divmod(int(_remaining), 3600)
+        _rm, _rs   = divmod(_rrem, 60)
+        _session_str  = f"{_rh:02d}:{_rm:02d}:{_rs:02d}"
+        _session_warn = _remaining < 300  # 5분 미만 경고
+    else:
+        _session_str  = "--:--:--"
+        _session_warn = False
+    _session_color = "#e11d48" if _session_warn else "#22d3ee"
     _rl_map = {"admin":"관리자","materials":"자재파트",
                "manager":"센터장","user":"일반","guest":"게스트"}
     _rl = _rl_map.get(user.get("role",""), user.get("role",""))
@@ -461,12 +474,17 @@ def render_top_bar(title: str, user: dict):
                 ≡&nbsp; {title}
             </span>
             <div style="display:flex;align-items:center;gap:18px;">
-                <div style="display:flex;align-items:center;gap:7px;">
-                    <div style="width:7px;height:7px;border-radius:50%;background:#22d3ee;
-                                animation:wms-pulse 2s ease-in-out infinite;"></div>
-                    <span style="font-size:9px;color:#22d3ee;font-weight:700;
-                                 letter-spacing:0.12em;font-family:'JetBrains Mono',monospace;">
-                        SYSTEM: OPERATIONAL
+                <div style="display:flex;align-items:center;gap:6px;" id="wms-session-block">
+                    <div id="wms-session-dot" style="width:6px;height:6px;border-radius:50%;
+                                background:{_session_color};animation:wms-pulse 2s ease-in-out infinite;
+                                flex-shrink:0;"></div>
+                    <span id="wms-session-label" style="font-size:10px;color:#475569;
+                                 font-family:'JetBrains Mono',monospace;letter-spacing:0.05em;">
+                        {'⚠ 만료' if _session_warn else '세션'}
+                    </span>
+                    <span id="wms-session-timer" style="font-size:12px;color:{_session_color};
+                                 font-weight:700;font-family:'JetBrains Mono',monospace;letter-spacing:0.05em;">
+                        {_session_str}
                     </span>
                 </div>
                 <div style="width:1px;height:20px;background:rgba(255,255,255,0.1);"></div>
@@ -483,6 +501,40 @@ def render_top_bar(title: str, user: dict):
         </div>
     </div>
     """, unsafe_allow_html=True)
+
+    # ── 세션 타이머 JS — components.v1.html로 실행 보장 ─────────────────
+    import streamlit.components.v1 as _components
+    _rem_sec = int(_remaining) if _last_act else -1
+    _components.html(f"""
+    <script>
+    (function(){{
+        var rem = {_rem_sec};
+        var WARN = 300;
+        var C_OK = '#22d3ee', C_WARN = '#e11d48';
+        function fmt(s){{
+            var h=Math.floor(s/3600), m=Math.floor((s%3600)/60), sec=s%60;
+            return (h<10?'0':'')+h+':'+(m<10?'0':'')+m+':'+(sec<10?'0':'')+sec;
+        }}
+        function tick(){{
+            var doc = window.parent.document;
+            var timer = doc.getElementById('wms-session-timer');
+            var dot   = doc.getElementById('wms-session-dot');
+            var label = doc.getElementById('wms-session-label');
+            if(!timer) return;
+            var s = rem > 0 ? rem : 0;
+            var warn = s < WARN;
+            var col = warn ? C_WARN : C_OK;
+            timer.textContent = fmt(s);
+            timer.style.color = col;
+            if(dot)   dot.style.background = col;
+            if(label) label.textContent    = warn ? '⚠ 만료' : '세션';
+            if(rem > 0) rem--;
+        }}
+        tick();
+        setInterval(tick, 1000);
+    }})();
+    </script>
+    """, height=0)
 
     # ── 시범운영 배너 ──────────────────────────────────────────────────────
     st.markdown("""

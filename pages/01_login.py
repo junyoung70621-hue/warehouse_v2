@@ -2,6 +2,7 @@
 import streamlit as st
 import os
 import base64
+from datetime import datetime
 from utils.auth import login, register, reset_password
 from utils.routing import CENTERS
 from utils.ui import apply_global_css
@@ -116,6 +117,7 @@ with tab_login:
             user = login(username, password)
             if user:
                 st.session_state.user = user
+                st.session_state.login_time = datetime.now()
                 st.success(f"환영합니다, {user['name']}님!")
                 st.switch_page("pages/02_warehouse.py")
 

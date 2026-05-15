@@ -3,7 +3,10 @@ import bcrypt
 import secrets
 import string
 import streamlit as st
+from datetime import datetime
 from utils.db import get_supabase
+
+SESSION_TIMEOUT = 1800  # 30분 (초)
 
 
 def hash_password(plain: str) -> str:
@@ -105,6 +108,17 @@ def require_login():
             st.switch_page("pages/01_login.py")
             st.stop()
         else:
+            now  = datetime.now()
+            last = st.session_state.get("last_activity")
+            # 유휴 타임아웃 체크
+            if last and (now - last).total_seconds() > SESSION_TIMEOUT:
+                st.session_state.user          = None
+                st.session_state.last_activity = None
+                st.session_state.login_time    = None
+                st.warning("세션이 만료되었습니다. 다시 로그인해 주세요.")
+                st.switch_page("pages/01_login.py")
+                st.stop()
+            st.session_state.last_activity = now
             try:
                 from utils.db import update_last_seen
                 update_last_seen(st.session_state.user["id"])
