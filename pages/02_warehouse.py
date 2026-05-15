@@ -90,7 +90,7 @@ for k, v in defaults.items():
 st.markdown("""
 <style>
 /* 사이드바 위치 (render_top_bar에서 top:58px 처리하지만 명시적 유지) */
-section[data-testid="stSidebar"] { top:58px!important; height:calc(100vh - 58px)!important; }
+section[data-testid="stSidebar"] { top:58px!important; height:calc(100vh - 58px)!important; min-width:220px!important; max-width:220px!important; }
 section[data-testid="stSidebar"] > div > div { overflow-y:auto!important; scrollbar-width:none!important; }
 section[data-testid="stSidebar"] > div > div::-webkit-scrollbar { display:none!important; }
 [data-testid="stSidebarUserContent"] { padding-top:0!important; margin-top:0!important; }

@@ -21,27 +21,112 @@ def apply_global_css():
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
     html, body, * { font-family:'Noto Sans KR', sans-serif !important; }
-    /* ── 0. 사이드바 내부 헤더/네비 완전 제거 ── */
-    [data-testid="stSidebarNav"],
+    /* ── 0. 사이드바 헤더/네비 제거 ── */
+    [data-testid="stSidebarNav"] {
+        display: none !important; height: 0 !important; min-height: 0 !important;
+        overflow: hidden !important; padding: 0 !important; margin: 0 !important;
+    }
+    /* display:none 대신 visibility:hidden — position:fixed 자식이 탈출 가능하도록 */
     [data-testid="stSidebarHeader"] {
-        display: none !important;
-        height: 0 !important;
-        min-height: 0 !important;
-        overflow: hidden !important;
+        visibility: hidden !important; height: 0 !important; min-height: 0 !important;
+        overflow: hidden !important; padding: 0 !important; margin: 0 !important;
+    }
+    button[data-testid="baseButton-headerNoPadding"] { display: none !important; }
+    header[data-testid="stHeader"] { visibility: hidden !important; }
+    footer, [data-testid="stFooter"] { display: none !important; }
+    #MainMenu { display: none !important; }
+    [data-testid="stToolbar"] { display: none !important; }
+    [data-testid="stDecoration"] { display: none !important; }
+    [data-testid="stStatusWidget"] { display: none !important; }
+    button[title*="Streamlit"] { display: none !important; }
+    a[href*="streamlit.io"] { display: none !important; }
+
+    /* ── 사이드바 폭 고정 (드래그 리사이즈 비활성) ── */
+    section[data-testid="stSidebar"] {
+        min-width: 220px !important;
+        max-width: 220px !important;
+    }
+
+    /* ── 사이드바 닫기 버튼 ‹ ── */
+    [data-testid="stSidebarCollapseButton"] {
+        visibility: visible !important;
+        position: fixed !important;
+        top: 78px !important;
+        left: 218px !important;
+        width: 20px !important;
+        height: 36px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        background: #080e1d !important;
+        border: 1px solid rgba(255,255,255,0.15) !important;
+        border-left: none !important;
+        border-radius: 0 5px 5px 0 !important;
+        cursor: pointer !important;
+        z-index: 1010 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        transition: background 0.15s, border-color 0.15s !important;
+    }
+    [data-testid="stSidebarCollapseButton"]:hover {
+        background: rgba(225,29,72,0.12) !important;
+        border-color: rgba(225,29,72,0.5) !important;
+    }
+    [data-testid="stSidebarCollapseButton"] svg { display: none !important; }
+    [data-testid="stSidebarCollapseButton"]::after {
+        content: "‹";
+        color: #64748b;
+        font-size: 20px;
+        font-weight: 500;
+        line-height: 1;
+    }
+    [data-testid="stSidebarCollapseButton"]:hover::after { color: #e11d48; }
+
+    /* ── 사이드바 열기 버튼 › ── */
+    [data-testid="collapsedControl"] {
+        display: flex !important;
+        position: fixed !important;
+        top: 78px !important;
+        left: 0 !important;
+        width: 20px !important;
+        height: 36px !important;
+        align-items: center !important;
+        justify-content: center !important;
+        background: #080e1d !important;
+        border: 1px solid rgba(255,255,255,0.15) !important;
+        border-left: none !important;
+        border-radius: 0 5px 5px 0 !important;
+        cursor: pointer !important;
+        z-index: 1010 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        transition: background 0.15s, border-color 0.15s !important;
+    }
+    [data-testid="collapsedControl"]:hover {
+        background: rgba(225,29,72,0.12) !important;
+        border-color: rgba(225,29,72,0.5) !important;
+    }
+    [data-testid="collapsedControl"] button {
+        background: transparent !important;
+        border: none !important;
+        width: 100% !important;
+        height: 100% !important;
+        cursor: pointer !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
         padding: 0 !important;
         margin: 0 !important;
     }
-    button[data-testid="baseButton-headerNoPadding"] { display: none !important; }
-    header[data-testid="stHeader"] { visibility:hidden !important; }
-    [data-testid="stSidebarCollapseButton"],
-    [data-testid="collapsedControl"] { display:none !important; }
-    footer, [data-testid="stFooter"] { display:none !important; }
-    #MainMenu { display:none !important; }
-    [data-testid="stToolbar"] { display:none !important; }
-    [data-testid="stDecoration"] { display:none !important; }
-    [data-testid="stStatusWidget"] { display:none !important; }
-    button[title*="Streamlit"] { display:none !important; }
-    a[href*="streamlit.io"] { display:none !important; }
+    [data-testid="collapsedControl"] button svg { display: none !important; }
+    [data-testid="collapsedControl"] button::after {
+        content: "›";
+        color: #64748b;
+        font-size: 20px;
+        font-weight: 500;
+        line-height: 1;
+    }
+    [data-testid="collapsedControl"]:hover button::after { color: #e11d48; }
 
     /* ── 1. 페이지 전환 오버레이 (별도 div로 처리) ── */
 
@@ -248,7 +333,7 @@ def render_top_bar(title: str, user: dict):
     st.markdown("""
     <style>
     header[data-testid="stHeader"]   { visibility:hidden!important; }
-    section[data-testid="stSidebar"] { top:58px!important; height:calc(100vh - 58px)!important; }
+    section[data-testid="stSidebar"] { top:58px!important; height:calc(100vh - 58px)!important; min-width:220px!important; max-width:220px!important; }
     .main .block-container           { padding-top:0.8rem!important; padding-bottom:3rem!important; max-width:100%!important; overflow:visible!important; }
     html, body                       { overflow-y:auto!important; min-height:100vh!important; }
     [data-testid="stAppViewContainer"] { overflow-y:auto!important; }
