@@ -76,7 +76,13 @@ CREATE INDEX IF NOT EXISTS idx_tm_trcn_id     ON terminal_movements(trcn_id);
 
 def classify_terminal(raw) -> tuple[str, str]:
     """TRCN_ID → (단말기종류, 유형).  숫자만 추출 후 길이·prefix 기준 분류."""
-    digits = "".join(c for c in str(raw) if c.isdigit())
+    # Excel이 숫자 셀을 float으로 읽으면 '560002215.0' 형태로 전달됨 → 정수 문자열로 정규화
+    s = str(raw).strip()
+    try:
+        s = str(int(float(s)))
+    except (ValueError, OverflowError):
+        pass
+    digits = "".join(c for c in s if c.isdigit())
     if not digits:
         return "미분류", "알 수 없음"
 
