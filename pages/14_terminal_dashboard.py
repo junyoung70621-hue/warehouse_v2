@@ -668,7 +668,7 @@ def _upload_section(direction: str, from_c: str, to_c_fixed: str | None, key_pre
 # ══════════════════════════════════════════════════════════════════════════════
 with st.sidebar:
     render_sidebar_header()
-    if st.button("📊 대시보드(자재)", use_container_width=True):
+    if st.button("자재현황(전체)", use_container_width=True):
         st.switch_page("pages/10_dashboard.py")
     st.button("버스단말기 현황", use_container_width=True, type="primary")
     st.divider()

@@ -24,7 +24,7 @@ user_center = _get_center(user)
 # ── 사이드바 ──────────────────────────────────────────────────────────────
 with st.sidebar:
     render_sidebar_header()
-    st.button("📊 대시보드(자재)", use_container_width=True, type="primary")
+    st.button("자재현황(전체)", use_container_width=True, type="primary")
     if st.button("버스단말기 현황", use_container_width=True):
         st.switch_page("pages/14_terminal_dashboard.py")
     st.divider()
