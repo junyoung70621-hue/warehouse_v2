@@ -470,17 +470,15 @@ def render_top_bar(title: str, user: dict):
                              font-weight:700;color:#1E293B;user-select:none;letter-spacing:0.01em;">
                     {title}
                 </span>
-                <a href="/14_terminal_dashboard" target="_self"
+                <span id="wms-home-label"
                    style="display:inline-flex;align-items:center;gap:4px;
                           font-size:11px;font-weight:600;color:#D3004F;
                           background:rgba(211,0,79,0.07);border:1px solid rgba(211,0,79,0.25);
-                          border-radius:4px;padding:3px 9px;text-decoration:none;
+                          border-radius:4px;padding:3px 9px;
                           font-family:'Noto Sans KR',sans-serif;white-space:nowrap;
-                          transition:background 0.15s;"
-                   onmouseover="this.style.background='rgba(211,0,79,0.14)'"
-                   onmouseout="this.style.background='rgba(211,0,79,0.07)'">
+                          cursor:pointer;pointer-events:none;">
                     🏠 홈
-                </a>
+                </span>
             </div>
             <div style="display:flex;align-items:center;gap:18px;">
                 <div style="display:flex;align-items:center;gap:6px;" id="wms-session-block">
@@ -640,6 +638,45 @@ def render_top_bar(title: str, user: dict):
     })();
     </script>
     """, unsafe_allow_html=True)
+
+    # ── 홈 버튼: 라벨 위치 측정 후 Streamlit 버튼 오버레이 ──────────────────
+    st.markdown("""
+    <style>
+    #wms-home-nav {
+        position: fixed !important; z-index: 1005 !important;
+        margin: 0 !important; padding: 0 !important;
+    }
+    #wms-home-nav button {
+        width: 100% !important; height: 100% !important;
+        opacity: 0 !important; cursor: pointer !important;
+        border: none !important; background: transparent !important;
+        margin: 0 !important; padding: 0 !important;
+    }
+    </style>
+    <script>
+    (function(){
+        function setup(){
+            var doc = window.parent.document;
+            var label = doc.getElementById('wms-home-label');
+            if(!label) return;
+            doc.querySelectorAll('[data-testid="stButton"] button').forEach(function(b){
+                if(b.innerText.trim() === '⧆'){
+                    var wrap = b.closest('[data-testid="stButton"]');
+                    wrap.id = 'wms-home-nav';
+                    var r = label.getBoundingClientRect();
+                    wrap.style.setProperty('left',   r.left   + 'px', 'important');
+                    wrap.style.setProperty('top',    r.top    + 'px', 'important');
+                    wrap.style.setProperty('width',  r.width  + 'px', 'important');
+                    wrap.style.setProperty('height', r.height + 'px', 'important');
+                }
+            });
+        }
+        [0, 200, 600, 1500].forEach(function(t){ setTimeout(setup, t); });
+    })();
+    </script>
+    """, unsafe_allow_html=True)
+    if st.button("⧆", key="__home_nav__"):
+        st.switch_page("pages/14_terminal_dashboard.py")
 
 
 def render_sidebar_user(user: dict):

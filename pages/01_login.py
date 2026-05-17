@@ -46,7 +46,7 @@ div[data-testid="stTextInput"] input:focus {
 """, unsafe_allow_html=True)
 
 if st.session_state.get("user"):
-    st.switch_page("pages/02_warehouse.py")
+    st.switch_page("pages/14_terminal_dashboard.py")
 
 if _LOGIN_LOGO:
     st.markdown(
@@ -120,7 +120,7 @@ with tab_login:
                 st.session_state.user = user
                 st.session_state.login_time = datetime.now()
                 st.success(f"환영합니다, {user['name']}님!")
-                st.switch_page("pages/02_warehouse.py")
+                st.switch_page("pages/14_terminal_dashboard.py")
 
 with tab_register:
     with st.form("form_register"):

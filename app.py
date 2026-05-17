@@ -15,6 +15,6 @@ try:
     if st.session_state.user is None:
         st.switch_page("pages/01_login.py")
     else:
-        st.switch_page("pages/02_warehouse.py")
+        st.switch_page("pages/14_terminal_dashboard.py")
 except Exception:
     st.switch_page("pages/01_login.py")
