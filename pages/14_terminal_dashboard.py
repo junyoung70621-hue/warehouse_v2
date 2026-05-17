@@ -397,9 +397,11 @@ def render_manage_section(rows: list, direction: str, center_filter: str | None,
         fname      = grp["file_name"].iloc[0] or str(upload_id)[:8]
         upl_time   = str(grp["uploaded_at"].iloc[0])[:16].replace("T", " ")
         cnt        = len(grp)
-        with st.expander(f"📁 {fname}  ({cnt}건 · {upl_time})", expanded=False):
-            if st.button("🗑️ 배치 전체 삭제", key=f"{key_prefix}_batch_{upload_id}",
-                         type="secondary", use_container_width=False):
+        with st.container(border=True):
+            hc1, hc2 = st.columns([4, 1])
+            hc1.markdown(f"**📁 {fname}** &nbsp; `{cnt}건` &nbsp; {upl_time}")
+            if hc2.button("🗑️ 전체삭제", key=f"{key_prefix}_batch_{upload_id}",
+                          type="secondary", use_container_width=True):
                 if delete_by_upload_id(upload_id):
                     st.success(f"{cnt}건 삭제됐습니다.")
                     st.rerun()
