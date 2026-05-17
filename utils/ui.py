@@ -3,7 +3,6 @@ import os
 import base64
 import streamlit as st
 
-# ── ATEC 로고 base64 (모듈 로드 시 1회만 읽음) ────────────────────────────
 def _load_logo() -> str:
     _p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "atec_logo.png")
     try:
@@ -11,8 +10,6 @@ def _load_logo() -> str:
             return base64.b64encode(_f.read()).decode()
     except Exception:
         return ""
-
-_LOGO_B64 = _load_logo()
 
 
 def apply_global_css():
@@ -388,6 +385,7 @@ def render_top_bar(title: str, user: dict):
     """공통 고정 상단바: ATEC 로고 | 페이지 제목 | 유저 정보/날짜."""
     from datetime import datetime
     from utils.auth import SESSION_TIMEOUT
+    _LOGO_B64 = _load_logo()
     _now  = datetime.now()
     _days = ["월","화","수","목","금","토","일"]
     _date = f"{_now.year}.{_now.month:02d}.{_now.day:02d} ({_days[_now.weekday()]})"
