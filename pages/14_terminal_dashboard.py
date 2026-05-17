@@ -634,18 +634,19 @@ tab_dash, tab_hist, tab_cert = st.tabs(["📊 오늘의 현황", "📋 이력 �
 # ══ Tab 1: 오늘의 현황 ════════════════════════════════════════════════════════
 with tab_dash:
     today = date.today()
-    rc, _ = st.columns([1, 11])
-    if rc.button("🔄", key="t1_ref", help="새로고침"):
+    _dc, _rc = st.columns([3, 1])
+    sel_date = _dc.date_input("조회 날짜", value=today, key="dash_date")
+    if _rc.button("🔄", key="t1_ref", help="새로고침"):
         st.rerun()
 
-    out_rows = fetch_terminal(direction="out", upload_date=today)
-    in_rows  = fetch_terminal(direction="in",  upload_date=today)
+    out_rows = fetch_terminal(direction="out", upload_date=sel_date)
+    in_rows  = fetch_terminal(direction="in",  upload_date=sel_date)
 
     k1, k2, k3, k4 = st.columns(4)
-    k1.metric("📤 출고 (오늘)", f"{len(out_rows):,}대")
-    k2.metric("📥 입고 (오늘)", f"{len(in_rows):,}대")
-    k3.metric("📅 날짜",        today.strftime("%Y-%m-%d"))
-    k4.metric("👤 소속",        user_center)
+    k1.metric("📤 출고", f"{len(out_rows):,}대")
+    k2.metric("📥 입고", f"{len(in_rows):,}대")
+    k3.metric("📅 날짜", sel_date.strftime("%Y-%m-%d"))
+    k4.metric("👤 소속", user_center)
     st.divider()
 
     # ── 단말기종류 × 센터 크로스표 (출고 | 입고) ─────────────────────────────
@@ -654,16 +655,16 @@ with tab_dash:
         st.markdown("#### 📤 센터별 출고 현황")
         _cp_out = build_center_pivot(out_rows, direction="out")
         if _cp_out is not None:
-            render_center_table(_cp_out, today)
+            render_center_table(_cp_out, sel_date)
         else:
-            st.info("📭 오늘 출고 데이터가 없습니다.")
+            st.info("📭 해당 날짜 출고 데이터가 없습니다.")
     with _tbl_in:
         st.markdown("#### 📥 센터별 입고 현황")
         _cp_in = build_center_pivot(in_rows, direction="in")
         if _cp_in is not None:
-            render_center_table(_cp_in, today)
+            render_center_table(_cp_in, sel_date)
         else:
-            st.info("📭 오늘 입고 데이터가 없습니다.")
+            st.info("📭 해당 날짜 입고 데이터가 없습니다.")
     st.divider()
 
     left_col, right_col = st.columns(2)
