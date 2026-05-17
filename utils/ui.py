@@ -32,7 +32,7 @@ def apply_global_css():
         overflow: hidden !important; padding: 0 !important; margin: 0 !important;
     }
     button[data-testid="baseButton-headerNoPadding"] { display: none !important; }
-    header[data-testid="stHeader"] { visibility: hidden !important; }
+    header[data-testid="stHeader"] { visibility: hidden !important; pointer-events: none !important; }
     footer, [data-testid="stFooter"] { display: none !important; }
     #MainMenu { display: none !important; }
     [data-testid="stToolbar"] { display: none !important; }
@@ -103,6 +103,7 @@ def apply_global_css():
     [data-testid="collapsedControl"] {
         display: flex !important;
         position: fixed !important;
+        pointer-events: auto !important;
         top: 78px !important;
         left: 0 !important;
         width: 20px !important;
@@ -415,7 +416,7 @@ def render_top_bar(title: str, user: dict):
     # 상단바 관련 CSS + 사이드바 패딩 제거 JS 주입
     st.markdown("""
     <style>
-    header[data-testid="stHeader"]   { visibility:hidden!important; }
+    header[data-testid="stHeader"]   { visibility:hidden!important; pointer-events:none!important; }
     section[data-testid="stSidebar"] { top:58px!important; height:calc(100vh - 58px)!important; min-width:220px!important; max-width:220px!important; }
     .main .block-container           { padding-top:0.8rem!important; padding-bottom:3rem!important; max-width:100%!important; overflow:visible!important; }
     html, body                       { overflow-y:auto!important; min-height:100vh!important; }
