@@ -268,13 +268,15 @@ def apply_global_css():
     /* ── 5. 입력/셀렉트 라이트 ── */
     div[data-testid="stTextInput"] input {
         font-size: 12px !important; height: 34px !important;
-        background: #FFFFFF !important; border-color: rgba(0,0,0,0.2) !important;
+        background: #F1F5F9 !important;
+        border: 1px solid #CBD5E1 !important;
         color: #1E293B !important; border-radius: 4px !important;
     }
-    div[data-testid="stTextInput"] input::placeholder { color: rgba(0,0,0,0.35) !important; }
+    div[data-testid="stTextInput"] input::placeholder { color: #94A3B8 !important; }
     div[data-testid="stTextInput"] input:focus {
-        border-color: rgba(211,0,79,0.7) !important;
+        border-color: #D3004F !important;
         box-shadow: 0 0 0 2px rgba(211,0,79,0.12) !important;
+        background: #FFFFFF !important;
     }
     div[data-testid="stHorizontalBlock"] button,
     div[data-testid="stHorizontalBlock"] [data-testid="stDownloadButton"] button {

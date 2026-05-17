@@ -104,13 +104,15 @@ section[data-testid="stSidebar"] [data-testid="stSelectbox"] { margin-bottom:4px
 /* 필터 입력 */
 div[data-testid="stTextInput"] input {
     font-size:13px!important; height:34px!important; border-radius:4px!important;
-    background:#FFFFFF!important; border-color:rgba(0,0,0,0.2)!important;
+    background:#F1F5F9!important;
+    border:1px solid #CBD5E1!important;
     color:#1E293B!important;
 }
-div[data-testid="stTextInput"] input::placeholder { color:rgba(0,0,0,0.35)!important; }
+div[data-testid="stTextInput"] input::placeholder { color:#94A3B8!important; }
 div[data-testid="stTextInput"] input:focus {
-    border-color:rgba(211,0,79,0.7)!important;
+    border-color:#D3004F!important;
     box-shadow:0 0 0 2px rgba(211,0,79,0.12)!important;
+    background:#FFFFFF!important;
 }
 div[data-testid="stSelectbox"] [data-baseweb="select"] > div {
     height:34px!important; min-height:34px!important;
