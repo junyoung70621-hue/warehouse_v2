@@ -25,7 +25,7 @@ with st.sidebar:
     render_sidebar_header()
     if st.button("📊 대시보드(자재)", use_container_width=True):
         st.switch_page("pages/10_dashboard.py")
-    if st.button("📟 대시보드(버스단말기)", use_container_width=True):
+    if st.button("버스단말기 현황", use_container_width=True):
         st.switch_page("pages/14_terminal_dashboard.py")
     st.divider()
     viewable = get_viewable_centers(user)
