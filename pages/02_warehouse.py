@@ -30,6 +30,36 @@ st.set_page_config(
 
 require_login()
 apply_global_css()
+st.markdown("""
+<style>
+section[data-testid="stSidebar"] { top:58px!important; height:calc(100vh - 58px)!important; min-width:220px!important; max-width:220px!important; }
+section[data-testid="stSidebar"] > div > div { overflow-y:auto!important; scrollbar-width:none!important; }
+section[data-testid="stSidebar"] > div > div::-webkit-scrollbar { display:none!important; }
+[data-testid="stSidebarUserContent"] { padding-top:0!important; margin-top:0!important; }
+section[data-testid="stSidebar"] [data-baseweb="select"] [data-baseweb="singleValue"],
+section[data-testid="stSidebar"] [class*="single-value"] { color:#1E293B!important; }
+section[data-testid="stSidebar"] [data-testid="stSelectbox"] { margin-bottom:4px!important; }
+div[data-testid="stTextInput"] input {
+    font-size:13px!important; height:34px!important; border-radius:4px!important;
+    background:#F1F5F9!important; border:1px solid #D3004F!important; color:#1E293B!important;
+}
+div[data-testid="stTextInput"] input::placeholder { color:#94A3B8!important; }
+div[data-testid="stTextInput"] input:focus {
+    border-color:#D3004F!important; box-shadow:0 0 0 2px rgba(211,0,79,0.12)!important; background:#FFFFFF!important;
+}
+div[data-testid="stSelectbox"] [data-baseweb="select"] > div { height:34px!important; min-height:34px!important; border-radius:4px!important; font-size:13px!important; }
+.main div[data-testid="stHorizontalBlock"] button,
+.main div[data-testid="stHorizontalBlock"] [data-testid="stDownloadButton"] button {
+    white-space:nowrap!important; font-size:12px!important; padding:0 8px!important; height:32px!important; min-height:32px!important; border-radius:4px!important;
+}
+div[data-testid="stRadio"] label { font-size:12px!important; }
+div[data-testid="stCaptionContainer"] p { font-size:11px!important; color:#64748B!important; }
+div[data-testid="column"] { padding:0px 2px!important; }
+hr { margin:2px 0 4px 0!important; border-color:rgba(0,0,0,0.08)!important; }
+[data-testid="stTabsContent"] { overflow-y:visible!important; padding-bottom:2rem!important; }
+.main .block-container { padding-top:0.6rem!important; padding-bottom:3rem!important; overflow:visible!important; max-width:100%!important; }
+</style>
+""", unsafe_allow_html=True)
 
 user      = st.session_state.user
 user_id   = user["id"]
@@ -86,56 +116,6 @@ for k, v in defaults.items():
     if k not in st.session_state:
         st.session_state[k] = v
 
-# ── CSS (02_warehouse 전용 보완 — apply_global_css 다크 테마 기반) ─────────
-st.markdown("""
-<style>
-/* 사이드바 위치 (render_top_bar에서 top:58px 처리하지만 명시적 유지) */
-section[data-testid="stSidebar"] { top:58px!important; height:calc(100vh - 58px)!important; min-width:220px!important; max-width:220px!important; }
-section[data-testid="stSidebar"] > div > div { overflow-y:auto!important; scrollbar-width:none!important; }
-section[data-testid="stSidebar"] > div > div::-webkit-scrollbar { display:none!important; }
-[data-testid="stSidebarUserContent"] { padding-top:0!important; margin-top:0!important; }
-
-/* 셀렉트박스 전체 옵션 */
-section[data-testid="stSidebar"] [data-baseweb="select"] [data-baseweb="singleValue"],
-section[data-testid="stSidebar"] [class*="single-value"],
-section[data-testid="stSidebar"] [data-baseweb="select"] [data-baseweb="singleValue"] { color:#1E293B!important; }
-section[data-testid="stSidebar"] [data-testid="stSelectbox"] { margin-bottom:4px!important; }
-
-/* 필터 입력 */
-div[data-testid="stTextInput"] input {
-    font-size:13px!important; height:34px!important; border-radius:4px!important;
-    background:#F1F5F9!important;
-    border:1px solid #D3004F!important;
-    color:#1E293B!important;
-}
-div[data-testid="stTextInput"] input::placeholder { color:#94A3B8!important; }
-div[data-testid="stTextInput"] input:focus {
-    border-color:#D3004F!important;
-    box-shadow:0 0 0 2px rgba(211,0,79,0.12)!important;
-    background:#FFFFFF!important;
-}
-div[data-testid="stSelectbox"] [data-baseweb="select"] > div {
-    height:34px!important; min-height:34px!important;
-    border-radius:4px!important; font-size:13px!important;
-}
-
-/* 메인 버튼 */
-.main div[data-testid="stHorizontalBlock"] button,
-.main div[data-testid="stHorizontalBlock"] [data-testid="stDownloadButton"] button {
-    white-space:nowrap!important; font-size:12px!important;
-    padding:0 8px!important; height:32px!important; min-height:32px!important;
-    border-radius:4px!important;
-}
-
-/* 기타 */
-div[data-testid="stRadio"] label       { font-size:12px!important; }
-div[data-testid="stCaptionContainer"] p { font-size:11px!important; color:#64748B!important; }
-div[data-testid="column"]              { padding:0px 2px!important; }
-hr { margin:2px 0 4px 0!important; border-color:rgba(0,0,0,0.08)!important; }
-[data-testid="stTabsContent"] { overflow-y:visible!important; padding-bottom:2rem!important; }
-.main .block-container { padding-top:0.6rem!important; padding-bottom:3rem!important; overflow:visible!important; max-width:100%!important; }
-</style>
-""", unsafe_allow_html=True)
 
 # ── 컬럼 매핑 ─────────────────────────────────────────────────────────────
 EXCEL_COL_MAP = {
