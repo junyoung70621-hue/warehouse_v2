@@ -28,18 +28,18 @@ st.markdown("""
 <style>
 .main .block-container { max-width:480px!important; padding-top:3rem!important; }
 div[data-testid="stTextInput"] input {
-    background:#1e2d45 !important;
-    border-color:rgba(255,255,255,0.25) !important;
-    color:#f1f5f9 !important;
+    background:#FFFFFF !important;
+    border-color:rgba(0,0,0,0.2) !important;
+    color:#1E293B !important;
     font-size:14px !important;
     height:40px !important;
 }
 div[data-testid="stTextInput"] input::placeholder {
-    color:rgba(255,255,255,0.35) !important;
+    color:rgba(0,0,0,0.35) !important;
 }
 div[data-testid="stTextInput"] input:focus {
-    border-color:rgba(225,29,72,0.7) !important;
-    box-shadow:0 0 0 2px rgba(225,29,72,0.15) !important;
+    border-color:rgba(211,0,79,0.7) !important;
+    box-shadow:0 0 0 2px rgba(211,0,79,0.12) !important;
 }
 </style>
 """, unsafe_allow_html=True)

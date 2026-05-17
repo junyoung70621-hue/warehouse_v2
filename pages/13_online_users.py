@@ -21,19 +21,19 @@ _RL_MAP = {"admin":"관리자","materials":"자재파트","manager":"센터장",
 
 def _status(last_seen_str):
     if not last_seen_str:
-        return "offline", "오프라인", "#475569"
+        return "offline", "오프라인", "#94A3B8"
     try:
         ts = datetime.fromisoformat(last_seen_str.replace("Z", "+00:00"))
         diff = datetime.now(timezone.utc) - ts
         mins = diff.total_seconds() / 60
         if mins <= 5:
-            return "online",  "온라인",   "#22d3ee"
+            return "online",  "온라인",   "#0284C7"
         elif mins <= 30:
             return "away",    "자리비움", "#f59e0b"
         else:
-            return "offline", "오프라인", "#475569"
+            return "offline", "오프라인", "#94A3B8"
     except Exception:
-        return "offline", "오프라인", "#475569"
+        return "offline", "오프라인", "#94A3B8"
 
 def _since(last_seen_str):
     if not last_seen_str:
@@ -119,24 +119,24 @@ offline = [u for u in users if _status(u.get("last_seen_at"))[0] == "offline"]
 c1, c2, c3 = st.columns(3)
 with c1:
     st.markdown(
-        f"<div style='background:#0f1829;border:1px solid rgba(34,211,238,0.3);border-radius:6px;"
-        f"padding:14px 18px;border-left:3px solid #22d3ee;'>"
-        f"<div style='font-size:11px;color:#475569;letter-spacing:0.1em;'>온라인</div>"
-        f"<div style='font-size:28px;font-weight:700;color:#22d3ee;margin-top:4px;'>{len(online)}</div>"
+        f"<div style='background:#F8F9FA;border:1px solid rgba(2,132,199,0.2);border-radius:6px;"
+        f"padding:14px 18px;border-left:3px solid #0284C7;'>"
+        f"<div style='font-size:11px;color:#64748B;letter-spacing:0.1em;'>온라인</div>"
+        f"<div style='font-size:28px;font-weight:700;color:#0284C7;margin-top:4px;'>{len(online)}</div>"
         f"</div>", unsafe_allow_html=True)
 with c2:
     st.markdown(
-        f"<div style='background:#0f1829;border:1px solid rgba(245,158,11,0.3);border-radius:6px;"
-        f"padding:14px 18px;border-left:3px solid #f59e0b;'>"
-        f"<div style='font-size:11px;color:#475569;letter-spacing:0.1em;'>자리비움</div>"
-        f"<div style='font-size:28px;font-weight:700;color:#f59e0b;margin-top:4px;'>{len(away)}</div>"
+        f"<div style='background:#F8F9FA;border:1px solid rgba(217,119,6,0.2);border-radius:6px;"
+        f"padding:14px 18px;border-left:3px solid #D97706;'>"
+        f"<div style='font-size:11px;color:#64748B;letter-spacing:0.1em;'>자리비움</div>"
+        f"<div style='font-size:28px;font-weight:700;color:#D97706;margin-top:4px;'>{len(away)}</div>"
         f"</div>", unsafe_allow_html=True)
 with c3:
     st.markdown(
-        f"<div style='background:#0f1829;border:1px solid rgba(71,85,105,0.4);border-radius:6px;"
-        f"padding:14px 18px;border-left:3px solid #475569;'>"
-        f"<div style='font-size:11px;color:#475569;letter-spacing:0.1em;'>오프라인</div>"
-        f"<div style='font-size:28px;font-weight:700;color:#475569;margin-top:4px;'>{len(offline)}</div>"
+        f"<div style='background:#F8F9FA;border:1px solid rgba(148,163,184,0.3);border-radius:6px;"
+        f"padding:14px 18px;border-left:3px solid #94A3B8;'>"
+        f"<div style='font-size:11px;color:#64748B;letter-spacing:0.1em;'>오프라인</div>"
+        f"<div style='font-size:28px;font-weight:700;color:#94A3B8;margin-top:4px;'>{len(offline)}</div>"
         f"</div>", unsafe_allow_html=True)
 
 st.divider()
@@ -150,15 +150,15 @@ def _render_user_row(u):
     since = _since(u.get("last_seen_at"))
     st.markdown(
         f"<div style='display:flex;align-items:center;gap:12px;padding:8px 12px;"
-        f"background:#0d1526;border-radius:4px;margin-bottom:4px;"
+        f"background:#F8F9FA;border-radius:4px;margin-bottom:4px;"
         f"border-left:3px solid {color};'>"
         f"<div style='width:8px;height:8px;border-radius:50%;background:{color};flex-shrink:0;'></div>"
         f"<div style='flex:1;min-width:0;'>"
-        f"<span style='font-size:13px;font-weight:600;color:#e2e8f0;'>{u.get('name','')}</span>"
-        f"&nbsp;<span style='font-size:11px;color:#475569;'>({role_label} · {center})</span>"
+        f"<span style='font-size:13px;font-weight:600;color:#1E293B;'>{u.get('name','')}</span>"
+        f"&nbsp;<span style='font-size:11px;color:#64748B;'>({role_label} · {center})</span>"
         f"</div>"
         f"<span style='font-size:11px;color:{color};font-weight:600;white-space:nowrap;'>{status_label}</span>"
-        f"<span style='font-size:11px;color:#334155;white-space:nowrap;margin-left:8px;'>{since}</span>"
+        f"<span style='font-size:11px;color:#94A3B8;white-space:nowrap;margin-left:8px;'>{since}</span>"
         f"</div>",
         unsafe_allow_html=True,
     )

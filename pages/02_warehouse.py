@@ -42,21 +42,21 @@ def render_kpi_cards(df_wh: "pd.DataFrame", transit_count: int):
     low   = int((df_wh["quantity"] < 10).sum()) if not df_wh.empty else 0
     zero  = int((df_wh["quantity"] == 0).sum()) if not df_wh.empty else 0
     cards = [
-        ("#22d3ee", "TOTAL SKUs",       str(total),         "전체 자재 종류"),
-        ("#f59e0b", "LOW STOCK ALERTS", str(low),           "수량 10 미만"),
-        ("#22d3ee", "IN-TRANSIT",       str(transit_count), "이동 신청 대기"),
-        ("#e11d48", "ZERO STOCK",       str(zero),          "재고 없음"),
+        ("#0284C7", "TOTAL SKUs",       str(total),         "전체 자재 종류"),
+        ("#D97706", "LOW STOCK ALERTS", str(low),           "수량 10 미만"),
+        ("#0284C7", "IN-TRANSIT",       str(transit_count), "이동 신청 대기"),
+        ("#D3004F", "ZERO STOCK",       str(zero),          "재고 없음"),
     ]
     cols = st.columns(4)
     for col, (color, label, value, sub) in zip(cols, cards):
         col.markdown(f"""
-        <div style="background:#131b2e;border:1px solid rgba(255,255,255,0.07);
+        <div style="background:#F8F9FA;border:1px solid rgba(0,0,0,0.08);
                     border-radius:4px;padding:14px 16px;border-left:3px solid {color};">
-            <div style="font-size:9px;font-weight:700;color:#94a3b8;
+            <div style="font-size:9px;font-weight:700;color:#64748B;
                         letter-spacing:0.12em;text-transform:uppercase;margin-bottom:8px;">{label}</div>
-            <div style="font-size:26px;font-weight:700;color:#ffffff;line-height:1;
+            <div style="font-size:26px;font-weight:700;color:{color};line-height:1;
                         font-family:'JetBrains Mono','Roboto Mono',monospace;">{value}</div>
-            <div style="font-size:10px;color:#cbd5e1;margin-top:6px;">{sub}</div>
+            <div style="font-size:10px;color:#94A3B8;margin-top:6px;">{sub}</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -95,22 +95,22 @@ section[data-testid="stSidebar"] > div > div { overflow-y:auto!important; scroll
 section[data-testid="stSidebar"] > div > div::-webkit-scrollbar { display:none!important; }
 [data-testid="stSidebarUserContent"] { padding-top:0!important; margin-top:0!important; }
 
-/* 셀렉트박스 전체 옵션 — 흰색 유지 */
+/* 셀렉트박스 전체 옵션 */
 section[data-testid="stSidebar"] [data-baseweb="select"] [data-baseweb="singleValue"],
 section[data-testid="stSidebar"] [class*="single-value"],
-section[data-testid="stSidebar"] [data-baseweb="select"] [data-baseweb="singleValue"] { color:#e2e8f0!important; }
+section[data-testid="stSidebar"] [data-baseweb="select"] [data-baseweb="singleValue"] { color:#1E293B!important; }
 section[data-testid="stSidebar"] [data-testid="stSelectbox"] { margin-bottom:4px!important; }
 
 /* 필터 입력 */
 div[data-testid="stTextInput"] input {
     font-size:13px!important; height:34px!important; border-radius:4px!important;
-    background:#1e2d45!important; border-color:rgba(255,255,255,0.25)!important;
-    color:#f1f5f9!important;
+    background:#FFFFFF!important; border-color:rgba(0,0,0,0.2)!important;
+    color:#1E293B!important;
 }
-div[data-testid="stTextInput"] input::placeholder { color:rgba(255,255,255,0.35)!important; }
+div[data-testid="stTextInput"] input::placeholder { color:rgba(0,0,0,0.35)!important; }
 div[data-testid="stTextInput"] input:focus {
-    border-color:rgba(225,29,72,0.7)!important;
-    box-shadow:0 0 0 2px rgba(225,29,72,0.15)!important;
+    border-color:rgba(211,0,79,0.7)!important;
+    box-shadow:0 0 0 2px rgba(211,0,79,0.12)!important;
 }
 div[data-testid="stSelectbox"] [data-baseweb="select"] > div {
     height:34px!important; min-height:34px!important;
@@ -127,9 +127,9 @@ div[data-testid="stSelectbox"] [data-baseweb="select"] > div {
 
 /* 기타 */
 div[data-testid="stRadio"] label       { font-size:12px!important; }
-div[data-testid="stCaptionContainer"] p { font-size:11px!important; color:#475569!important; }
+div[data-testid="stCaptionContainer"] p { font-size:11px!important; color:#64748B!important; }
 div[data-testid="column"]              { padding:0px 2px!important; }
-hr { margin:2px 0 4px 0!important; border-color:rgba(255,255,255,0.07)!important; }
+hr { margin:2px 0 4px 0!important; border-color:rgba(0,0,0,0.08)!important; }
 [data-testid="stTabsContent"] { overflow-y:visible!important; padding-bottom:2rem!important; }
 .main .block-container { padding-top:0.6rem!important; padding-bottom:3rem!important; overflow:visible!important; max-width:100%!important; }
 </style>

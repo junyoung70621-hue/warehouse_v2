@@ -16,7 +16,7 @@ _LOGO_B64 = _load_logo()
 
 
 def apply_global_css():
-    """전체 페이지 공통 CSS — Industrial Precision 다크 테마."""
+    """전체 페이지 공통 CSS — ATEC Mobility 라이트 테마."""
     st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
@@ -47,7 +47,7 @@ def apply_global_css():
         max-width: 220px !important;
     }
 
-    /* ── 사이드바 닫기 버튼 ‹ — collapsedControl과 동일한 div>button 패턴 ── */
+    /* ── 사이드바 닫기 버튼 ‹ ── */
     section[data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"] {
         visibility: visible !important;
         position: fixed !important;
@@ -58,8 +58,8 @@ def apply_global_css():
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
-        background: #080e1d !important;
-        border: 1px solid rgba(255,255,255,0.15) !important;
+        background: #FFFFFF !important;
+        border: 1px solid rgba(0,0,0,0.12) !important;
         border-left: none !important;
         border-radius: 0 5px 5px 0 !important;
         cursor: pointer !important;
@@ -69,10 +69,9 @@ def apply_global_css():
         transition: background 0.15s, border-color 0.15s !important;
     }
     section[data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"]:hover {
-        background: rgba(225,29,72,0.12) !important;
-        border-color: rgba(225,29,72,0.5) !important;
+        background: rgba(211,0,79,0.06) !important;
+        border-color: rgba(211,0,79,0.4) !important;
     }
-    /* 내부 button: 투명하게, 컨테이너 꽉 채움 */
     section[data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"] button {
         background: transparent !important;
         border: none !important;
@@ -88,15 +87,14 @@ def apply_global_css():
         white-space: nowrap !important;
     }
     section[data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"] svg { display: none !important; }
-    /* ‹ 문자: 내부 button::after에 부착 (collapsedControl과 동일 패턴) */
     section[data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"] button::after {
         content: "‹";
-        color: #64748b;
+        color: #94A3B8;
         font-size: 20px;
         font-weight: 500;
         line-height: 1;
     }
-    section[data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"]:hover button::after { color: #e11d48; }
+    section[data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"]:hover button::after { color: #D3004F; }
     section[data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"]::after { content: "" !important; display: none !important; }
 
     /* ── 사이드바 열기 버튼 › ── */
@@ -110,8 +108,8 @@ def apply_global_css():
         height: 36px !important;
         align-items: center !important;
         justify-content: center !important;
-        background: #080e1d !important;
-        border: 1px solid rgba(255,255,255,0.15) !important;
+        background: #FFFFFF !important;
+        border: 1px solid rgba(0,0,0,0.12) !important;
         border-left: none !important;
         border-radius: 0 5px 5px 0 !important;
         cursor: pointer !important;
@@ -121,8 +119,8 @@ def apply_global_css():
         transition: background 0.15s, border-color 0.15s !important;
     }
     [data-testid="collapsedControl"]:hover {
-        background: rgba(225,29,72,0.12) !important;
-        border-color: rgba(225,29,72,0.5) !important;
+        background: rgba(211,0,79,0.06) !important;
+        border-color: rgba(211,0,79,0.4) !important;
     }
     [data-testid="collapsedControl"] button {
         background: transparent !important;
@@ -139,25 +137,25 @@ def apply_global_css():
     [data-testid="collapsedControl"] button svg { display: none !important; }
     [data-testid="collapsedControl"] button::after {
         content: "›";
-        color: #64748b;
+        color: #94A3B8;
         font-size: 20px;
         font-weight: 500;
         line-height: 1;
     }
-    [data-testid="collapsedControl"]:hover button::after { color: #e11d48; }
+    [data-testid="collapsedControl"]:hover button::after { color: #D3004F; }
 
-    /* ── 1. 페이지 전환 오버레이 (별도 div로 처리) ── */
-
-    /* ── 2. 전체 세로 스크롤 ── */
+    /* ── 1. 전체 세로 스크롤 ── */
     html, body {
         overflow-y: auto !important;
         height: auto !important;
         min-height: 100vh !important;
+        background: #FFFFFF !important;
     }
     [data-testid="stAppViewContainer"] {
         overflow-y: auto !important;
         height: auto !important;
         min-height: 100vh !important;
+        background: #FFFFFF !important;
     }
     [data-testid="stAppViewBlockContainer"] {
         overflow-y: auto !important;
@@ -167,6 +165,7 @@ def apply_global_css():
         overflow-y: auto !important;
         height: auto !important;
         min-height: 100vh !important;
+        background: #FFFFFF !important;
     }
     .main .block-container {
         overflow: visible !important;
@@ -175,150 +174,151 @@ def apply_global_css():
         max-width: 100% !important;
     }
 
-    /* ── 3. 타이틀 ── */
+    /* ── 2. 타이틀 ── */
     h1, h2, h3 {
         overflow: visible !important;
         line-height: 1.8 !important;
         padding: 4px 0 2px 0 !important;
         margin-bottom: 2px !important;
+        color: #1E293B !important;
     }
-    hr { margin: 3px 0 8px 0 !important; }
+    hr { margin: 3px 0 8px 0 !important; border-color: rgba(0,0,0,0.08) !important; }
 
-    /* ── 4. 사이드바 (Industrial Dark) ── */
+    /* ── 3. 사이드바 (ATEC Light) ── */
     section[data-testid="stSidebar"],
     section[data-testid="stSidebar"] > div,
-    section[data-testid="stSidebar"] > div > div { background:#080e1d !important; }
+    section[data-testid="stSidebar"] > div > div { background: #F8F9FA !important; }
     section[data-testid="stSidebar"] {
-        border-right:1px solid rgba(255,255,255,0.06) !important;
-        overflow-y:auto !important;
+        border-right: 1px solid rgba(0,0,0,0.08) !important;
+        overflow-y: auto !important;
     }
-    [data-testid="stSidebarContent"]    { padding-top:0 !important; margin-top:0 !important; }
-    [data-testid="stSidebarUserContent"]{ padding-top:0 !important; margin-top:0 !important; }
-    section[data-testid="stSidebar"] .block-container  { padding-top:0 !important; margin-top:0 !important; }
-    section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] { padding-top:0 !important; gap:2px !important; }
-    section[data-testid="stSidebar"] > div > div { overflow-y:auto !important; scrollbar-width:none !important; }
-    section[data-testid="stSidebar"] > div > div::-webkit-scrollbar { display:none !important; }
+    [data-testid="stSidebarContent"]    { padding-top: 0 !important; margin-top: 0 !important; }
+    [data-testid="stSidebarUserContent"]{ padding-top: 0 !important; margin-top: 0 !important; }
+    section[data-testid="stSidebar"] .block-container  { padding-top: 0 !important; margin-top: 0 !important; }
+    section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] { padding-top: 0 !important; gap: 2px !important; }
+    section[data-testid="stSidebar"] > div > div { overflow-y: auto !important; scrollbar-width: none !important; }
+    section[data-testid="stSidebar"] > div > div::-webkit-scrollbar { display: none !important; }
 
     section[data-testid="stSidebar"] p,
-    section[data-testid="stSidebar"] label { color:#475569 !important; font-size:12px !important; }
-    section[data-testid="stSidebar"] hr    { border-color:rgba(255,255,255,0.06) !important; margin:6px 0 !important; }
+    section[data-testid="stSidebar"] label { color: #64748B !important; font-size: 12px !important; }
+    section[data-testid="stSidebar"] hr    { border-color: rgba(0,0,0,0.08) !important; margin: 6px 0 !important; }
 
     section[data-testid="stSidebar"] [data-testid="stSelectbox"] *,
-    section[data-testid="stSidebar"] [data-baseweb="select"] * { font-size:13px !important; }
+    section[data-testid="stSidebar"] [data-baseweb="select"] * { font-size: 13px !important; }
     section[data-testid="stSidebar"] [data-baseweb="select"] > div {
-        background:#0f1829 !important; border-color:rgba(255,255,255,0.1) !important;
+        background: #FFFFFF !important; border-color: rgba(0,0,0,0.12) !important;
     }
     section[data-testid="stSidebar"] [data-baseweb="select"] span,
     section[data-testid="stSidebar"] [data-baseweb="select"] div,
     section[data-testid="stSidebar"] [data-baseweb="singleValue"],
-    section[data-testid="stSidebar"] [data-baseweb="select"] input { color:#e2e8f0 !important; }
-    section[data-testid="stSidebar"] [data-baseweb="select"] svg   { fill:#475569 !important; }
+    section[data-testid="stSidebar"] [data-baseweb="select"] input { color: #1E293B !important; }
+    section[data-testid="stSidebar"] [data-baseweb="select"] svg   { fill: #64748B !important; }
 
     section[data-testid="stSidebar"] button {
-        background:transparent !important; border:none !important;
-        color:#ffffff !important; font-weight:400 !important;
-        text-align:left !important; justify-content:flex-start !important;
-        padding:5px 14px 5px 12px !important; border-radius:4px !important;
-        font-size:15px !important; height:auto !important;
-        min-height:34px !important; white-space:nowrap !important;
-        margin:1px 6px !important; width:calc(100% - 12px) !important;
-        border-left:3px solid transparent !important;
+        background: transparent !important; border: none !important;
+        color: #1E293B !important; font-weight: 400 !important;
+        text-align: left !important; justify-content: flex-start !important;
+        padding: 5px 14px 5px 12px !important; border-radius: 4px !important;
+        font-size: 15px !important; height: auto !important;
+        min-height: 34px !important; white-space: nowrap !important;
+        margin: 1px 6px !important; width: calc(100% - 12px) !important;
+        border-left: 3px solid transparent !important;
     }
     section[data-testid="stSidebar"] button p,
     section[data-testid="stSidebar"] button span,
     section[data-testid="stSidebar"] button div {
-        color:#ffffff !important; font-weight:400 !important; font-size:15px !important;
+        color: #1E293B !important; font-weight: 400 !important; font-size: 15px !important;
     }
     section[data-testid="stSidebar"] button:hover,
     section[data-testid="stSidebar"] button:hover p,
     section[data-testid="stSidebar"] button:hover span {
-        background:rgba(255,255,255,0.06) !important; color:#fff !important;
-        border-left-color:rgba(225,29,72,0.4) !important;
+        background: rgba(0,0,0,0.04) !important; color: #1E293B !important;
+        border-left-color: rgba(211,0,79,0.4) !important;
     }
     section[data-testid="stSidebar"] button[kind="primary"] {
         background: transparent !important;
         border: none !important; outline: none !important; box-shadow: none !important;
-        color: #fff !important; font-weight: 700 !important;
+        color: #1E293B !important; font-weight: 700 !important;
         position: relative !important;
     }
     section[data-testid="stSidebar"] button[kind="primary"] p,
     section[data-testid="stSidebar"] button[kind="primary"] span {
-        color: #fff !important; font-weight: 700 !important;
+        color: #1E293B !important; font-weight: 700 !important;
         position: relative !important; z-index: 1 !important;
     }
     section[data-testid="stSidebar"] button[kind="primary"]::before {
         content: "" !important;
         position: absolute !important;
         inset: 0 !important;
-        background: rgba(225,29,72,0.25) !important;
+        background: rgba(211,0,79,0.1) !important;
         border-radius: 4px !important;
         pointer-events: none !important;
         z-index: 0 !important;
     }
 
-    /* ── 5. 스크롤 ── */
-    html, body { overflow-y:auto !important; min-height:100vh !important; }
+    /* ── 4. 스크롤 ── */
+    html, body { overflow-y: auto !important; min-height: 100vh !important; }
     [data-testid="stAppViewContainer"],
-    [data-testid="stAppViewBlockContainer"] { overflow-y:auto !important; height:auto !important; }
-    .main { overflow-y:auto !important; min-height:100vh !important; }
-    [data-testid="stTabsContent"] { overflow-y:visible !important; padding-bottom:2rem !important; }
-    .main .block-container { overflow:visible !important; padding-top:0.6rem !important; padding-bottom:3rem !important; max-width:100% !important; }
-    hr { margin:2px 0 4px 0 !important; border-color:rgba(255,255,255,0.07) !important; }
+    [data-testid="stAppViewBlockContainer"] { overflow-y: auto !important; height: auto !important; }
+    .main { overflow-y: auto !important; min-height: 100vh !important; }
+    [data-testid="stTabsContent"] { overflow-y: visible !important; padding-bottom: 2rem !important; }
+    .main .block-container { overflow: visible !important; padding-top: 0.6rem !important; padding-bottom: 3rem !important; max-width: 100% !important; }
+    hr { margin: 2px 0 4px 0 !important; border-color: rgba(0,0,0,0.08) !important; }
 
-    /* ── 6. 입력/셀렉트 다크 ── */
+    /* ── 5. 입력/셀렉트 라이트 ── */
     div[data-testid="stTextInput"] input {
-        font-size:12px !important; height:34px !important;
-        background:#1e2d45 !important; border-color:rgba(255,255,255,0.25) !important;
-        color:#f1f5f9 !important; border-radius:4px !important;
+        font-size: 12px !important; height: 34px !important;
+        background: #FFFFFF !important; border-color: rgba(0,0,0,0.2) !important;
+        color: #1E293B !important; border-radius: 4px !important;
     }
-    div[data-testid="stTextInput"] input::placeholder { color:rgba(255,255,255,0.35) !important; }
+    div[data-testid="stTextInput"] input::placeholder { color: rgba(0,0,0,0.35) !important; }
     div[data-testid="stTextInput"] input:focus {
-        border-color:rgba(225,29,72,0.7) !important;
-        box-shadow:0 0 0 2px rgba(225,29,72,0.15) !important;
+        border-color: rgba(211,0,79,0.7) !important;
+        box-shadow: 0 0 0 2px rgba(211,0,79,0.12) !important;
     }
     div[data-testid="stHorizontalBlock"] button,
     div[data-testid="stHorizontalBlock"] [data-testid="stDownloadButton"] button {
-        white-space:nowrap !important; font-size:12px !important;
-        padding:0 8px !important; height:32px !important; min-height:32px !important;
-        border-radius:4px !important;
+        white-space: nowrap !important; font-size: 12px !important;
+        padding: 0 8px !important; height: 32px !important; min-height: 32px !important;
+        border-radius: 4px !important;
     }
 
-    /* ── 7. 데이터 에디터 ── */
-    [data-testid="stDataEditor"] { border:1px solid rgba(255,255,255,0.08) !important; border-radius:4px !important; }
+    /* ── 6. 데이터 에디터 ── */
+    [data-testid="stDataEditor"] { border: 1px solid rgba(0,0,0,0.1) !important; border-radius: 4px !important; }
     [data-testid="stDataEditor"] th {
-        background:#080e1d !important; color:#475569 !important;
-        font-weight:700 !important; font-size:11px !important;
-        text-transform:uppercase !important; letter-spacing:0.07em !important;
-        border-bottom:1px solid rgba(255,255,255,0.1) !important; white-space:nowrap !important;
-        position:sticky !important; top:0 !important; z-index:10 !important;
+        background: #F8F9FA !important; color: #64748B !important;
+        font-weight: 700 !important; font-size: 11px !important;
+        text-transform: uppercase !important; letter-spacing: 0.07em !important;
+        border-bottom: 1px solid rgba(0,0,0,0.1) !important; white-space: nowrap !important;
+        position: sticky !important; top: 0 !important; z-index: 10 !important;
     }
     [data-testid="stDataEditor"] td {
-        font-size:12px !important; padding:3px 8px !important;
-        color:#cbd5e1 !important; border-bottom:1px solid rgba(255,255,255,0.04) !important;
+        font-size: 12px !important; padding: 3px 8px !important;
+        color: #1E293B !important; border-bottom: 1px solid rgba(0,0,0,0.05) !important;
     }
 
-    /* ── 8. 공통 컴포넌트 ── */
-    div[data-testid="stRadio"] label      { font-size:12px !important; }
-    div[data-testid="stCaptionContainer"] p { font-size:11px !important; color:#475569 !important; }
-    div[data-testid="column"]             { padding:0 2px !important; }
-    div[data-testid="stSelectbox"] label  { font-size:12px !important; }
-    [data-testid="stMetricValue"]         { font-size:16px !important; }
-    [data-testid="stMetricLabel"]         { font-size:11px !important; color:#475569 !important; }
-    [data-testid="stVerticalBlockBorderWrapper"] { margin-bottom:4px !important; }
+    /* ── 7. 공통 컴포넌트 ── */
+    div[data-testid="stRadio"] label      { font-size: 12px !important; }
+    div[data-testid="stCaptionContainer"] p { font-size: 11px !important; color: #64748B !important; }
+    div[data-testid="column"]             { padding: 0 2px !important; }
+    div[data-testid="stSelectbox"] label  { font-size: 12px !important; }
+    [data-testid="stMetricValue"]         { font-size: 16px !important; color: #1E293B !important; }
+    [data-testid="stMetricLabel"]         { font-size: 11px !important; color: #64748B !important; }
+    [data-testid="stVerticalBlockBorderWrapper"] { margin-bottom: 4px !important; }
 
-    /* ── 9. 메인 버튼 — 사이드바 스타일 통일 ── */
+    /* ── 8. 메인 버튼 ── */
     .main button {
         background: transparent !important;
-        border: 1px solid rgba(255,255,255,0.15) !important;
-        color: #e2e8f0 !important;
+        border: 1px solid rgba(0,0,0,0.15) !important;
+        color: #1E293B !important;
         font-weight: 500 !important;
         box-shadow: none !important;
         transition: background 0.15s, border-color 0.15s !important;
     }
     .main button:hover {
-        background: rgba(255,255,255,0.06) !important;
-        border-color: rgba(225,29,72,0.5) !important;
-        color: #fff !important;
+        background: rgba(0,0,0,0.04) !important;
+        border-color: rgba(211,0,79,0.5) !important;
+        color: #1E293B !important;
     }
     .main button p, .main button span, .main button div {
         color: inherit !important;
@@ -326,39 +326,39 @@ def apply_global_css():
         font-size: inherit !important;
     }
     .main button[kind="primary"] {
-        background: rgba(225,29,72,0.2) !important;
-        border-color: rgba(225,29,72,0.5) !important;
-        color: #fff !important;
+        background: rgba(211,0,79,0.1) !important;
+        border-color: rgba(211,0,79,0.5) !important;
+        color: #D3004F !important;
         font-weight: 600 !important;
     }
     .main button[kind="primary"]:hover {
-        background: rgba(225,29,72,0.3) !important;
-        border-color: rgba(225,29,72,0.75) !important;
+        background: rgba(211,0,79,0.18) !important;
+        border-color: rgba(211,0,79,0.7) !important;
     }
     .main [data-testid="stDownloadButton"] button {
         background: transparent !important;
-        border: 1px solid rgba(255,255,255,0.15) !important;
-        color: #e2e8f0 !important;
+        border: 1px solid rgba(0,0,0,0.15) !important;
+        color: #1E293B !important;
     }
     .main [data-testid="stDownloadButton"] button:hover {
-        background: rgba(255,255,255,0.06) !important;
-        border-color: rgba(225,29,72,0.5) !important;
+        background: rgba(0,0,0,0.04) !important;
+        border-color: rgba(211,0,79,0.5) !important;
     }
 
-    /* ── 10. 역할 배지 ── */
+    /* ── 9. 역할 배지 ── */
     .wms-role-badge {
-        background:#e11d48 !important; color:#fff !important;
-        font-size:10px !important; font-weight:600 !important;
-        padding:2px 7px !important; border-radius:10px !important; display:inline-block;
+        background: #D3004F !important; color: #fff !important;
+        font-size: 10px !important; font-weight: 600 !important;
+        padding: 2px 7px !important; border-radius: 10px !important; display: inline-block;
     }
 
-    /* ── 11. 애니메이션 ── */
-    @keyframes wms-fadein { from { opacity:0; } to { opacity:1; } }
+    /* ── 10. 애니메이션 ── */
+    @keyframes wms-fadein { from { opacity: 0; } to { opacity: 1; } }
     @keyframes wms-pulse  {
-        0%,100% { opacity:1; box-shadow:0 0 4px #22d3ee; }
-        50%     { opacity:0.6; box-shadow:0 0 10px #22d3ee; }
+        0%,100% { opacity: 1; box-shadow: 0 0 4px #0284C7; }
+        50%     { opacity: 0.6; box-shadow: 0 0 10px #0284C7; }
     }
-    [data-testid="stAppViewContainer"] { animation:wms-fadein 0.1s ease-out !important; }
+    [data-testid="stAppViewContainer"] { animation: wms-fadein 0.1s ease-out !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -369,39 +369,37 @@ def render_sidebar_header():
 
 
 def render_sidebar_section(label: str):
-    """SNB 섹션 구분 레이블 — Industrial Precision."""
+    """SNB 섹션 구분 레이블 — ATEC Light."""
     st.markdown(
         f"<div style='display:flex;align-items:center;gap:8px;"
         f"padding:14px 12px 19px 14px;margin-top:2px;'>"
-        f"<div style='width:14px;height:1px;background:rgba(225,29,72,0.5);flex-shrink:0;'></div>"
-        f"<span style='color:#e2e8f0;font-size:11px;font-weight:700;"
+        f"<div style='width:14px;height:1px;background:rgba(211,0,79,0.5);flex-shrink:0;'></div>"
+        f"<span style='color:#64748B;font-size:11px;font-weight:700;"
         f"letter-spacing:0.15em;text-transform:uppercase;white-space:nowrap;'>{label}</span>"
-        f"<div style='flex:1;height:1px;background:rgba(255,255,255,0.05);'></div>"
+        f"<div style='flex:1;height:1px;background:rgba(0,0,0,0.08);'></div>"
         f"</div>",
         unsafe_allow_html=True
     )
 
 
 def render_top_bar(title: str, user: dict):
-    """공통 고정 상단바: ATEC 로고 | 페이지 제목 | 유저 정보/날짜.
-    상단바 위치 CSS(header 숨김, sidebar top 58px, 본문 패딩)도 함께 주입."""
+    """공통 고정 상단바: ATEC 로고 | 페이지 제목 | 유저 정보/날짜."""
     from datetime import datetime
     from utils.auth import SESSION_TIMEOUT
     _now  = datetime.now()
     _days = ["월","화","수","목","금","토","일"]
     _date = f"{_now.year}.{_now.month:02d}.{_now.day:02d} ({_days[_now.weekday()]})"
-    # 세션 남은 시간 (마지막 활동 기준)
     _last_act = st.session_state.get("last_activity")
     if _last_act:
         _remaining = max(0, SESSION_TIMEOUT - (_now - _last_act).total_seconds())
         _rh, _rrem = divmod(int(_remaining), 3600)
         _rm, _rs   = divmod(_rrem, 60)
         _session_str  = f"{_rh:02d}:{_rm:02d}:{_rs:02d}"
-        _session_warn = _remaining < 300  # 5분 미만 경고
+        _session_warn = _remaining < 300
     else:
         _session_str  = "--:--:--"
         _session_warn = False
-    _session_color = "#e11d48" if _session_warn else "#22d3ee"
+    _session_color = "#D3004F" if _session_warn else "#0284C7"
     _rl_map = {"admin":"관리자","materials":"자재파트",
                "manager":"센터장","user":"일반","guest":"게스트"}
     _rl = _rl_map.get(user.get("role",""), user.get("role",""))
@@ -411,9 +409,8 @@ def render_top_bar(title: str, user: dict):
         f'<img src="data:image/png;base64,{_LOGO_B64}" '
         f'style="max-width:192px;width:100%;height:auto;display:block;">'
         if _LOGO_B64 else
-        '<span style="color:#ced4da;font-size:12px;font-weight:700;">ATEC</span>'
+        '<span style="color:#1E293B;font-size:12px;font-weight:700;">ATEC</span>'
     )
-    # 상단바 관련 CSS + 사이드바 패딩 제거 JS 주입
     st.markdown("""
     <style>
     header[data-testid="stHeader"]   { visibility:hidden!important; pointer-events:none!important; }
@@ -421,7 +418,6 @@ def render_top_bar(title: str, user: dict):
     .main .block-container           { padding-top:0.8rem!important; padding-bottom:3rem!important; max-width:100%!important; overflow:visible!important; }
     html, body                       { overflow-y:auto!important; min-height:100vh!important; }
     [data-testid="stAppViewContainer"] { overflow-y:auto!important; }
-
     </style>
     <script>
     (function(){
@@ -450,36 +446,33 @@ def render_top_bar(title: str, user: dict):
         }
         zapSidebar();
         [200,600,1500].forEach(function(t){setTimeout(zapSidebar,t);});
-
     })();
     </script>
     """, unsafe_allow_html=True)
-    # 상단바 HTML — Industrial Precision
     st.markdown(f"""
     <div style="position:fixed;top:0;left:0;right:0;height:58px;
-                background:rgba(8,14,29,0.95);
+                background:rgba(255,255,255,0.97);
                 backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
                 display:flex;align-items:stretch;z-index:1001;
-                border-bottom:1px solid rgba(255,255,255,0.07);
-                box-shadow:0 2px 24px rgba(0,0,0,0.5);">
-        <div style="width:220px;flex-shrink:0;background:#050b17;
+                border-bottom:1px solid rgba(0,0,0,0.08);
+                box-shadow:0 1px 8px rgba(0,0,0,0.08);">
+        <div style="width:220px;flex-shrink:0;background:#FFFFFF;
                     display:flex;align-items:center;justify-content:center;
-                    padding:0 14px;border-right:1px solid rgba(255,255,255,0.06);">
+                    padding:0 14px;border-right:1px solid rgba(0,0,0,0.08);">
             {_logo}
         </div>
         <div style="flex:1;display:flex;align-items:center;
                     justify-content:space-between;padding:0 20px;">
             <span style="font-family:'Noto Sans KR',sans-serif;font-size:15px;
-                         font-weight:700;color:#e2e8f0;user-select:none;letter-spacing:0.01em;
-                         cursor:pointer;" title="사이드바 열기/닫기">
-                ≡&nbsp; {title}
+                         font-weight:700;color:#1E293B;user-select:none;letter-spacing:0.01em;">
+                {title}
             </span>
             <div style="display:flex;align-items:center;gap:18px;">
                 <div style="display:flex;align-items:center;gap:6px;" id="wms-session-block">
                     <div id="wms-session-dot" style="width:6px;height:6px;border-radius:50%;
                                 background:{_session_color};animation:wms-pulse 2s ease-in-out infinite;
                                 flex-shrink:0;"></div>
-                    <span id="wms-session-label" style="font-size:10px;color:#475569;
+                    <span id="wms-session-label" style="font-size:10px;color:#94A3B8;
                                  font-family:'JetBrains Mono',monospace;letter-spacing:0.05em;">
                         {'⚠ 만료' if _session_warn else '세션'}
                     </span>
@@ -488,22 +481,21 @@ def render_top_bar(title: str, user: dict):
                         {_session_str}
                     </span>
                 </div>
-                <div style="width:1px;height:20px;background:rgba(255,255,255,0.1);"></div>
+                <div style="width:1px;height:20px;background:rgba(0,0,0,0.1);"></div>
                 <div style="display:flex;align-items:center;gap:6px;">
-                    <span style="font-size:13px;color:#e2e8f0;font-weight:600;">{_uc}</span>
-                    <span style="color:#334155;font-size:13px;">·</span>
-                    <span style="font-size:13px;color:#e2e8f0;font-weight:600;">{_nm}</span>
-                    <span style="color:#334155;font-size:13px;">·</span>
-                    <span style="font-size:13px;color:#475569;">{_rl}</span>
+                    <span style="font-size:13px;color:#1E293B;font-weight:600;">{_uc}</span>
+                    <span style="color:#CBD5E1;font-size:13px;">·</span>
+                    <span style="font-size:13px;color:#1E293B;font-weight:600;">{_nm}</span>
+                    <span style="color:#CBD5E1;font-size:13px;">·</span>
+                    <span style="font-size:13px;color:#64748B;">{_rl}</span>
                 </div>
-                <span style="font-size:12px;color:#e2e8f0;font-weight:700;
+                <span style="font-size:12px;color:#1E293B;font-weight:700;
                              font-family:'JetBrains Mono',monospace;">{_date}</span>
             </div>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
-    # ── 세션 타이머 JS — components.v1.html로 실행 보장 ─────────────────
     import streamlit.components.v1 as _components
     _rem_sec = int(_remaining) if _last_act else -1
     _components.html(f"""
@@ -511,7 +503,7 @@ def render_top_bar(title: str, user: dict):
     (function(){{
         var rem = {_rem_sec};
         var WARN = 300;
-        var C_OK = '#22d3ee', C_WARN = '#e11d48';
+        var C_OK = '#0284C7', C_WARN = '#D3004F';
         function fmt(s){{
             var h=Math.floor(s/3600), m=Math.floor((s%3600)/60), sec=s%60;
             return (h<10?'0':'')+h+':'+(m<10?'0':'')+m+':'+(sec<10?'0':'')+sec;
@@ -537,15 +529,14 @@ def render_top_bar(title: str, user: dict):
     </script>
     """, height=0)
 
-    # ── 시범운영 배너 ──────────────────────────────────────────────────────
     st.markdown("""
     <style>
     #wms-notice-banner {
         position: fixed;
         top: 58px; left: 0; right: 0; height: 28px;
         background: linear-gradient(90deg,
-            rgba(225,29,72,0.06), rgba(225,29,72,0.13), rgba(225,29,72,0.06));
-        border-bottom: 1px solid rgba(225,29,72,0.22);
+            rgba(211,0,79,0.04), rgba(211,0,79,0.09), rgba(211,0,79,0.04));
+        border-bottom: 1px solid rgba(211,0,79,0.18);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -554,12 +545,12 @@ def render_top_bar(title: str, user: dict):
     }
     #wms-notice-banner .nb-dot {
         width: 5px; height: 5px; border-radius: 50%;
-        background: #e11d48;
+        background: #D3004F;
         animation: wms-pulse 2s ease-in-out infinite;
         flex-shrink: 0;
     }
     #wms-notice-banner .nb-text {
-        font-size: 11px; color: rgba(252,165,165,0.85);
+        font-size: 11px; color: rgba(211,0,79,0.85);
         font-family: 'Noto Sans KR', sans-serif;
         letter-spacing: 0.05em; font-weight: 500;
         user-select: none;
@@ -567,17 +558,16 @@ def render_top_bar(title: str, user: dict):
     #wms-notice-banner .nb-close {
         position: absolute; right: 14px;
         background: none; border: none;
-        color: rgba(255,255,255,0.28);
+        color: rgba(0,0,0,0.3);
         font-size: 14px; cursor: pointer;
         line-height: 1; padding: 2px 5px;
         border-radius: 3px;
         transition: color 0.15s, background 0.15s;
     }
     #wms-notice-banner .nb-close:hover {
-        color: rgba(255,255,255,0.8);
-        background: rgba(255,255,255,0.06);
+        color: rgba(0,0,0,0.7);
+        background: rgba(0,0,0,0.05);
     }
-    /* 배너 표시 시 사이드바·본문 위치 조정 */
     body.wms-notice-on section[data-testid="stSidebar"] {
         top: 86px !important;
         height: calc(100vh - 86px) !important;
@@ -615,7 +605,6 @@ def render_top_bar(title: str, user: dict):
             lsGet() === '1' ? hideAll() : showAll();
         }
 
-        /* document 캡처 이벤트 위임 — 요소 교체/중복에 무관하게 동작 */
         if(!window._wmsNoticeInit){
             window._wmsNoticeInit = true;
             document.addEventListener('click', function(e){
@@ -639,7 +628,7 @@ def render_top_bar(title: str, user: dict):
 
 
 def render_sidebar_user(user: dict):
-    """사이드바 하단: 유저 카드 — Industrial Precision."""
+    """사이드바 하단: 유저 카드 — ATEC Light."""
     _rl_map = {"admin":"ADMIN","materials":"MATERIALS",
                "manager":"MANAGER","user":"USER","guest":"GUEST"}
     _rl = _rl_map.get(user.get("role","guest"), user.get("role","guest").upper())
@@ -648,23 +637,23 @@ def render_sidebar_user(user: dict):
     _init = _nm[:1] if _nm else "U"
     st.markdown(f"""
     <div style="margin:6px 6px 10px 6px;padding:8px 10px;
-                background:#0d1526;border:1px solid rgba(255,255,255,0.07);
-                border-radius:4px;border-left:3px solid #e11d48;box-sizing:border-box;">
+                background:#FFFFFF;border:1px solid rgba(0,0,0,0.1);
+                border-radius:4px;border-left:3px solid #D3004F;box-sizing:border-box;">
         <div style="display:flex;align-items:center;gap:8px;min-width:0;overflow:hidden;">
             <div style="width:26px;height:26px;border-radius:4px;flex-shrink:0;
-                        background:rgba(225,29,72,0.18);border:1px solid rgba(225,29,72,0.35);
+                        background:rgba(211,0,79,0.08);border:1px solid rgba(211,0,79,0.25);
                         display:flex;align-items:center;justify-content:center;
-                        font-size:12px;font-weight:700;color:#e11d48;">{_init}</div>
+                        font-size:12px;font-weight:700;color:#D3004F;">{_init}</div>
             <div style="min-width:0;flex:1;overflow:hidden;">
-                <div style="color:#e2e8f0;font-size:11px;font-weight:600;
+                <div style="color:#1E293B;font-size:11px;font-weight:600;
                             white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{_nm}</div>
                 <div style="display:flex;align-items:center;gap:4px;margin-top:2px;
                             min-width:0;overflow:hidden;">
-                    <span style="font-size:9px;font-weight:700;color:#e11d48;
+                    <span style="font-size:9px;font-weight:700;color:#D3004F;
                                  letter-spacing:0.06em;font-family:'JetBrains Mono',monospace;
                                  flex-shrink:0;">{_rl}</span>
-                    <span style="color:#334155;font-size:9px;flex-shrink:0;">·</span>
-                    <span style="color:#475569;font-size:9px;min-width:0;
+                    <span style="color:#CBD5E1;font-size:9px;flex-shrink:0;">·</span>
+                    <span style="color:#64748B;font-size:9px;min-width:0;
                                  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{_uc}</span>
                 </div>
             </div>

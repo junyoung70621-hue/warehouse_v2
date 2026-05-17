@@ -43,8 +43,8 @@ def reply_dialog(inq: dict):
     st.markdown("---")
     st.markdown("**문의 내용**")
     st.markdown(
-        f"<div style='background:#0f1829;padding:12px 16px;border-radius:4px;"
-        f"border-left:3px solid #e11d48;font-size:13px;white-space:pre-wrap;'>"
+        f"<div style='background:#F8F9FA;padding:12px 16px;border-radius:4px;"
+        f"border-left:3px solid #D3004F;font-size:13px;white-space:pre-wrap;'>"
         f"{inq['content']}</div>",
         unsafe_allow_html=True,
     )
@@ -139,7 +139,7 @@ if is_role("admin"):
             return
         for inq in inqs:
             status_label = "⏳ 미답변" if inq["status"] == "pending" else "✅ 답변완료"
-            status_color = "#e11d48" if inq["status"] == "pending" else "#22d3ee"
+            status_color = "#D3004F" if inq["status"] == "pending" else "#0284C7"
             with st.expander(
                 f"{status_label}  |  {inq['title']}  —  {inq['requester_name']} ({inq['from_center']})  |  {inq['created_at'][:10]}",
                 expanded=False,
@@ -148,13 +148,13 @@ if is_role("admin"):
                 with col_info:
                     st.markdown(
                         f"<span style='font-size:11px;color:{status_color};font-weight:700;'>{status_label}</span>"
-                        f"&nbsp;&nbsp;<span style='font-size:11px;color:#475569;'>{inq['created_at'][:16].replace('T',' ')}</span>",
+                        f"&nbsp;&nbsp;<span style='font-size:11px;color:#64748B;'>{inq['created_at'][:16].replace('T',' ')}</span>",
                         unsafe_allow_html=True,
                     )
                     st.markdown("**문의 내용**")
                     st.markdown(
-                        f"<div style='background:#0f1829;padding:12px 16px;border-radius:4px;"
-                        f"border-left:3px solid #e11d48;font-size:13px;white-space:pre-wrap;'>"
+                        f"<div style='background:#F8F9FA;padding:12px 16px;border-radius:4px;"
+                        f"border-left:3px solid #D3004F;font-size:13px;white-space:pre-wrap;'>"
                         f"{inq['content']}</div>",
                         unsafe_allow_html=True,
                     )
@@ -162,7 +162,7 @@ if is_role("admin"):
                         st.markdown("**답변**")
                         st.markdown(
                             f"<div style='background:#0d1f0d;padding:12px 16px;border-radius:4px;"
-                            f"border-left:3px solid #22d3ee;font-size:13px;white-space:pre-wrap;'>"
+                            f"border-left:3px solid #0284C7;font-size:13px;white-space:pre-wrap;'>"
                             f"{inq['reply']}</div>",
                             unsafe_allow_html=True,
                         )
@@ -211,17 +211,17 @@ else:
         else:
             for inq in my_inqs:
                 status_label = "⏳ 미답변" if inq["status"] == "pending" else "✅ 답변완료"
-                status_color = "#e11d48" if inq["status"] == "pending" else "#22d3ee"
+                status_color = "#D3004F" if inq["status"] == "pending" else "#0284C7"
                 with st.expander(f"{status_label}  |  {inq['title']}  |  {inq['created_at'][:10]}", expanded=False):
                     st.markdown(
                         f"<span style='font-size:11px;color:{status_color};font-weight:700;'>{status_label}</span>"
-                        f"&nbsp;&nbsp;<span style='font-size:11px;color:#475569;'>{inq['created_at'][:16].replace('T',' ')}</span>",
+                        f"&nbsp;&nbsp;<span style='font-size:11px;color:#64748B;'>{inq['created_at'][:16].replace('T',' ')}</span>",
                         unsafe_allow_html=True,
                     )
                     st.markdown("**문의 내용**")
                     st.markdown(
-                        f"<div style='background:#0f1829;padding:12px 16px;border-radius:4px;"
-                        f"border-left:3px solid #e11d48;font-size:13px;white-space:pre-wrap;'>"
+                        f"<div style='background:#F8F9FA;padding:12px 16px;border-radius:4px;"
+                        f"border-left:3px solid #D3004F;font-size:13px;white-space:pre-wrap;'>"
                         f"{inq['content']}</div>",
                         unsafe_allow_html=True,
                     )
@@ -229,7 +229,7 @@ else:
                         st.markdown("**답변**")
                         st.markdown(
                             f"<div style='background:#0d1f0d;padding:12px 16px;border-radius:4px;"
-                            f"border-left:3px solid #22d3ee;font-size:13px;white-space:pre-wrap;'>"
+                            f"border-left:3px solid #0284C7;font-size:13px;white-space:pre-wrap;'>"
                             f"{inq['reply']}</div>",
                             unsafe_allow_html=True,
                         )

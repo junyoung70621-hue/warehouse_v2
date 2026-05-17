@@ -236,29 +236,29 @@ try:
 
     _c1, _c2, _c3, _c4 = st.columns(4)
     _card = (
-        "background:#0d1526;border:1px solid rgba(255,255,255,0.07);"
+        "background:#F8F9FA;border:1px solid rgba(0,0,0,0.08);"
         "border-radius:6px;padding:14px 18px;border-left:3px solid {color};"
     )
     _c1.markdown(
-        f"<div style='{_card.format(color='#e11d48')}'>"
-        f"<div style='font-size:11px;color:#475569;letter-spacing:0.1em;'>전체 회원</div>"
-        f"<div style='font-size:28px;font-weight:700;color:#e2e8f0;margin-top:4px;'>{len(_all)}</div>"
+        f"<div style='{_card.format(color='#D3004F')}'>"
+        f"<div style='font-size:11px;color:#64748B;letter-spacing:0.1em;'>전체 회원</div>"
+        f"<div style='font-size:28px;font-weight:700;color:#1E293B;margin-top:4px;'>{len(_all)}</div>"
         f"</div>", unsafe_allow_html=True)
     _c2.markdown(
-        f"<div style='{_card.format(color='#22d3ee')}'>"
-        f"<div style='font-size:11px;color:#475569;letter-spacing:0.1em;'>승인된 회원</div>"
-        f"<div style='font-size:28px;font-weight:700;color:#22d3ee;margin-top:4px;'>{len(_appr)}</div>"
+        f"<div style='{_card.format(color='#0284C7')}'>"
+        f"<div style='font-size:11px;color:#64748B;letter-spacing:0.1em;'>승인된 회원</div>"
+        f"<div style='font-size:28px;font-weight:700;color:#0284C7;margin-top:4px;'>{len(_appr)}</div>"
         f"</div>", unsafe_allow_html=True)
     _c3.markdown(
-        f"<div style='{_card.format(color='#f59e0b')}'>"
-        f"<div style='font-size:11px;color:#475569;letter-spacing:0.1em;'>승인 대기</div>"
-        f"<div style='font-size:28px;font-weight:700;color:#f59e0b;margin-top:4px;'>{len(_pend)}</div>"
+        f"<div style='{_card.format(color='#D97706')}'>"
+        f"<div style='font-size:11px;color:#64748B;letter-spacing:0.1em;'>승인 대기</div>"
+        f"<div style='font-size:28px;font-weight:700;color:#D97706;margin-top:4px;'>{len(_pend)}</div>"
         f"</div>", unsafe_allow_html=True)
     _role_str = "  ·  ".join(f"{k} {v}" for k, v in _roles.items())
     _c4.markdown(
-        f"<div style='{_card.format(color='#475569')}'>"
-        f"<div style='font-size:11px;color:#475569;letter-spacing:0.1em;'>권한 분포</div>"
-        f"<div style='font-size:11px;color:#94a3b8;margin-top:8px;line-height:1.8;'>{_role_str or '-'}</div>"
+        f"<div style='{_card.format(color='#94A3B8')}'>"
+        f"<div style='font-size:11px;color:#64748B;letter-spacing:0.1em;'>권한 분포</div>"
+        f"<div style='font-size:11px;color:#94A3B8;margin-top:8px;line-height:1.8;'>{_role_str or '-'}</div>"
         f"</div>", unsafe_allow_html=True)
 except Exception:
     pass
