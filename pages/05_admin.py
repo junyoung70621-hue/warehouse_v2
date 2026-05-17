@@ -124,13 +124,17 @@ def render_user_list(users_list, tab_key):
 
             current_role   = u.get("role","guest")
             current_center = u.get("assigned_center","") or ""
-            new_role = pa1.selectbox(
+            new_name = pa1.text_input(
+                "이름", value=u.get("name",""),
+                key=f"pn_{tab_key}_{u['id']}"
+            )
+            new_role = pa2.selectbox(
                 "권한", ROLE_OPTIONS,
                 index=ROLE_OPTIONS.index(current_role) if current_role in ROLE_OPTIONS else 0,
                 format_func=lambda x: ROLE_LABELS.get(x, x),
                 key=f"pr_{tab_key}_{u['id']}"
             )
-            new_center = pa2.selectbox(
+            new_center = pa3.selectbox(
                 "소속 센터", ["미지정"] + CENTERS,
                 index=(["미지정"] + CENTERS).index(current_center) if current_center in CENTERS else 0,
                 key=f"pc_{tab_key}_{u['id']}"
@@ -138,8 +142,12 @@ def render_user_list(users_list, tab_key):
 
             ba1, ba2, ba3, ba4 = st.columns(4)
             if ba1.button("💾 저장", key=f"psave_{tab_key}_{u['id']}", type="primary", use_container_width=True):
+                if not new_name.strip():
+                    st.error("이름을 입력해 주세요.")
+                    st.stop()
                 try:
                     sb.table("users").update({
+                        "name": new_name.strip(),
                         "role": new_role,
                         "assigned_center": None if new_center == "미지정" else new_center,
                     }).eq("id", u["id"]).execute()
