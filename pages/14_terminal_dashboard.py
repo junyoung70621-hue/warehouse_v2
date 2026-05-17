@@ -648,13 +648,22 @@ with tab_dash:
     k4.metric("👤 소속",        user_center)
     st.divider()
 
-    # ── 단말기종류 × 센터 크로스표 ───────────────────────────────────────────
-    st.markdown("#### 📊 센터별 출고 현황")
-    _cp_out = build_center_pivot(out_rows, direction="out")
-    if _cp_out is not None:
-        render_center_table(_cp_out, today)
-    else:
-        st.info("📭 오늘 출고 데이터가 없습니다.")
+    # ── 단말기종류 × 센터 크로스표 (출고 | 입고) ─────────────────────────────
+    _tbl_out, _tbl_in = st.columns(2)
+    with _tbl_out:
+        st.markdown("#### 📤 센터별 출고 현황")
+        _cp_out = build_center_pivot(out_rows, direction="out")
+        if _cp_out is not None:
+            render_center_table(_cp_out, today)
+        else:
+            st.info("📭 오늘 출고 데이터가 없습니다.")
+    with _tbl_in:
+        st.markdown("#### 📥 센터별 입고 현황")
+        _cp_in = build_center_pivot(in_rows, direction="in")
+        if _cp_in is not None:
+            render_center_table(_cp_in, today)
+        else:
+            st.info("📭 오늘 입고 데이터가 없습니다.")
     st.divider()
 
     left_col, right_col = st.columns(2)
