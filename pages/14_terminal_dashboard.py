@@ -139,6 +139,87 @@ def build_pivot(rows: list) -> pd.DataFrame:
     return pivot[pivot["합계"] > 0]
 
 
+# 단말기 기종 표기 단축 매핑
+_DEVICE_SHORT = {"B800": "800", "B700": "700", "B710": "710", "B620": "620", "미분류": "기타"}
+_SUB_SHORT    = {"통합단말기": "통합", "표출기": "표출", "승하차": "승하차",
+                 "운전자": "운전자", "모뎀": "모뎀", "알 수 없음": "기타"}
+_ROW_ORDER = [
+    "800통합", "800표출", "800승하차", "800운전자", "800모뎀",
+    "700통합", "700표출", "700승하차", "700운전자", "700모뎀",
+    "710통합", "710표출", "710승하차", "710운전자", "710모뎀",
+    "620통합", "620표출", "620승하차", "620운전자", "620모뎀",
+]
+_CTR_SHORT = {
+    "강남센터": "강남", "강동센터": "강동", "강북센터": "강북", "강서센터": "강서",
+    "택시지원파트": "택시", "리페어팀": "리페어",
+}
+_COL_ORDER = ["강남", "강동", "강북", "강서", "택시", "리페어"]
+
+
+def build_center_pivot(rows: list, direction: str = "out") -> pd.DataFrame | None:
+    """단말기종류 × 센터 크로스표 (이미지 형식)."""
+    if not rows:
+        return None
+    df = pd.DataFrame(rows)
+    df["row_key"] = (
+        df["device_type"].map(_DEVICE_SHORT).fillna(df["device_type"])
+        + df["sub_type"].map(_SUB_SHORT).fillna(df["sub_type"])
+    )
+    ctr_col = "to_center" if direction == "out" else "from_center"
+    df["ctr"] = df[ctr_col].map(_CTR_SHORT).fillna(df[ctr_col])
+
+    pivot = df.pivot_table(
+        index="row_key", columns="ctr",
+        values="trcn_id", aggfunc="count", fill_value=0,
+    )
+    pivot.columns.name = None
+
+    rows_ord  = [r for r in _ROW_ORDER if r in pivot.index]
+    rows_ext  = [r for r in pivot.index if r not in _ROW_ORDER]
+    cols_ord  = [c for c in _COL_ORDER if c in pivot.columns]
+    cols_ext  = [c for c in pivot.columns if c not in _COL_ORDER]
+
+    result = pivot.reindex(rows_ord + rows_ext)[cols_ord + cols_ext].fillna(0).astype(int)
+    return result[result.sum(axis=1) > 0]
+
+
+def render_center_table(pivot: pd.DataFrame, ref_date: date) -> None:
+    """단말기종류×센터 크로스표를 Excel 이미지 스타일로 출력."""
+    cols = list(pivot.columns)
+    n    = len(cols)
+    th_date = f"{ref_date.month}월 {ref_date.day}일"
+
+    # ── 셀 스타일 상수 ──────────────────────────────────────────────
+    S_TH_DATE  = "background:#FCE4ED;color:#D3004F;font-weight:700;text-align:center;padding:7px 10px;border:1px solid #f0c0d0;font-size:13px;"
+    S_TH_CTR   = "background:#F8F9FA;color:#1E293B;font-weight:600;text-align:center;padding:5px 8px;border:1px solid #E2E8F0;font-size:12px;min-width:52px;"
+    S_TH_LABEL = "background:#F8F9FA;color:#64748B;font-weight:600;text-align:center;padding:5px 8px;border:1px solid #E2E8F0;font-size:12px;min-width:80px;"
+    S_ROW_HDR  = "background:#FEF3F6;color:#D3004F;font-weight:600;text-align:left;padding:5px 10px;border:1px solid #E2E8F0;font-size:12px;"
+    S_CELL     = "text-align:center;padding:5px 8px;border:1px solid #E2E8F0;font-size:12px;color:#1E293B;"
+    S_CELL_0   = "text-align:center;padding:5px 8px;border:1px solid #E2E8F0;font-size:12px;color:#CBD5E1;"
+
+    col_heads = "".join(f"<th style='{S_TH_CTR}'>{c}</th>" for c in cols)
+    rows_html = ""
+    for row_key, row_data in pivot.iterrows():
+        cells = ""
+        for c in cols:
+            v = row_data[c]
+            cells += f"<td style='{S_CELL}'>{v}</td>" if v > 0 else f"<td style='{S_CELL_0}'></td>"
+        rows_html += f"<tr><td style='{S_ROW_HDR}'>{row_key}</td>{cells}</tr>"
+
+    html = f"""
+    <div style="overflow-x:auto;">
+    <table style="border-collapse:collapse;font-family:'Noto Sans KR',sans-serif;width:auto;">
+      <thead>
+        <tr><th colspan="{n+1}" style="{S_TH_DATE}">{th_date}</th></tr>
+        <tr><th style="{S_TH_LABEL}">종류</th>{col_heads}</tr>
+      </thead>
+      <tbody>{rows_html}</tbody>
+    </table>
+    </div>
+    """
+    st.markdown(html, unsafe_allow_html=True)
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # Excel 파싱
 # ══════════════════════════════════════════════════════════════════════════════
@@ -548,13 +629,22 @@ with tab_dash:
     k4.metric("👤 소속",        user_center)
     st.divider()
 
+    # ── 단말기종류 × 센터 크로스표 ───────────────────────────────────────────
+    st.markdown("#### 📊 센터별 출고 현황")
+    _cp_out = build_center_pivot(out_rows, direction="out")
+    if _cp_out is not None:
+        render_center_table(_cp_out, today)
+    else:
+        st.info("📭 오늘 출고 데이터가 없습니다.")
+    st.divider()
+
     left_col, right_col = st.columns(2)
 
     # ── 출고 현황 ──────────────────────────────────────────────────────────
     with left_col:
         st.markdown("#### 📤 출고 현황 &nbsp; `자재센터 → 타센터`")
         if out_rows:
-            st.dataframe(build_pivot(out_rows), use_container_width=True)
+            st.dataframe(build_pivot(out_rows).reset_index(), use_container_width=True, hide_index=True)
             out_df  = pd.DataFrame(out_rows)
             ctr_out = out_df.groupby("to_center").size().reset_index(name="수량")
             ctr_out.columns = ["도착 센터", "수량"]
@@ -571,7 +661,7 @@ with tab_dash:
     with right_col:
         st.markdown("#### 📥 입고 현황 &nbsp; `타센터 → 자재센터`")
         if in_rows:
-            st.dataframe(build_pivot(in_rows), use_container_width=True)
+            st.dataframe(build_pivot(in_rows).reset_index(), use_container_width=True, hide_index=True)
             in_df   = pd.DataFrame(in_rows)
             ctr_in  = in_df.groupby("from_center").size().reset_index(name="수량")
             ctr_in.columns = ["출발 센터", "수량"]
