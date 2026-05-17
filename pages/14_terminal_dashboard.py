@@ -663,7 +663,7 @@ with tab_cert:
             st.markdown(
                 f"**{_from_c} → {_to_c}** &nbsp;|&nbsp; {_dt} &nbsp;|&nbsp; 총 **{len(c_rows):,}대**"
             )
-            st.dataframe(build_pivot(c_rows), use_container_width=True)
+            st.dataframe(build_pivot(c_rows).reset_index(), use_container_width=True, hide_index=True)
 
             xlsx_data = gen_handover_xlsx(c_rows, _from_c, _to_c, _dt)
             st.download_button(
