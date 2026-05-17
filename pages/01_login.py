@@ -29,7 +29,7 @@ st.markdown("""
 .main .block-container { max-width:480px!important; padding-top:3rem!important; }
 div[data-testid="stTextInput"] input {
     background:#F1F5F9 !important;
-    border:1px solid #CBD5E1 !important;
+    border:1px solid #D3004F !important;
     color:#1E293B !important;
     font-size:14px !important;
     height:40px !important;

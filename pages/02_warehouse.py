@@ -105,7 +105,7 @@ section[data-testid="stSidebar"] [data-testid="stSelectbox"] { margin-bottom:4px
 div[data-testid="stTextInput"] input {
     font-size:13px!important; height:34px!important; border-radius:4px!important;
     background:#F1F5F9!important;
-    border:1px solid #CBD5E1!important;
+    border:1px solid #D3004F!important;
     color:#1E293B!important;
 }
 div[data-testid="stTextInput"] input::placeholder { color:#94A3B8!important; }
