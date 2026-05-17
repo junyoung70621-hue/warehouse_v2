@@ -386,12 +386,13 @@ def render_top_bar(title: str, user: dict):
     from datetime import datetime, timezone, timedelta
     from utils.auth import SESSION_TIMEOUT
     _LOGO_B64 = _load_logo()
-    _now  = datetime.now(timezone(timedelta(hours=9)))
+    _now       = datetime.now(timezone(timedelta(hours=9)))
+    _now_naive = datetime.now()
     _days = ["월","화","수","목","금","토","일"]
     _date = f"{_now.year}.{_now.month:02d}.{_now.day:02d} ({_days[_now.weekday()]})"
     _last_act = st.session_state.get("last_activity")
     if _last_act:
-        _remaining = max(0, SESSION_TIMEOUT - (_now - _last_act).total_seconds())
+        _remaining = max(0, SESSION_TIMEOUT - (_now_naive - _last_act).total_seconds())
         _rh, _rrem = divmod(int(_remaining), 3600)
         _rm, _rs   = divmod(_rrem, 60)
         _session_str  = f"{_rh:02d}:{_rm:02d}:{_rs:02d}"
