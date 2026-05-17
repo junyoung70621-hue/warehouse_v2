@@ -1,4 +1,4 @@
-# pages/14_terminal_dashboard.py
+﻿# pages/14_terminal_dashboard.py
 import io
 import uuid
 from datetime import date, datetime, timedelta
@@ -670,7 +670,7 @@ with st.sidebar:
     render_sidebar_header()
     if st.button("📊 대시보드(자재)", use_container_width=True):
         st.switch_page("pages/10_dashboard.py")
-    st.button("📟 대시보드(단말기)", use_container_width=True, type="primary")
+    st.button("📟 대시보드(버스단말기)", use_container_width=True, type="primary")
     st.divider()
 
     render_sidebar_section("재고 관리")
@@ -715,7 +715,7 @@ with st.sidebar:
 # ══════════════════════════════════════════════════════════════════════════════
 # 메인 컨텐츠
 # ══════════════════════════════════════════════════════════════════════════════
-render_top_bar("대시보드(단말기)", user)
+render_top_bar("대시보드(버스단말기)", user)
 st.markdown("## 📟 단말기 이동 현황 대시보드")
 st.divider()
 
