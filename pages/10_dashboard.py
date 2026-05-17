@@ -29,18 +29,6 @@ with st.sidebar:
         st.switch_page("pages/14_terminal_dashboard.py")
     st.divider()
 
-    if user_role in ("admin", "materials"):
-        centers_opt = ["전체"] + CENTERS
-        if st.session_state.get("sidebar_center") not in centers_opt:
-            st.session_state.pop("sidebar_center", None)
-        selected_center = st.selectbox("센터", centers_opt, label_visibility="collapsed", key="sidebar_center")
-    else:
-        selected_center = user_center
-        st.markdown(
-            f"<div style='color:#adb5bd;font-size:13px;padding:4px 8px;'>📌 {user_center}</div>",
-            unsafe_allow_html=True,
-        )
-
     render_sidebar_section("재고 관리")
     if st.button("📦 재고 현황", use_container_width=True):
         st.switch_page("pages/02_warehouse.py")
@@ -82,6 +70,15 @@ with st.sidebar:
 render_top_bar("대시보드(자재)", user)
 st.markdown("## 📊 자재 현황 대시보드")
 st.divider()
+
+# ── 센터 선택 ─────────────────────────────────────────────────────────────
+if user_role in ("admin", "materials"):
+    centers_opt = ["전체"] + CENTERS
+    if st.session_state.get("sidebar_center") not in centers_opt:
+        st.session_state.pop("sidebar_center", None)
+    selected_center = st.selectbox("센터 선택", centers_opt, key="sidebar_center")
+else:
+    selected_center = user_center
 
 # ── 데이터 로드 ───────────────────────────────────────────────────────────
 def _load(center: str) -> pd.DataFrame:
