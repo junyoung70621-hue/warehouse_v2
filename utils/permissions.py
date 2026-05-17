@@ -137,15 +137,16 @@ def filter_transfers_for_user(user: dict, transfers: list) -> list:
 def get_viewable_centers(user: dict) -> list:
     """
     사이드바 센터 선택 드롭다운에 표시할 센터 목록.
-    - admin/materials/guest : 전체 7개
+    - admin/materials/guest : 재고 없는 센터(NO_WAREHOUSE_CENTERS) 제외 전체
     - manager/user          : 본인 소속 센터만
     """
-    from utils.routing import CENTERS
+    from utils.routing import CENTERS, NO_WAREHOUSE_CENTERS
     role   = get_role(user)
     center = get_center(user)
 
+    viewable = [c for c in CENTERS if c not in NO_WAREHOUSE_CENTERS]
     if role in ("admin", "materials", "guest"):
-        return CENTERS
+        return viewable
     if role in ("manager", "user"):
-        return [center] if center in CENTERS else CENTERS
-    return CENTERS
+        return [center] if center in CENTERS else viewable
+    return viewable

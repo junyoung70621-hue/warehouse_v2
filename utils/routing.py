@@ -9,6 +9,9 @@ CENTERS = [
 REGIONAL = {"강서센터", "강북센터", "강동센터", "강남센터"}
 SPECIAL  = {"택시지원파트", "리페어팀", "AFC지원파트", "고속/시외", "대전센터", "토스", "고객지원사업부"}
 
+# 재고 없음 — 창고 뷰·이동 대상에서 제외
+NO_WAREHOUSE_CENTERS = {"고객지원사업부"}
+
 # 권한별 입출고 가능 여부
 # 자재센터만 입출고 가능, 나머지는 이동 신청만 가능
 CAN_STOCK = {"admin", "materials", "manager"}
@@ -22,11 +25,11 @@ def get_allowed_destinations(from_center: str) -> list[str]:
     경로 3: 특수 파트 → 자재센터만
     """
     if from_center == "자재센터":
-        return [c for c in CENTERS if c != "자재센터"]
+        return [c for c in CENTERS if c != "자재센터" and c not in NO_WAREHOUSE_CENTERS]
 
     if from_center in REGIONAL:
         allowed = {"자재센터"} | (REGIONAL - {from_center})
-        return [c for c in CENTERS if c in allowed]
+        return [c for c in CENTERS if c in allowed and c not in NO_WAREHOUSE_CENTERS]
 
     if from_center in SPECIAL:
         return ["자재센터"]
