@@ -364,7 +364,7 @@ def update_record(record_id: str, device_type: str, sub_type: str) -> bool:
 # 수정/삭제 UI
 # ══════════════════════════════════════════════════════════════════════════════
 
-@st.dialog("단말기 기록 수정")
+@st.experimental_dialog("단말기 기록 수정")
 def _edit_record_dialog(rec: dict):
     st.caption(f"TRCN_ID: `{rec['trcn_id']}`")
     _di = DEVICE_ORDER.index(rec["device_type"]) if rec["device_type"] in DEVICE_ORDER else 0
