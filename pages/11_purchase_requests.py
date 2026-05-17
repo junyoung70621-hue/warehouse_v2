@@ -230,11 +230,11 @@ with tab_new:
                 # 알림 메일: admin + materials 역할 전체
                 _target_emails = [
                     u["email"] for u in
-                    (sb.table("users").select("email")
+                    (sb.table("users").select("email, assigned_center")
                        .in_("role", ["admin", "materials"])
                        .eq("is_approved", True)
                        .execute().data or [])
-                    if u.get("email")
+                    if u.get("email") and u.get("assigned_center") != "고객지원사업부"
                 ]
                 if _target_emails:
                     send_purchase_request(

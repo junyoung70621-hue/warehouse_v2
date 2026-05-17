@@ -370,15 +370,15 @@ else:
                             # 자재파트 + 관리자에게 취소 알림 메일
                             try:
                                 sb_c = get_supabase()
-                                r_mat = sb_c.table("users").select("email") \
+                                r_mat = sb_c.table("users").select("email, assigned_center") \
                                             .eq("role", "materials").eq("is_approved", True).execute()
-                                r_adm = sb_c.table("users").select("email") \
+                                r_adm = sb_c.table("users").select("email, assigned_center") \
                                             .eq("role", "admin").eq("is_approved", True).execute()
                                 notify_emails = list({
                                     u["email"]
                                     for res in [r_mat, r_adm]
                                     for u in (res.data or [])
-                                    if u.get("email")
+                                    if u.get("email") and u.get("assigned_center") != "고객지원사업부"
                                 })
                                 if notify_emails:
                                     send_material_request_cancelled(

@@ -61,9 +61,9 @@ def register(
             send_register_complete(email, name, center)
             admin_emails = [
                 u["email"]
-                for u in (sb.table("users").select("email")
+                for u in (sb.table("users").select("email, assigned_center")
                             .eq("role", "admin").eq("is_approved", True).execute().data or [])
-                if u.get("email")
+                if u.get("email") and u.get("assigned_center") != "고객지원사업부"
             ]
             if admin_emails:
                 send_register_notify_admin(admin_emails, name, username, email, center)

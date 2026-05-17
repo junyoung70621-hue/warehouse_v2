@@ -1243,15 +1243,15 @@ if CAN_MATERIAL_REQUEST and st.session_state.show_material_request:
             if bc1.button("📨 요청 발송", type="primary",
                           use_container_width=True, key="req_send"):
                 sb = get_supabase()
-                _res_mat   = sb.table("users").select("email") \
+                _res_mat   = sb.table("users").select("email, assigned_center") \
                                .eq("role", "materials").eq("is_approved", True).execute()
-                _res_adm   = sb.table("users").select("email") \
+                _res_adm   = sb.table("users").select("email, assigned_center") \
                                .eq("role", "admin").eq("is_approved", True).execute()
                 mat_emails = list({
                     u["email"]
                     for res in (_res_mat, _res_adm)
                     for u in (res.data or [])
-                    if u.get("email")
+                    if u.get("email") and u.get("assigned_center") != "고객지원사업부"
                 })
 
                 if not mat_emails:

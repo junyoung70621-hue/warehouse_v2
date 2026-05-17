@@ -30,8 +30,8 @@ user_center = user.get("assigned_center") or user.get("center", "")
 # ── 관리자 이메일 목록 조회 ────────────────────────────────────────────────
 @st.cache_data(ttl=300)
 def _get_admin_emails():
-    rows = get_supabase().table("users").select("email").eq("role", "admin").eq("is_approved", True).execute().data or []
-    return [r["email"] for r in rows if r.get("email")]
+    rows = get_supabase().table("users").select("email, assigned_center").eq("role", "admin").eq("is_approved", True).execute().data or []
+    return [r["email"] for r in rows if r.get("email") and r.get("assigned_center") != "고객지원사업부"]
 
 
 # ── 답변 다이얼로그 ────────────────────────────────────────────────────────
