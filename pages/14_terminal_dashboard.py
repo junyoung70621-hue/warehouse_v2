@@ -231,13 +231,26 @@ def render_center_table(pivot: pd.DataFrame, ref_date: date) -> None:
 # ══════════════════════════════════════════════════════════════════════════════
 
 def parse_terminal_excel(uploaded_file) -> pd.DataFrame | None:
-    """헤더=3번 행(header=2) 기준으로 파싱. xlsx→openpyxl, xls→xlrd."""
+    """헤더 행 자동 감지 후 파싱. xlsx→openpyxl, xls→xlrd."""
     fname = getattr(uploaded_file, "name", "")
     engine = "xlrd" if fname.lower().endswith(".xls") else "openpyxl"
+    _kws = ["trcn_id", "trcnid", "단말기id", "단말기번호", "단말기 id",
+            "단말기 번호", "ih번호", "단말기", "번호"]
     try:
-        return pd.read_excel(
-            uploaded_file, engine=engine, header=2, dtype=str
-        ).dropna(how="all").reset_index(drop=True)
+        content = uploaded_file.read()
+        raw = pd.read_excel(io.BytesIO(content), engine=engine, header=None, dtype=str).fillna("")
+        header_row = 0
+        for i, row in raw.iterrows():
+            for val in row:
+                v = str(val).strip().lower().replace(" ", "").replace("_", "")
+                if any(kw in v for kw in _kws):
+                    header_row = i
+                    break
+            else:
+                continue
+            break
+        df = pd.read_excel(io.BytesIO(content), engine=engine, header=header_row, dtype=str)
+        return df.dropna(how="all").reset_index(drop=True)
     except Exception as e:
         st.error(f"파일 읽기 실패: {e}")
         return None
