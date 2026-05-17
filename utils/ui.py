@@ -465,10 +465,23 @@ def render_top_bar(title: str, user: dict):
         </div>
         <div style="flex:1;display:flex;align-items:center;
                     justify-content:space-between;padding:0 20px;">
-            <span style="font-family:'Noto Sans KR',sans-serif;font-size:15px;
-                         font-weight:700;color:#1E293B;user-select:none;letter-spacing:0.01em;">
-                {title}
-            </span>
+            <div style="display:flex;align-items:center;gap:10px;">
+                <span style="font-family:'Noto Sans KR',sans-serif;font-size:15px;
+                             font-weight:700;color:#1E293B;user-select:none;letter-spacing:0.01em;">
+                    {title}
+                </span>
+                <a href="/14_terminal_dashboard" target="_self"
+                   style="display:inline-flex;align-items:center;gap:4px;
+                          font-size:11px;font-weight:600;color:#D3004F;
+                          background:rgba(211,0,79,0.07);border:1px solid rgba(211,0,79,0.25);
+                          border-radius:4px;padding:3px 9px;text-decoration:none;
+                          font-family:'Noto Sans KR',sans-serif;white-space:nowrap;
+                          transition:background 0.15s;"
+                   onmouseover="this.style.background='rgba(211,0,79,0.14)'"
+                   onmouseout="this.style.background='rgba(211,0,79,0.07)'">
+                    🏠 홈
+                </a>
+            </div>
             <div style="display:flex;align-items:center;gap:18px;">
                 <div style="display:flex;align-items:center;gap:6px;" id="wms-session-block">
                     <div id="wms-session-dot" style="width:6px;height:6px;border-radius:50%;
