@@ -629,6 +629,42 @@ except Exception:
     _transit = 0
 render_kpi_cards(df_all, _transit)
 
+# ── 사용 가이드 ──────────────────────────────────────────────────────────
+with st.expander("💡 사용 가이드", expanded=False):
+    _my_center = _get_center(user)
+    _guide = []
+
+    if user_role in ("admin", "materials") and IS_MAIN_HUB:
+        _guide.append(("📋 양식",           "자재 일괄 업로드용 엑셀 양식을 다운로드합니다."))
+        _guide.append(("⬆️ 업로드",         "엑셀 파일로 자재를 일괄 등록·수정합니다."))
+    _guide.append(("⬇️ 다운로드",           "현재 센터 재고 현황을 엑셀 파일로 저장합니다."))
+    if SHOW_STOCK_BUTTONS:
+        _guide.append(("📥 입고 / 📤 출고", "목록에서 자재를 선택(체크박스)한 후 수량을 변경합니다."))
+    if CAN_USAGE_UPLOAD:
+        _guide.append(("📋 사용내역",       "사용내역 엑셀을 업로드하면 수량이 자동 차감됩니다. (자재명 또는 ERP코드 기준 매칭)"))
+    if CAN_MATERIAL_REQUEST:
+        _guide.append(("📦 자재 요청",      "자재센터 재고에서 필요한 자재를 장바구니에 담아 요청합니다. 처리 결과는 이메일로 전달됩니다."))
+    if user_role == "admin":
+        _guide.append(("💾 내보내기",       "전체 데이터 다운로드 또는 데이터 삭제 (관리자 전용)"))
+
+    _can_view_all = (user_role == "admin") or (_my_center == "자재센터" and user_role != "guest")
+    if _can_view_all:
+        _guide.append(("🔍 자재명 클릭",    "모든 자재의 입출고 이력과 상세 정보를 조회할 수 있습니다."))
+    else:
+        _guide.append(("🔍 자재명 클릭",    f"본인 소속 센터({_my_center}) 자재만 이력 조회가 가능합니다."))
+
+    _rows_html = "".join(
+        f"<tr>"
+        f"<td style='padding:3px 14px 3px 0;font-weight:600;font-size:12px;white-space:nowrap;'>{b}</td>"
+        f"<td style='padding:3px 0;font-size:12px;color:#64748B;'>— {d}</td>"
+        f"</tr>"
+        for b, d in _guide
+    )
+    st.markdown(
+        f"<table style='border-collapse:collapse;width:100%;'>{_rows_html}</table>",
+        unsafe_allow_html=True
+    )
+
 # ── 필터 바 (1행: 검색 + 대/중/소 분류 드롭다운) ─────────────────────────
 n_checked = len(st.session_state.checked_ids)
 
