@@ -137,6 +137,28 @@ def _make_excel(items: list, name: str, center: str, reason_txt: str) -> bytes:
     return buf.getvalue()
 
 
+# ── 사용 가이드 ──────────────────────────────────────────────────────────
+with st.expander("💡 사용 가이드", expanded=False):
+    _guide = []
+    _guide.append(("📝 새 요청 작성",   "품명·수량·링크를 입력하고 구매사유를 작성한 후 요청을 제출합니다. 관리자 및 자재파트에 알림 메일이 자동 발송됩니다."))
+    _guide.append(("📥 엑셀 다운로드",  "작성 중인 요청서를 엑셀 양식으로 저장합니다. 품의서 첨부용으로 활용할 수 있습니다."))
+    _guide.append(("👤 내 요청 현황",   "제출한 요청의 처리 상태를 조회합니다. 처리 결과(처리중·완료·거절)는 이메일로 자동 안내됩니다."))
+    if IS_MANAGER:
+        _guide.append(("📋 전체 요청 현황", "모든 센터의 구매 요청을 확인하고 상태를 변경합니다. (관리자·자재파트 전용)"))
+        _guide.append(("상태 변경",         "처리중·완료·거절로 변경하면 신청자에게 회신 메일이 자동 발송됩니다."))
+
+    _rows_html = "".join(
+        f"<tr>"
+        f"<td style='padding:3px 14px 3px 0;font-weight:600;font-size:12px;white-space:nowrap;'>{b}</td>"
+        f"<td style='padding:3px 0;font-size:12px;color:#64748B;'>— {d}</td>"
+        f"</tr>"
+        for b, d in _guide
+    )
+    st.markdown(
+        f"<table style='border-collapse:collapse;width:100%;'>{_rows_html}</table>",
+        unsafe_allow_html=True
+    )
+
 # ── 탭 ────────────────────────────────────────────────────────────────────
 if IS_MANAGER:
     tab_new, tab_all, tab_mine = st.tabs(["📝 새 요청 작성", "📋 전체 요청 현황", "👤 내 요청"])
