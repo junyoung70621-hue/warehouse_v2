@@ -630,7 +630,7 @@ except Exception:
 render_kpi_cards(df_all, _transit)
 
 # ── 사용 가이드 ──────────────────────────────────────────────────────────
-with st.expander("💡 사용 가이드", expanded=False):
+with st.expander("💡 사용 가이드", expanded=True):
     _my_center = _get_center(user)
     _guide = []
 

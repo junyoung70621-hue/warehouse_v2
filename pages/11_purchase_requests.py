@@ -138,7 +138,7 @@ def _make_excel(items: list, name: str, center: str, reason_txt: str) -> bytes:
 
 
 # ── 사용 가이드 ──────────────────────────────────────────────────────────
-with st.expander("💡 사용 가이드", expanded=False):
+with st.expander("💡 사용 가이드", expanded=True):
     _guide = []
     _guide.append(("📝 새 요청 작성",   "품명·수량·링크를 입력하고 구매사유를 작성한 후 요청을 제출합니다. 관리자 및 자재파트에 알림 메일이 자동 발송됩니다."))
     _guide.append(("📥 엑셀 다운로드",  "작성 중인 요청서를 엑셀 양식으로 저장합니다. 품의서 첨부용으로 활용할 수 있습니다."))
