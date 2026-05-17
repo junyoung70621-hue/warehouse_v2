@@ -731,9 +731,10 @@ tab_dash, tab_hist, tab_cert = st.tabs(["📊 오늘의 현황", "📋 이력 �
 # ══ Tab 1: 오늘의 현황 ════════════════════════════════════════════════════════
 with tab_dash:
     today = date.today()
-    _dc, _rc = st.columns([3, 1])
+    _dc, _rc = st.columns([6, 1])
     sel_date = _dc.date_input("조회 날짜", value=today, key="dash_date")
-    if _rc.button("🔄", key="t1_ref", help="새로고침"):
+    _rc.markdown("<div style='height:27px'></div>", unsafe_allow_html=True)
+    if _rc.button("새로고침", key="t1_ref", use_container_width=True):
         st.rerun()
 
     out_rows = fetch_terminal(direction="out", upload_date=sel_date)
