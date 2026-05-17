@@ -361,6 +361,20 @@ def apply_global_css():
         50%     { opacity: 0.6; box-shadow: 0 0 10px #0284C7; }
     }
     [data-testid="stAppViewContainer"] { animation: wms-fadein 0.1s ease-out !important; }
+
+    /* ── 11. 로고 클릭 투명 버튼 오버레이 ── */
+    #wms-logo-nav {
+        position: fixed !important;
+        top: 0 !important; left: 0 !important;
+        width: 220px !important; height: 58px !important;
+        z-index: 1005 !important; margin: 0 !important; padding: 0 !important;
+    }
+    #wms-logo-nav button {
+        width: 100% !important; height: 100% !important;
+        opacity: 0 !important; cursor: pointer !important;
+        border: none !important; background: transparent !important;
+        margin: 0 !important; padding: 0 !important;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -627,6 +641,26 @@ def render_top_bar(title: str, user: dict):
     })();
     </script>
     """, unsafe_allow_html=True)
+
+    # ── 로고 클릭 → 단말기 대시보드 이동 ─────────────────────────────────────
+    # 투명 버튼을 고정 배치 후 JS로 ID 부여 → CSS로 로고 영역 위에 오버레이
+    st.markdown("""
+    <script>
+    (function(){
+        function tagLogoBtn(){
+            var doc = window.parent.document;
+            doc.querySelectorAll('[data-testid="stButton"] button').forEach(function(b){
+                if(b.innerText.trim() === '⧆'){
+                    b.closest('[data-testid="stButton"]').id = 'wms-logo-nav';
+                }
+            });
+        }
+        [0, 300, 800, 2000].forEach(function(t){ setTimeout(tagLogoBtn, t); });
+    })();
+    </script>
+    """, unsafe_allow_html=True)
+    if st.button("⧆", key="__logo_nav__"):
+        st.switch_page("pages/14_terminal_dashboard.py")
 
 
 def render_sidebar_user(user: dict):
