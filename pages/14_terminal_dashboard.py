@@ -331,6 +331,91 @@ def save_terminal(records: list) -> bool:
         return False
 
 
+def delete_by_upload_id(upload_id: str) -> bool:
+    try:
+        get_supabase().table(TABLE).delete().eq("upload_id", upload_id).execute()
+        return True
+    except Exception as e:
+        st.error(f"삭제 실패: {e}")
+        return False
+
+
+def delete_by_id(record_id: str) -> bool:
+    try:
+        get_supabase().table(TABLE).delete().eq("id", record_id).execute()
+        return True
+    except Exception as e:
+        st.error(f"삭제 실패: {e}")
+        return False
+
+
+def update_record(record_id: str, device_type: str, sub_type: str) -> bool:
+    try:
+        get_supabase().table(TABLE).update(
+            {"device_type": device_type, "sub_type": sub_type}
+        ).eq("id", record_id).execute()
+        return True
+    except Exception as e:
+        st.error(f"수정 실패: {e}")
+        return False
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# 수정/삭제 UI
+# ══════════════════════════════════════════════════════════════════════════════
+
+@st.dialog("단말기 기록 수정")
+def _edit_record_dialog(rec: dict):
+    st.caption(f"TRCN_ID: `{rec['trcn_id']}`")
+    _di = DEVICE_ORDER.index(rec["device_type"]) if rec["device_type"] in DEVICE_ORDER else 0
+    _si = SUB_ORDER.index(rec["sub_type"]) if rec["sub_type"] in SUB_ORDER else 0
+    new_dt = st.selectbox("기종", DEVICE_ORDER, index=_di, key="ed_dtype")
+    new_st = st.selectbox("유형", SUB_ORDER,    index=_si, key="ed_stype")
+    c1, c2 = st.columns(2)
+    if c1.button("저장", type="primary", use_container_width=True):
+        if update_record(rec["id"], new_dt, new_st):
+            st.success("수정됐습니다.")
+            st.rerun()
+    if c2.button("취소", use_container_width=True):
+        st.rerun()
+
+
+def render_manage_section(rows: list, direction: str, center_filter: str | None, key_prefix: str):
+    """업로드 배치별 수정·삭제 UI."""
+    if not rows:
+        st.info("수정할 데이터가 없습니다.")
+        return
+    df = pd.DataFrame(rows)
+    if center_filter:
+        ctr_col = "to_center" if direction == "out" else "from_center"
+        df = df[df[ctr_col] == center_filter]
+    if df.empty:
+        st.info("수정할 데이터가 없습니다.")
+        return
+
+    for upload_id, grp in df.groupby("upload_id"):
+        fname      = grp["file_name"].iloc[0] or str(upload_id)[:8]
+        upl_time   = str(grp["uploaded_at"].iloc[0])[:16].replace("T", " ")
+        cnt        = len(grp)
+        with st.expander(f"📁 {fname}  ({cnt}건 · {upl_time})", expanded=False):
+            if st.button("🗑️ 배치 전체 삭제", key=f"{key_prefix}_batch_{upload_id}",
+                         type="secondary", use_container_width=False):
+                if delete_by_upload_id(upload_id):
+                    st.success(f"{cnt}건 삭제됐습니다.")
+                    st.rerun()
+            st.divider()
+            for _, row in grp.iterrows():
+                c1, c2, c3, c4, c5 = st.columns([3, 1, 1, 1, 1])
+                c1.caption(f"`{row['trcn_id']}`")
+                c2.caption(row["device_type"])
+                c3.caption(row["sub_type"])
+                if c4.button("✏️", key=f"{key_prefix}_edit_{row['id']}", help="분류 수정"):
+                    _edit_record_dialog(row.to_dict())
+                if c5.button("🗑️", key=f"{key_prefix}_del_{row['id']}", help="삭제"):
+                    if delete_by_id(row["id"]):
+                        st.rerun()
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # 인수인계증 Excel 생성
 # ══════════════════════════════════════════════════════════════════════════════
@@ -685,6 +770,8 @@ with tab_dash:
         if _can_up_out:
             with st.expander("📤 출고 데이터 업로드", expanded=False):
                 _upload_section("out", "자재센터", None, "out")
+            with st.expander("✏️ 출고 데이터 수정/삭제", expanded=False):
+                render_manage_section(out_rows, "out", None, "mgout")
 
     # ── 입고 현황 ──────────────────────────────────────────────────────────
     with right_col:
@@ -707,6 +794,9 @@ with tab_dash:
                     _from_fixed = user_center
                     st.markdown(f"**출발 센터:** `{user_center}`")
                 _upload_section("in", _from_fixed, "자재센터", "in")
+            with st.expander("✏️ 입고 데이터 수정/삭제", expanded=False):
+                _in_cf = None if _can_sel_in else user_center
+                render_manage_section(in_rows, "in", _in_cf, "mgin")
 
 
 # ══ Tab 2: 이력 조회 ══════════════════════════════════════════════════════════
