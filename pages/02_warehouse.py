@@ -699,7 +699,6 @@ with fb[3]:
         st.session_state.selected_small = new_sm
         st.rerun()
 with fb[4]:
-    st.write("")
     if st.button("필터 초기화", use_container_width=True):
         clear_warehouse_cache()
         st.session_state.checked_ids    = []
