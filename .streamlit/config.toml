@@ -2,7 +2,7 @@
 hideSidebarNav = true
 
 [client]
-toolbarMode = "viewer"
+toolbarMode = "minimal"
 
 [theme]
 backgroundColor = "#0b1326"
