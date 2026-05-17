@@ -58,9 +58,8 @@ with st.sidebar:
     render_sidebar_header()
     if st.button("📊 대시보드(자재)", use_container_width=True):
         st.switch_page("pages/10_dashboard.py")
-    if is_role("admin"):
-        if st.button("📟 대시보드(단말기)", use_container_width=True):
-            st.switch_page("pages/14_terminal_dashboard.py")
+    if st.button("📟 대시보드(단말기)", use_container_width=True):
+        st.switch_page("pages/14_terminal_dashboard.py")
     st.divider()
 
     render_sidebar_section("재고 관리")
