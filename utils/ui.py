@@ -383,10 +383,10 @@ def render_sidebar_section(label: str):
 
 def render_top_bar(title: str, user: dict):
     """공통 고정 상단바: ATEC 로고 | 페이지 제목 | 유저 정보/날짜."""
-    from datetime import datetime
+    from datetime import datetime, timezone, timedelta
     from utils.auth import SESSION_TIMEOUT
     _LOGO_B64 = _load_logo()
-    _now  = datetime.now()
+    _now  = datetime.now(timezone(timedelta(hours=9)))
     _days = ["월","화","수","목","금","토","일"]
     _date = f"{_now.year}.{_now.month:02d}.{_now.day:02d} ({_days[_now.weekday()]})"
     _last_act = st.session_state.get("last_activity")
