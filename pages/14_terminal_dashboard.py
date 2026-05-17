@@ -366,16 +366,26 @@ def update_record(record_id: str, device_type: str, sub_type: str) -> bool:
 
 @st.experimental_dialog("단말기 기록 수정")
 def _edit_record_dialog(rec: dict):
-    st.caption(f"TRCN_ID: `{rec['trcn_id']}`")
+    new_trcn = st.text_input("IH (TRCN_ID)", value=rec["trcn_id"], key="ed_trcn")
     _di = DEVICE_ORDER.index(rec["device_type"]) if rec["device_type"] in DEVICE_ORDER else 0
     _si = SUB_ORDER.index(rec["sub_type"]) if rec["sub_type"] in SUB_ORDER else 0
     new_dt = st.selectbox("기종", DEVICE_ORDER, index=_di, key="ed_dtype")
     new_st = st.selectbox("유형", SUB_ORDER,    index=_si, key="ed_stype")
     c1, c2 = st.columns(2)
     if c1.button("저장", type="primary", use_container_width=True):
-        if update_record(rec["id"], new_dt, new_st):
-            st.success("수정됐습니다.")
-            st.rerun()
+        if not new_trcn.strip():
+            st.warning("IH를 입력해 주세요.")
+        else:
+            try:
+                get_supabase().table(TABLE).update({
+                    "trcn_id":     new_trcn.strip(),
+                    "device_type": new_dt,
+                    "sub_type":    new_st,
+                }).eq("id", rec["id"]).execute()
+                st.success("수정됐습니다.")
+                st.rerun()
+            except Exception as e:
+                st.error(f"수정 실패: {e}")
     if c2.button("취소", use_container_width=True):
         st.rerun()
 
