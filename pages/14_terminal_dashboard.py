@@ -1,7 +1,12 @@
 ﻿# pages/14_terminal_dashboard.py
 import io
 import uuid
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
+
+_KST = timezone(timedelta(hours=9))
+
+def _today_kst() -> date:
+    return datetime.now(_KST).date()
 
 import openpyxl
 import pandas as pd
@@ -566,7 +571,7 @@ def _upload_section(direction: str, from_c: str, to_c_fixed: str | None, key_pre
         to_c = to_c_fixed
         st.markdown(f"**도착 센터:** `{to_c}`")
 
-    mv_date = st.date_input("이동 날짜", value=date.today(), key=f"{key_prefix}_date")
+    mv_date = st.date_input("이동 날짜", value=_today_kst(), key=f"{key_prefix}_date")
     uploaded = st.file_uploader(
         "엑셀 파일 (.xls / .xlsx, 3번 행 = 헤더)",
         type=["xls", "xlsx"],
@@ -730,7 +735,7 @@ tab_dash, tab_hist, tab_cert = st.tabs(["📊 오늘의 현황", "📋 이력 �
 
 # ══ Tab 1: 오늘의 현황 ════════════════════════════════════════════════════════
 with tab_dash:
-    today = date.today()
+    today = _today_kst()
     _dc, _rc = st.columns([6, 1])
     sel_date = _dc.date_input("조회 날짜", value=today, key="dash_date")
     _rc.markdown("<div style='height:27px'></div>", unsafe_allow_html=True)
@@ -815,8 +820,8 @@ with tab_dash:
 # ══ Tab 2: 이력 조회 ══════════════════════════════════════════════════════════
 with tab_hist:
     f1, f2, f3, f4 = st.columns([2, 2, 3, 1])
-    h_from  = f1.date_input("시작일", value=date.today() - timedelta(days=30), key="h_from")
-    h_to    = f2.date_input("종료일", value=date.today(),                       key="h_to")
+    h_from  = f1.date_input("시작일", value=_today_kst() - timedelta(days=30), key="h_from")
+    h_to    = f2.date_input("종료일", value=_today_kst(),                       key="h_to")
     h_dir   = f3.selectbox("방향", ["전체", "출고 (자재→센터)", "입고 (센터→자재)"],  key="h_dir")
     if f4.button("🔄", key="h_ref"):
         st.rerun()
@@ -854,7 +859,7 @@ with tab_hist:
 with tab_cert:
     st.markdown("#### 📄 인수인계증 생성")
     c1, c2, c3 = st.columns(3)
-    cert_date   = c1.date_input("이동 날짜", value=date.today(), key="cert_date")
+    cert_date   = c1.date_input("이동 날짜", value=_today_kst(), key="cert_date")
     cert_dir    = c2.selectbox("방향", ["출고 (자재→센터)", "입고 (센터→자재)"], key="cert_dir")
     cert_center = c3.selectbox("센터 필터 (선택)", ["전체"] + NON_HUB_CENTERS, key="cert_center")
 
