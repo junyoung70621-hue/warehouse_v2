@@ -34,14 +34,14 @@ user        = st.session_state.user
 user_role   = user["role"]
 user_center = _get_center(user)
 
-if user_role != "admin":
-    st.error("접근 권한이 없습니다.")
-    st.stop()
-
 _is_admin   = user_role == "admin"
 _is_jjae    = user_center == "자재센터"
-_can_up_out = user_role in ("admin", "materials")           # 출고 업로드 권한
-_can_up_in  = user_role in ("admin", "manager", "user")     # 입고 업로드 권한
+# 출고 업로드: admin 또는 자재센터 소속 (비게스트)
+_can_up_out = _is_admin or (_is_jjae and user_role != "guest")
+# 입고 업로드: 게스트 제외 전원 (본인 센터 고정, admin/자재센터는 센터 선택 가능)
+_can_up_in  = user_role != "guest"
+# 입고 업로드 시 센터 선택 권한: admin 또는 자재센터
+_can_sel_in = _is_admin or _is_jjae
 
 NON_HUB_CENTERS = [c for c in CENTERS if c != "자재센터"]
 
@@ -700,12 +700,12 @@ with tab_dash:
 
         if _can_up_in:
             with st.expander("📥 입고 데이터 업로드", expanded=False):
-                _from_fixed = None if _is_admin else user_center
-                if not _is_admin:
-                    st.markdown(f"**출발 센터:** `{user_center}`")
+                if _can_sel_in:
+                    _from_fixed = st.selectbox("출발 센터", NON_HUB_CENTERS, key="in_from_sel")
                 else:
-                    _from_fixed = st.selectbox("출발 센터", NON_HUB_CENTERS, key="in_from_admin")
-                _upload_section("in", _from_fixed or user_center, "자재센터", "in")
+                    _from_fixed = user_center
+                    st.markdown(f"**출발 센터:** `{user_center}`")
+                _upload_section("in", _from_fixed, "자재센터", "in")
 
 
 # ══ Tab 2: 이력 조회 ══════════════════════════════════════════════════════════
