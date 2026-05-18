@@ -1028,13 +1028,21 @@ if st.session_state.show_upload:
                     def _norm(v):
                         return str(v or "").strip()
 
-                    # 기존 재고 조회 — (rack_no, shelf, box_no) 위치 기반 매칭
+                    # 기존 재고 조회 — 위치(rack/shelf/box) 우선, erp_code → item_name 순 fallback
                     existing_rows = sb.table("warehouse").select(
-                        "id, item_name, quantity, rack_no, shelf, box_no"
+                        "id, item_name, quantity, rack_no, shelf, box_no, erp_code"
                     ).eq("location", selected_center).execute().data or []
                     existing_map = {
                         (_norm(r.get("rack_no")), _norm(r.get("shelf")), _norm(r.get("box_no"))): r
                         for r in existing_rows
+                    }
+                    existing_by_erp = {
+                        str(r.get("erp_code") or "").strip(): r
+                        for r in existing_rows if (r.get("erp_code") or "").strip()
+                    }
+                    existing_by_name = {
+                        str(r.get("item_name") or "").strip(): r
+                        for r in existing_rows if (r.get("item_name") or "").strip()
                     }
 
                     to_insert, to_update = [], []
@@ -1045,8 +1053,22 @@ if st.session_state.show_upload:
                             _norm(r.get("box_no")),
                         )
                         add_qty = int(r.get("quantity") or 0)
-                        if key in existing_map:
+                        # 1) 위치 기반 매칭 (랙번호가 있을 때만)
+                        ex = None
+                        if key != ("", "", "") and key in existing_map:
                             ex = existing_map[key]
+                        # 2) ERP코드 fallback
+                        if ex is None:
+                            ec = str(r.get("erp_code") or "").strip()
+                            if ec and ec in existing_by_erp:
+                                ex = existing_by_erp[ec]
+                        # 3) 자재명 fallback
+                        if ex is None:
+                            nm = str(r.get("item_name") or "").strip()
+                            if nm and nm in existing_by_name:
+                                ex = existing_by_name[nm]
+
+                        if ex is not None:
                             before = int(ex["quantity"] or 0)
                             # 위치(rack/shelf/box)는 유지, 자재명·분류·ERP정보 갱신
                             meta = {k: v for k, v in r.items()
