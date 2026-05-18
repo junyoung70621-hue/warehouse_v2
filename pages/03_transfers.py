@@ -225,6 +225,30 @@ def render_transfers(status_filter=None):
             proc_at = tr.get("processed_at")
             if proc_at: st.caption(f"처리일: {proc_at[:16].replace('T',' ')}")
 
+            if user_role == "admin":
+                del_key = f"del_confirm_{status_filter}_{tr['id']}"
+                if del_key not in st.session_state:
+                    st.session_state[del_key] = False
+                if not st.session_state[del_key]:
+                    da, _ = st.columns([1, 5])
+                    if da.button("🗑️ 삭제", key=f"del_btn_{status_filter}_{tr['id']}",
+                                 use_container_width=True):
+                        st.session_state[del_key] = True
+                        st.rerun()
+                else:
+                    st.warning(f"**{item_name}** 이동 신청 기록을 삭제하시겠습니까?")
+                    da, db, _ = st.columns([1, 1, 4])
+                    if da.button("✅ 확인", key=f"del_ok_{status_filter}_{tr['id']}",
+                                 type="primary", use_container_width=True):
+                        get_supabase().table("transfers").delete().eq("id", tr["id"]).execute()
+                        st.session_state[del_key] = False
+                        clear_transfer_cache()
+                        st.rerun()
+                    if db.button("취소", key=f"del_no_{status_filter}_{tr['id']}",
+                                 use_container_width=True):
+                        st.session_state[del_key] = False
+                        st.rerun()
+
 with tab_pending:  render_transfers("pending")
 with tab_approved: render_transfers("approved")
 with tab_rejected: render_transfers("rejected")
