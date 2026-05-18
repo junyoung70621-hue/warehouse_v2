@@ -8,7 +8,7 @@ from utils.db import get_supabase, fetch_purchase_requests, clear_purchase_reque
 from utils.permissions import get_viewable_centers, get_center as _get_center
 from utils.routing import CENTERS
 from utils.ui import apply_global_css, render_sidebar_header, render_sidebar_section, render_sidebar_user, render_top_bar
-from utils.mail import send_purchase_request, send_purchase_request_reply, send_purchase_request_submitted
+from utils.mail import send_purchase_request, send_purchase_request_reply, send_purchase_request_submitted, send_purchase_request_cancelled
 
 st.set_page_config(
     page_title="에이텍모빌리티 자재관리",
@@ -301,6 +301,7 @@ STATUS_KO = {
     "in_progress": "🔄 처리중",
     "completed":   "✅ 완료",
     "rejected":    "❌ 거절",
+    "cancelled":   "🚫 취소됨",
 }
 
 if tab_all is not None:
@@ -455,3 +456,52 @@ with tab_mine:
                         link = str(it.get("링크") or "")
                         link_md = f"[링크]({link})" if link else "-"
                         st.markdown(f"{i}. **{it.get('품명','')}** — {it.get('수량','')}개 &nbsp; {link_md}")
+
+                # 취소 (대기중·처리중만 가능)
+                if status in ("pending", "in_progress"):
+                    _ckey = f"pr_mine_cancel_confirm_{req['id']}"
+                    if not st.session_state.get(_ckey):
+                        if st.button("🚫 요청 취소", key=f"pr_mine_cancel_{req['id']}",
+                                     use_container_width=True):
+                            st.session_state[_ckey] = True
+                            st.rerun()
+                    else:
+                        st.error("이 구매 요청을 취소합니다. 되돌릴 수 없습니다.")
+                        _cc1, _cc2 = st.columns(2)
+                        if _cc1.button("✅ 확인 취소", key=f"pr_mine_cancel_ok_{req['id']}",
+                                       type="primary", use_container_width=True):
+                            try:
+                                _sb = get_supabase()
+                                _sb.table("purchase_requests").update({
+                                    "status": "cancelled",
+                                    "processed_at": datetime.utcnow().isoformat(),
+                                }).eq("id", req["id"]).execute()
+
+                                # 취소 알림 메일 — 신청자 + 자재파트 + 관리자
+                                _all_emails = list({user.get("email", "")} | {
+                                    u["email"] for u in
+                                    (_sb.table("users").select("email, assigned_center")
+                                        .in_("role", ["admin", "materials"])
+                                        .eq("is_approved", True)
+                                        .execute().data or [])
+                                    if u.get("email") and u.get("assigned_center") != "고객지원사업부"
+                                } - {""})
+                                if _all_emails:
+                                    send_purchase_request_cancelled(
+                                        to_emails=_all_emails,
+                                        requester_name=req["requester_name"],
+                                        requester_center=req["requester_center"],
+                                        items=items,
+                                        reason=req.get("reason", ""),
+                                        requested_at=req_date,
+                                    )
+
+                                st.session_state.pop(_ckey, None)
+                                clear_purchase_request_cache()
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"취소 실패: {e}")
+                        if _cc2.button("❌ 되돌리기", key=f"pr_mine_cancel_no_{req['id']}",
+                                       use_container_width=True):
+                            st.session_state.pop(_ckey, None)
+                            st.rerun()

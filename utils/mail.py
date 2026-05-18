@@ -462,6 +462,52 @@ def send_purchase_request_submitted(
         pass
 
 
+def send_purchase_request_cancelled(
+    to_emails: list,
+    requester_name: str,
+    requester_center: str,
+    items: list,
+    reason: str,
+    requested_at: str,
+):
+    """구매 요청 취소 알림 메일 — 신청자·자재파트·관리자에게 발송."""
+    subject = f"[에이텍모빌리티 자재관리] 구매 요청 취소 — {requester_name} ({requester_center})"
+    rows_html = ""
+    for i, it in enumerate(items, 1):
+        rows_html += f"""
+        <tr>
+          <td style="padding:5px 10px;text-align:center;">{i}</td>
+          <td style="padding:5px 10px;">{it.get("품명","")}</td>
+          <td style="padding:5px 10px;text-align:right;">{it.get("수량","")}</td>
+        </tr>"""
+    reason_block = (f'<p style="margin-top:10px;"><b>구매사유:</b> {reason}</p>' if reason else "")
+    body = f"""
+    <p>안녕하세요.</p>
+    <p><b>{requester_name}</b> ({requester_center})님의 구매 요청이 <b style="color:#c62828;">취소</b>되었습니다.</p>
+    <p style="color:#555;font-size:13px;">원래 요청일시: {requested_at}</p>
+    {reason_block}
+    <table border="1" cellpadding="0" cellspacing="0"
+           style="border-collapse:collapse;margin:12px 0;font-size:14px;">
+      <thead>
+        <tr style="background:#e8edf5;color:#1a237e;">
+          <th style="padding:6px 12px;">No</th>
+          <th style="padding:6px 12px;">품명</th>
+          <th style="padding:6px 12px;">수량</th>
+        </tr>
+      </thead>
+      <tbody>{rows_html}</tbody>
+    </table>
+    <p>해당 요청은 처리하지 않으셔도 됩니다.</p>
+    <hr>
+    <p style="color:gray;font-size:12px;">에이텍모빌리티 자재관리 자동발송 메일입니다.</p>
+    """
+    for email in to_emails:
+        try:
+            _send_email(email, subject, body)
+        except Exception:
+            pass
+
+
 def send_purchase_request_reply(
     to_email: str,
     requester_name: str,
