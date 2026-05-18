@@ -128,7 +128,7 @@ def _make_excel(items: list, name: str, center: str, reason_txt: str, cost_note_
             c = ws.cell(row=8 + i, column=col, value=val)
             c.border = bdr
 
-    ws.column_dimensions["A"].width = 6
+    ws.column_dimensions["A"].width = 14
     ws.column_dimensions["B"].width = 30
     ws.column_dimensions["C"].width = 8
     ws.column_dimensions["D"].width = 50
