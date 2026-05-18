@@ -71,17 +71,22 @@ def render_kpi_cards(df_wh: "pd.DataFrame", transit_count: int):
     total = len(df_wh) if not df_wh.empty else 0
     low   = int((df_wh["quantity"] < 10).sum()) if not df_wh.empty else 0
     zero  = int((df_wh["quantity"] == 0).sum()) if not df_wh.empty else 0
+    active = st.session_state.get("kpi_filter")
     cards = [
-        ("#0284C7", "TOTAL SKUs",       str(total),         "전체 자재 종류"),
-        ("#D97706", "LOW STOCK ALERTS", str(low),           "수량 10 미만"),
-        ("#0284C7", "IN-TRANSIT",       str(transit_count), "이동 신청 대기"),
-        ("#D3004F", "ZERO STOCK",       str(zero),          "재고 없음"),
+        (None,      "#0284C7", "TOTAL SKUs",       str(total),         "전체 자재 종류"),
+        ("low",     "#D97706", "LOW STOCK ALERTS", str(low),           "수량 10 미만"),
+        ("transit", "#0284C7", "IN-TRANSIT",       str(transit_count), "이동 신청 대기"),
+        ("zero",    "#D3004F", "ZERO STOCK",       str(zero),          "재고 없음"),
     ]
     cols = st.columns(4)
-    for col, (color, label, value, sub) in zip(cols, cards):
+    for col, (fkey, color, label, value, sub) in zip(cols, cards):
+        is_active = (active == fkey and fkey is not None)
+        bg     = "rgba(0,0,0,0.03)" if is_active else "#F8F9FA"
+        border = f"2px solid {color}" if is_active else "1px solid rgba(0,0,0,0.08)"
         col.markdown(f"""
-        <div style="background:#F8F9FA;border:1px solid rgba(0,0,0,0.08);
-                    border-radius:4px;padding:14px 16px;border-left:3px solid {color};">
+        <div style="background:{bg};border:{border};
+                    border-radius:4px;padding:14px 16px;border-left:3px solid {color};
+                    margin-bottom:4px;">
             <div style="font-size:9px;font-weight:700;color:#64748B;
                         letter-spacing:0.12em;text-transform:uppercase;margin-bottom:8px;">{label}</div>
             <div style="font-size:26px;font-weight:700;color:{color};line-height:1;
@@ -89,6 +94,20 @@ def render_kpi_cards(df_wh: "pd.DataFrame", transit_count: int):
             <div style="font-size:10px;color:#94A3B8;margin-top:6px;">{sub}</div>
         </div>
         """, unsafe_allow_html=True)
+        if fkey is None:
+            # TOTAL 카드 — 필터 초기화
+            if col.button("전체 보기", key="kpi_btn_total", use_container_width=True,
+                          type="primary" if active is not None else "secondary"):
+                st.session_state["kpi_filter"] = None
+                st.session_state["page_num"]   = 1
+                st.rerun()
+        else:
+            btn_label = "✓ 필터 해제" if is_active else "필터 적용"
+            if col.button(btn_label, key=f"kpi_btn_{fkey}", use_container_width=True,
+                          type="primary" if is_active else "secondary"):
+                st.session_state["kpi_filter"] = None if is_active else fkey
+                st.session_state["page_num"]   = 1
+                st.rerun()
 
 
 # ── 세션 초기화 ───────────────────────────────────────────────────────────
@@ -110,6 +129,7 @@ defaults = {
     "sort_dir":              "asc",
     "page_num":              1,
     "page_size":             20,
+    "kpi_filter":            None,
     "filter_hash":           "",
 }
 for k, v in defaults.items():
@@ -651,11 +671,14 @@ if not df_all.empty and "item_name" in df_all.columns:
 # ── KPI 카드 렌더링 ───────────────────────────────────────────────────────
 try:
     _pending = fetch_transfers("pending")
-    _transit = sum(1 for t in _pending
-                   if t.get("from_center") == selected_center
-                   or t.get("to_center")   == selected_center)
+    _transit_rows = [t for t in _pending
+                     if t.get("from_center") == selected_center
+                     or t.get("to_center")   == selected_center]
+    _transit     = len(_transit_rows)
+    _transit_ids = {t["item_id"] for t in _transit_rows if t.get("item_id")}
 except Exception:
-    _transit = 0
+    _transit, _transit_ids = 0, set()
+st.session_state["_kpi_transit_ids"] = _transit_ids
 render_kpi_cards(df_all, _transit)
 
 # ── 사용 가이드 ──────────────────────────────────────────────────────────
@@ -749,6 +772,7 @@ with fb[4]:
         st.session_state.selected_large = "전체"
         st.session_state.selected_mid   = "전체"
         st.session_state.selected_small = "전체"
+        st.session_state.kpi_filter     = None
         st.rerun()
 
 # ── 액션 바 (2행: 기능 버튼) ─────────────────────────────────────────────
@@ -1409,6 +1433,15 @@ selected_small = st.session_state.get("selected_small", "전체")
 # ── 데이터 필터링 ─────────────────────────────────────────────────────────
 df = df_all.copy() if not df_all.empty else pd.DataFrame()
 if not df.empty:
+    # KPI 카드 필터
+    _kf = st.session_state.get("kpi_filter")
+    if _kf == "low":
+        df = df[df["quantity"] < 10]
+    elif _kf == "zero":
+        df = df[df["quantity"] == 0]
+    elif _kf == "transit":
+        _tids = st.session_state.get("_kpi_transit_ids", set())
+        df = df[df["id"].isin(_tids)]
     if search_query:
         mask = (
             df.get("item_name",      pd.Series(dtype=str)).str.contains(search_query, case=False, na=False) |
