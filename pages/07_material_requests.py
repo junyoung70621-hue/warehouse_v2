@@ -93,8 +93,8 @@ if _st_dialog:
             st.markdown("**차감 위치 선택** (자재센터 렉/단수/박스)")
             sb_tmp = get_supabase()
             for it in items:
-                iname   = it.get("item_name", "")
-                req_q   = int(it.get("requested_qty", 0))
+                iname    = it.get("item_name", "")
+                req_q    = int(it.get("requested_qty", 0))
                 hub_rows = sb_tmp.table("warehouse").select(
                     "id, rack_no, shelf, box_no, quantity"
                 ).eq("item_name", iname).eq("location", "자재센터") \

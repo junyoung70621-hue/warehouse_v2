@@ -113,9 +113,9 @@ if _st_dialog:
                     "위치 선택", list(opts.keys()), key=f"hub_sel_{transfer_id}"
                 )
                 picked = opts[chosen]
-                rack_no = picked.get("rack_no", "")
-                shelf   = picked.get("shelf", "")
-                box_no  = picked.get("box_no", "")
+                rack_no = str(picked.get("rack_no") or "")
+                shelf   = str(picked.get("shelf")   or "")
+                box_no  = str(picked.get("box_no")  or "")
             else:
                 c1, c2, c3 = st.columns(3)
                 rack_no = c1.text_input("렉 번호", key=f"hub_rack_{transfer_id}")

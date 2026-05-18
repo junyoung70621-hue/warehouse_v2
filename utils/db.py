@@ -225,7 +225,10 @@ def approve_transfer(
         item_id     = tr["item_id"]
         qty         = tr["quantity"]
         reason      = f"센터 이동 승인 ({tr['from_center']} → {tr['to_center']})"
-        to_hub      = (tr["to_center"] == "자재센터")
+        to_hub  = (tr["to_center"] == "자재센터")
+        rack_no = str(rack_no or "") if rack_no is not None else None
+        shelf   = str(shelf   or "") if shelf   is not None else None
+        box_no  = str(box_no  or "") if box_no  is not None else None
 
         # 출발지 차감 (item_id 직접 지정 → 특정 rack/shelf/box row)
         src = sb.table("warehouse").select("*").eq(
