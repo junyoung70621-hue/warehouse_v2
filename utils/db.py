@@ -235,6 +235,10 @@ def approve_transfer(
         shelf   = str(shelf   or "") if shelf   is not None else None
         box_no  = str(box_no  or "") if box_no  is not None else None
 
+        if not item_id:
+            st.error("연결된 자재가 삭제되어 처리할 수 없습니다. 관리자에게 문의하세요.")
+            return False
+
         src = sb.table("warehouse").select("*").eq(
             "id", item_id
         ).single().execute().data
