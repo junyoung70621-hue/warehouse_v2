@@ -117,6 +117,36 @@ for k, v in defaults.items():
         st.session_state[k] = v
 
 
+# ── 완료 팝업 ─────────────────────────────────────────────────────────────
+@st.experimental_dialog("📦 자재 요청 완료")
+def _mat_req_success_dialog():
+    info = st.session_state.get("_mat_req_success_info", {})
+    st.success("자재 요청이 정상적으로 접수되었습니다.")
+    st.markdown(f"자재파트에 알림 메일이 발송됐습니다.")
+    if info.get("any_short"):
+        st.warning("⚠️ 일부 자재는 재고가 부족합니다. 구매 검토 내용이 함께 전달됐습니다.")
+    items = info.get("items", [])
+    if items:
+        st.markdown("**요청 품목**")
+        for x in items:
+            st.caption(f"· {x.get('item_name','')} — {x.get('requested_qty','')}개")
+    if st.button("확인", type="primary", use_container_width=True, key="_mat_req_ok"):
+        st.session_state.pop("_mat_req_success_info", None)
+        st.session_state.pop("_mat_req_success", None)
+        st.rerun()
+
+
+@st.experimental_dialog("🚚 이동 신청 완료")
+def _transfer_success_dialog():
+    info = st.session_state.get("_transfer_success_info", {})
+    st.success(f"{info.get('count', 0)}개 자재 이동 신청이 완료됐습니다.")
+    st.markdown(f"**{info.get('from_c','')}** → **{info.get('to_c','')}** / 수량 {info.get('qty','')}개")
+    if st.button("확인", type="primary", use_container_width=True, key="_transfer_ok"):
+        st.session_state.pop("_transfer_success_info", None)
+        st.session_state.pop("_transfer_success", None)
+        st.rerun()
+
+
 # ── 컬럼 매핑 ─────────────────────────────────────────────────────────────
 EXCEL_COL_MAP = {
     "item_name":      "자재명",
@@ -1271,16 +1301,12 @@ if CAN_MATERIAL_REQUEST and st.session_state.show_material_request:
                         # 메일 발송
                         _send_req(mat_emails, selected_center, user_name, cart)
                         any_short = any(x["current_qty"] < x["requested_qty"] for x in cart)
-                        if any_short:
-                            st.success(
-                                "✅ 요청 메일이 발송됐습니다.\n\n"
-                                "⚠️ 일부 자재는 재고가 부족합니다. 구매 검토 내용이 함께 전달됐습니다."
-                            )
-                        else:
-                            st.success("✅ 자재 요청 메일이 자재파트에 발송됐습니다.")
-                        st.session_state.material_request_cart   = []
-                        st.session_state.show_material_request   = False
-                        st.rerun()
+                        st.session_state["_mat_req_success_info"] = {
+                            "items": cart, "any_short": any_short,
+                        }
+                        st.session_state["_mat_req_success"]    = True
+                        st.session_state.material_request_cart  = []
+                        st.session_state.show_material_request  = False
                     except Exception as e:
                         st.error(f"메일 발송 오류: {e}")
 
@@ -1371,8 +1397,11 @@ if st.session_state.checked_ids and st.session_state.show_transfer:
                             ok_count += 1
                     st.session_state.checked_ids  = []
                     st.session_state.show_transfer = False
-                    st.success(f"🚚 {ok_count}개 자재 이동 신청 완료!")
-                    st.rerun()
+                    st.session_state["_transfer_success_info"] = {
+                        "count": ok_count, "from_c": selected_center,
+                        "to_c": to_center, "qty": mv_qty,
+                    }
+                    st.session_state["_transfer_success"] = True
 
 # ── 분류 필터 값 읽기 (필터 바에서 이미 설정됨) ─────────────────────────
 selected_large = st.session_state.selected_large
@@ -1583,3 +1612,10 @@ else:
     if set(new_ids) != set(st.session_state.checked_ids):
         st.session_state.checked_ids = new_ids
         st.rerun()
+
+
+# ── 완료 팝업 렌더링 ──────────────────────────────────────────────────────
+if st.session_state.get("_mat_req_success"):
+    _mat_req_success_dialog()
+if st.session_state.get("_transfer_success"):
+    _transfer_success_dialog()
