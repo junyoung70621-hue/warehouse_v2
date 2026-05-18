@@ -67,8 +67,11 @@ CREATE TABLE IF NOT EXISTS terminal_movements (
     uploaded_by  uuid        REFERENCES users(id) ON DELETE SET NULL,
     uploaded_at  timestamptz DEFAULT now(),
     upload_date  date        NOT NULL,
-    file_name    text
+    file_name    text,
+    notes        text
 );
+-- 기존 테이블에 컬럼 추가 (최초 1회만 실행)
+ALTER TABLE terminal_movements ADD COLUMN IF NOT EXISTS notes text;
 CREATE INDEX IF NOT EXISTS idx_tm_upload_date ON terminal_movements(upload_date);
 CREATE INDEX IF NOT EXISTS idx_tm_direction   ON terminal_movements(direction);
 CREATE INDEX IF NOT EXISTS idx_tm_trcn_id     ON terminal_movements(trcn_id);
@@ -95,6 +98,7 @@ def classify_terminal(raw) -> tuple[str, str]:
 
     # ── 승하차·운전자 계열 (8~9자리) ──
     if n in (8, 9):
+        if digits.startswith("157"):   return "한강버스", "승하차"
         if digits.startswith("1560"):  return "B800", "승하차"
         if digits.startswith("1553"):  return "B710", "승하차"
         if digits.startswith("1551"):  return "B620", "승하차"
@@ -104,6 +108,8 @@ def classify_terminal(raw) -> tuple[str, str]:
     if n == 9:
         if digits.startswith("5600"):  return "B800", "표출기"
         if digits.startswith("5500"):  return "B800", "통합단말기"
+        if digits.startswith("457"):   return "한강버스", "표출기"
+        if digits.startswith("447"):   return "한강버스", "통합단말기"
         if digits.startswith("4550"):  return "B710", "표출기"
         if digits.startswith("4450"):  return "B710", "통합단말기"
         if digits.startswith("4500"):  return "B700", "표출기"
@@ -111,7 +117,9 @@ def classify_terminal(raw) -> tuple[str, str]:
 
     # ── 6자리 모뎀 (더 구체적인 prefix 먼저) ──
     if n == 6:
-        if digits.startswith("100"):                           return "B800", "모뎀"
+        if digits.startswith("10"):
+            if 100001 <= int(digits) <= 100500:               return "B620", "모뎀"
+            else:                                             return "B800", "모뎀"
         if digits.startswith("6"):                             return "B710", "모뎀"
         if digits.startswith("4") or digits.startswith("5"):  return "B700", "모뎀"
         if digits.startswith("1"):                             return "B620", "모뎀"
@@ -119,7 +127,7 @@ def classify_terminal(raw) -> tuple[str, str]:
     return "미분류", "알 수 없음"
 
 
-DEVICE_ORDER = ["B800", "B700", "B710", "B620", "미분류"]
+DEVICE_ORDER = ["B800", "B700", "B710", "B620", "한강버스", "미분류"]
 SUB_ORDER    = ["표출기", "통합단말기", "승하차", "운전자", "모뎀", "알 수 없음"]
 
 
@@ -151,7 +159,7 @@ def build_pivot(rows: list) -> pd.DataFrame:
 
 
 # 단말기 기종 표기 단축 매핑
-_DEVICE_SHORT = {"B800": "B800", "B700": "B700", "B710": "B710", "B620": "B620", "미분류": "기타"}
+_DEVICE_SHORT = {"B800": "B800", "B700": "B700", "B710": "B710", "B620": "B620", "한강버스": "한강버스", "미분류": "기타"}
 _SUB_SHORT    = {"통합단말기": "통합", "표출기": "표출", "승하차": "승하차",
                  "운전자": "운전자", "모뎀": "모뎀", "알 수 없음": "기타"}
 _ROW_ORDER = [
@@ -159,6 +167,7 @@ _ROW_ORDER = [
     "B700통합", "B700표출", "B700승하차", "B700모뎀",
     "B710통합", "B710표출", "B710승하차", "B710모뎀",
     "B620승하차", "B620운전자", "B620모뎀",
+    "한강버스통합", "한강버스표출", "한강버스승하차",
 ]
 _CTR_SHORT = {
     "강남센터": "강남", "강동센터": "강동", "강북센터": "강북", "강서센터": "강서",
@@ -297,7 +306,7 @@ def fetch_terminal(
             get_supabase().table(TABLE)
             .select("id,upload_id,trcn_id,device_type,sub_type,"
                     "from_center,to_center,direction,"
-                    "uploaded_at,upload_date,file_name,uploaded_by")
+                    "uploaded_at,upload_date,file_name,uploaded_by,notes")
             .order("uploaded_at", desc=True)
         )
         if direction:   q = q.eq("direction",   direction)
@@ -437,8 +446,21 @@ def render_manage_section(rows: list, direction: str, center_filter: str | None,
 # 인수인계증 Excel 생성
 # ══════════════════════════════════════════════════════════════════════════════
 
-def gen_handover_xlsx(rows: list, from_c: str, to_c: str, mv_date: date) -> bytes:
+def gen_handover_xlsx(rows: list, from_c: str, to_c: str, mv_date: date, notes: str = "") -> bytes:
+    import os
+    from openpyxl.drawing.image import Image as XLImage
     from openpyxl.worksheet.pagebreak import Break
+
+    _logo_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "atec_logo.png")
+
+    def _add_logo(ws, anchor_row: int):
+        if not os.path.exists(_logo_path):
+            return
+        img = XLImage(_logo_path)
+        img.width  = 130
+        img.height = 44
+        ws.row_dimensions[anchor_row].height = 36
+        ws.add_image(img, f"D{anchor_row}")
 
     wb  = openpyxl.Workbook()
     ws  = wb.active
@@ -458,8 +480,7 @@ def gen_handover_xlsx(rows: list, from_c: str, to_c: str, mv_date: date) -> byte
 
     date_str = mv_date.strftime("%Y-%m-%d")
 
-    # A열 153px ≈ 20 Excel 문자 너비 (7.5px/char 기준)
-    for col, w in zip("ABCD", [10, 20, 14, 14]):
+    for col, w in zip("ABCD", [12, 30, 28, 22]):
         ws.column_dimensions[col].width = w
 
     def _header(start_r: int, title: str):
@@ -497,12 +518,26 @@ def gen_handover_xlsx(rows: list, from_c: str, to_c: str, mv_date: date) -> byte
         c.fill = gray; c.border = bdr
     r += 1
 
+    _XLSX_ROW_ORDER = [
+        ("B800", "표출기"), ("B800", "통합단말기"), ("B800", "승하차"), ("B800", "모뎀"),
+        ("B700", "표출기"), ("B700", "통합단말기"), ("B700", "모뎀"),
+        ("B710", "표출기"), ("B710", "통합단말기"), ("B710", "승하차"), ("B710", "모뎀"),
+        ("B620", "승하차"), ("B620", "운전자"), ("B620", "모뎀"),
+        ("한강버스", "통합단말기"), ("한강버스", "표출기"), ("한강버스", "승하차"),
+    ]
+    _order_map = {pair: i for i, pair in enumerate(_XLSX_ROW_ORDER)}
+
     if rows:
         s_df = (
             pd.DataFrame(rows)
             .groupby(["device_type", "sub_type"], sort=False)
             .size().reset_index(name="cnt")
         )
+        s_df["_ord"] = s_df.apply(
+            lambda x: _order_map.get((x["device_type"], x["sub_type"]), len(_XLSX_ROW_ORDER)),
+            axis=1,
+        )
+        s_df = s_df.sort_values("_ord").drop(columns="_ord").reset_index(drop=True)
         for idx, row in enumerate(s_df.itertuples(), 1):
             for ci, val in enumerate([idx, row.device_type, row.sub_type, row.cnt], 1):
                 c = ws.cell(r, ci, val); c.font = norm10; c.alignment = ca; c.border = bdr
@@ -517,12 +552,39 @@ def gen_handover_xlsx(rows: list, from_c: str, to_c: str, mv_date: date) -> byte
         c4.fill = total_fill; c4.border = bdr
         r += 1
 
-    r += 3
-    for ci, lbl in [(1, "인계자"), (3, "인수자")]:
+    # ── 비고 섹션 (4행 통합 병합) ────────────────────────────────────────────
+    r += 1
+    ws.merge_cells(f"A{r}:D{r}")
+    hh = ws.cell(r, 1, "비고"); hh.font = bold11; hh.alignment = ca; hh.fill = gray; hh.border = bdr
+    for col in range(2, 5):
+        ws.cell(r, col).fill = gray; ws.cell(r, col).border = bdr
+    r += 1
+    note_start = r
+    ws.merge_cells(f"A{note_start}:D{note_start + 3}")
+    nc = ws.cell(note_start, 1, notes or "")
+    nc.font = norm10
+    nc.alignment = Alignment(horizontal="left", vertical="top", wrap_text=True)
+    for ri in range(note_start, note_start + 4):
+        ws.row_dimensions[ri].height = 18
+        for ci in range(1, 5):
+            t  = thin if ri == note_start         else Side(style=None)
+            b  = thin if ri == note_start + 3     else Side(style=None)
+            l  = thin if ci == 1                  else Side(style=None)
+            rr = thin if ci == 4                  else Side(style=None)
+            ws.cell(ri, ci).border = Border(left=l, right=rr, top=t, bottom=b)
+    r += 4
+
+    r += 2
+    for ci, lbl in [(2, "인계자"), (4, "인수자")]:
         ws.cell(r, ci, lbl).font = bold11
     r += 1
-    ws.cell(r, 1, "(서명)").alignment = ca
-    ws.cell(r, 3, "(서명)").alignment = ca
+    ws.cell(r, 2, "(서명)").alignment = ca
+    ws.cell(r, 4, "(서명)").alignment = ca
+    r += 1
+
+    # ── 1페이지 꼬릿말 로고 ───────────────────────────────────────────────────
+    r += 1
+    _add_logo(ws, r)
     r += 1
 
     # ── 페이지 나누기 ─────────────────────────────────────────────────────────
@@ -547,10 +609,20 @@ def gen_handover_xlsx(rows: list, from_c: str, to_c: str, mv_date: date) -> byte
         ws.cell(r, 2, trcn).font = norm10; ws.cell(r, 2).alignment = ca; ws.cell(r, 2).border = bdr
         r += 1
 
-    ws.print_area       = f"A1:D{r}"
-    ws.page_setup.fitToPage   = True
-    ws.page_setup.fitToWidth  = 1
-    ws.page_setup.fitToHeight = 0
+    # ── 2페이지 꼬릿말 로고 ───────────────────────────────────────────────────
+    r += 1
+    _add_logo(ws, r)
+    r += 1
+
+    ws.print_area                    = f"A1:D{r}"
+    ws.page_setup.fitToPage          = True
+    ws.page_setup.fitToWidth         = 1
+    ws.page_setup.fitToHeight        = 0
+    ws.page_setup.horizontalCentered = True
+    ws.page_margins.left   = 0.7
+    ws.page_margins.right  = 0.7
+    ws.page_margins.top    = 0.75
+    ws.page_margins.bottom = 0.75
 
     buf = io.BytesIO()
     wb.save(buf)
@@ -645,6 +717,7 @@ def _upload_section(direction: str, from_c: str, to_c_fixed: str | None, key_pre
         return
 
     st.info(f"저장 예정: **{len(new_df)}건** / {from_c} → {to_c} / {mv_date}")
+    notes = st.text_area("비고 (선택)", placeholder="인수인계증에 표시될 메모를 입력하세요.", key=f"{key_prefix}_notes", height=80)
 
     if st.button(f"✅ {dir_label} 데이터 저장", type="primary", key=f"{key_prefix}_save"):
         uid = str(uuid.uuid4())
@@ -660,6 +733,7 @@ def _upload_section(direction: str, from_c: str, to_c_fixed: str | None, key_pre
                 "uploaded_by": user["id"],
                 "upload_date": mv_date.isoformat(),
                 "file_name":   uploaded.name,
+                "notes":       notes.strip() or None,
             }
             for _, row in new_df.iterrows()
         ]
@@ -730,7 +804,12 @@ if not _table_exists():
     st.code(_SQL_SETUP, language="sql")
     st.stop()
 
-tab_dash, tab_hist, tab_cert = st.tabs(["📊 오늘의 현황", "📋 이력 조회", "📄 인수인계증"])
+_tab_labels = ["📊 오늘의 현황", "📋 이력 조회", "📄 인수인계증"]
+if _is_admin:
+    _tab_labels.append("⚙️ 관리")
+_tabs = st.tabs(_tab_labels)
+tab_dash, tab_hist, tab_cert = _tabs[0], _tabs[1], _tabs[2]
+tab_admin = _tabs[3] if _is_admin else None
 
 
 # ══ Tab 1: 오늘의 현황 ════════════════════════════════════════════════════════
@@ -892,7 +971,8 @@ with tab_cert:
             )
             st.dataframe(build_pivot(c_rows).reset_index(), use_container_width=True, hide_index=True)
 
-            xlsx_data = gen_handover_xlsx(c_rows, _from_c, _to_c, _dt)
+            _notes = c_rows[0].get("notes") or "" if c_rows else ""
+            xlsx_data = gen_handover_xlsx(c_rows, _from_c, _to_c, _dt, notes=_notes)
             st.download_button(
                 "📥 인수인계증 Excel 다운로드",
                 data=xlsx_data,
@@ -900,3 +980,81 @@ with tab_cert:
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 key="cert_dl",
             )
+
+
+# ══ Tab 4: 관리 (admin 전용) ══════════════════════════════════════════════════
+if _is_admin and tab_admin is not None:
+    with tab_admin:
+        st.markdown("#### 🔄 기존 모뎀 데이터 재분류")
+        st.caption(
+            "DB에 저장된 모뎀 레코드를 현재 분류 규칙으로 재검토합니다.  \n"
+            "- **100001~100500** → B620  \n"
+            "- **10으로 시작하는 나머지 6자리** → B800"
+        )
+
+        if st.button("🔍 변경 대상 미리보기", key="reclassify_preview"):
+            with st.spinner("모뎀 레코드 조회 중..."):
+                try:
+                    res = (
+                        get_supabase().table(TABLE)
+                        .select("id,trcn_id,device_type,sub_type")
+                        .eq("sub_type", "모뎀")
+                        .limit(10000)
+                        .execute()
+                    )
+                    all_modems = res.data or []
+                except Exception as e:
+                    st.error(f"조회 실패: {e}")
+                    all_modems = []
+
+            changes = []
+            for rec in all_modems:
+                new_dtype, new_stype = classify_terminal(rec["trcn_id"])
+                if new_dtype != rec["device_type"] or new_stype != rec["sub_type"]:
+                    changes.append({
+                        "id": rec["id"],
+                        "trcn_id": rec["trcn_id"],
+                        "기존 기종": rec["device_type"],
+                        "변경 기종": new_dtype,
+                    })
+
+            st.session_state["reclassify_changes"] = changes
+            if not changes:
+                st.success("변경이 필요한 레코드가 없습니다.")
+            else:
+                st.warning(f"변경 대상 **{len(changes)}건**")
+                st.dataframe(
+                    [{k: v for k, v in c.items() if k != "id"} for c in changes],
+                    use_container_width=True, hide_index=True,
+                )
+
+        changes = st.session_state.get("reclassify_changes", [])
+        if changes:
+            if st.button(f"✅ {len(changes)}건 일괄 수정 실행", type="primary", key="reclassify_run"):
+                failed = 0
+                for i in range(0, len(changes), 100):
+                    batch = changes[i:i + 100]
+                    ids = [c["id"] for c in batch]
+                    dtype_set = set(c["변경 기종"] for c in batch)
+                    if len(dtype_set) == 1:
+                        try:
+                            get_supabase().table(TABLE).update(
+                                {"device_type": dtype_set.pop()}
+                            ).in_("id", ids).execute()
+                        except Exception:
+                            failed += len(batch)
+                    else:
+                        for c in batch:
+                            try:
+                                get_supabase().table(TABLE).update(
+                                    {"device_type": c["변경 기종"]}
+                                ).eq("id", c["id"]).execute()
+                            except Exception:
+                                failed += 1
+
+                if failed:
+                    st.error(f"{failed}건 업데이트 실패")
+                else:
+                    st.success(f"✅ {len(changes)}건 재분류 완료!")
+                    st.session_state.pop("reclassify_changes", None)
+                    st.rerun()
