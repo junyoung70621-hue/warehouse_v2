@@ -93,6 +93,7 @@ if _st_dialog:
         ).eq("item_name", item_name).eq("location", "자재센터").execute().data
 
         rack_no = shelf = box_no = ""
+        show_new_inputs = True
 
         if existing:
             mode = st.radio(
@@ -116,13 +117,11 @@ if _st_dialog:
                 rack_no = str(picked.get("rack_no") or "")
                 shelf   = str(picked.get("shelf")   or "")
                 box_no  = str(picked.get("box_no")  or "")
-            else:
-                c1, c2, c3 = st.columns(3)
-                rack_no = c1.text_input("렉 번호", key=f"hub_rack_{transfer_id}")
-                shelf   = c2.text_input("단수",    key=f"hub_shelf_{transfer_id}")
-                box_no  = c3.text_input("박스 번호", key=f"hub_box_{transfer_id}")
+                show_new_inputs = False
         else:
             st.info("자재센터에 해당 자재가 없습니다. 새 위치를 지정하면 신규 등록됩니다.")
+
+        if show_new_inputs:
             c1, c2, c3 = st.columns(3)
             rack_no = c1.text_input("렉 번호", key=f"hub_rack_{transfer_id}")
             shelf   = c2.text_input("단수",    key=f"hub_shelf_{transfer_id}")

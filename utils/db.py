@@ -19,6 +19,11 @@ def get_supabase() -> Client:
     return create_client(url, key)
 
 
+_WAREHOUSE_COPY_SKIP = frozenset(
+    {"id", "quantity", "location", "last_modified_by", "last_modified_at"}
+)
+
+
 def _query_with_retry(query_fn):
     """쿼리 실행 — RemoteProtocolError(서버 연결 끊김) 시 클라이언트 재생성 후 1회 재시도."""
     try:
@@ -230,7 +235,6 @@ def approve_transfer(
         shelf   = str(shelf   or "") if shelf   is not None else None
         box_no  = str(box_no  or "") if box_no  is not None else None
 
-        # 출발지 차감 (item_id 직접 지정 → 특정 rack/shelf/box row)
         src = sb.table("warehouse").select("*").eq(
             "id", item_id
         ).single().execute().data
@@ -252,11 +256,8 @@ def approve_transfer(
                        qty, reason, before_src, after_src,
                        tr["from_center"], tr["to_center"])
 
-        # 도착지 증가
-        skip_cols = {"id", "quantity", "location", "last_modified_by", "last_modified_at"}
         if to_hub:
-            # 타센터→자재센터: rack/shelf/box 기반 기존 row 찾거나 신규 생성
-            q = sb.table("warehouse").select("*") \
+            q = sb.table("warehouse").select("id, quantity") \
                   .eq("item_name", src["item_name"]).eq("location", "자재센터")
             if rack_no is not None:
                 q = q.eq("rack_no", rack_no)
@@ -266,8 +267,7 @@ def approve_transfer(
                 q = q.eq("box_no", box_no)
             dest_list = q.execute().data
         else:
-            # 자재센터→타 또는 타→타: item_name 기준 합산
-            dest_list = sb.table("warehouse").select("*") \
+            dest_list = sb.table("warehouse").select("id, quantity") \
                           .eq("item_name", src["item_name"]) \
                           .eq("location", tr["to_center"]).execute().data
 
@@ -284,20 +284,13 @@ def approve_transfer(
                            qty, reason, before_dst, after_dst,
                            tr["from_center"], tr["to_center"])
         else:
-            new_item = {k: v for k, v in src.items() if k not in skip_cols}
+            new_item = {k: v for k, v in src.items() if k not in _WAREHOUSE_COPY_SKIP}
             new_item["quantity"]         = qty
             new_item["location"]         = tr["to_center"]
             new_item["last_modified_by"] = approver_id
-            if to_hub:
-                # 자재센터 도착: 지정 rack 정보 적용
-                new_item["rack_no"] = rack_no or ""
-                new_item["shelf"]   = shelf   or ""
-                new_item["box_no"]  = box_no  or ""
-            else:
-                # 비자재센터 도착: rack 정보 없음
-                new_item["rack_no"] = ""
-                new_item["shelf"]   = ""
-                new_item["box_no"]  = ""
+            new_item["rack_no"] = rack_no or "" if to_hub else ""
+            new_item["shelf"]   = shelf   or "" if to_hub else ""
+            new_item["box_no"]  = box_no  or "" if to_hub else ""
             result = sb.table("warehouse").insert(new_item).execute()
             new_id = result.data[0]["id"]
             _write_history(sb, approver_id, new_id, "transfer",
@@ -636,7 +629,6 @@ def approve_material_request_with_stock(
             item_name = item.get("item_name", "")
             req_qty   = int(item.get("requested_qty", 0))
 
-            # ── 차감할 자재센터 row 결정 ────────────────────────────
             if row_selections and item_name in row_selections:
                 src_id   = row_selections[item_name]
                 src_data = sb.table("warehouse").select("*").eq("id", src_id).execute().data
@@ -659,7 +651,6 @@ def approve_material_request_with_stock(
 
             src_item_id = src["id"]
 
-            # ── 자재센터 차감 ───────────────────────────────────────
             before_src = int(src["quantity"])
             if before_src < req_qty:
                 loc_str = f"렉{src.get('rack_no','')} {src.get('shelf','')}단 박스{src.get('box_no','')}"
@@ -678,7 +669,6 @@ def approve_material_request_with_stock(
                            req_qty, reason, before_src, after_src,
                            "자재센터", from_center)
 
-            # ── 요청 센터 증가 (rack 정보 없이 item_name 기준) ──────
             dest_res = sb.table("warehouse").select("id, quantity") \
                          .eq("item_name", item_name).eq("location", from_center).execute()
             if dest_res.data:
@@ -700,9 +690,7 @@ def approve_material_request_with_stock(
                                req_qty, reason, before_dst, after_dst,
                                "자재센터", from_center)
             else:
-                skip_cols = {"id", "quantity", "location",
-                             "last_modified_by", "last_modified_at"}
-                new_item = {k: v for k, v in src.items() if k not in skip_cols}
+                new_item = {k: v for k, v in src.items() if k not in _WAREHOUSE_COPY_SKIP}
                 new_item["quantity"]         = req_qty
                 new_item["location"]         = from_center
                 new_item["last_modified_by"] = approver_id

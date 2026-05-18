@@ -1256,7 +1256,7 @@ if CAN_MATERIAL_REQUEST and st.session_state.show_material_request:
                 "자재 검색", placeholder=_req_placeholder,
                 key="req_search_input", label_visibility="collapsed"
             )
-            filtered_hub = hub_agg.copy()
+            filtered_hub = hub_agg
             if req_search.strip():
                 if _restrict_cat:
                     mask = (
@@ -1291,7 +1291,6 @@ if CAN_MATERIAL_REQUEST and st.session_state.show_material_request:
                                            value=1, key="req_qty")
                 if rc2.button("🛒 목록에 추가", key="req_add", use_container_width=True):
                     cart = st.session_state.material_request_cart
-                    # item_name 기준 중복 체크 (item_id 없음)
                     idx  = next((i for i, x in enumerate(cart)
                                  if x["item_name"] == sel_item["item_name"]), None)
                     if idx is not None:

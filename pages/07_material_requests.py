@@ -86,19 +86,25 @@ if _st_dialog:
                          for it in items]
             st.dataframe(pd.DataFrame(item_rows), use_container_width=True, hide_index=True)
 
-        # ── 승인 시: 자재센터 차감 위치 선택 ────────────────────────
         row_selections = {}
         if action == "approved" and items:
             st.divider()
             st.markdown("**차감 위치 선택** (자재센터 렉/단수/박스)")
-            sb_tmp = get_supabase()
+
+            # 자재센터 재고를 한 번에 일괄 조회
+            item_names = [it.get("item_name", "") for it in items if it.get("item_name")]
+            hub_all = get_supabase().table("warehouse").select(
+                "id, rack_no, shelf, box_no, quantity, item_name"
+            ).in_("item_name", item_names).eq("location", "자재센터") \
+             .order("quantity", desc=True).execute().data if item_names else []
+            hub_map: dict[str, list] = {}
+            for _r in hub_all:
+                hub_map.setdefault(_r["item_name"], []).append(_r)
+
             for it in items:
-                iname    = it.get("item_name", "")
-                req_q    = int(it.get("requested_qty", 0))
-                hub_rows = sb_tmp.table("warehouse").select(
-                    "id, rack_no, shelf, box_no, quantity"
-                ).eq("item_name", iname).eq("location", "자재센터") \
-                 .order("quantity", desc=True).execute().data
+                iname = it.get("item_name", "")
+                req_q = int(it.get("requested_qty", 0))
+                hub_rows = hub_map.get(iname, [])
 
                 if not hub_rows:
                     st.warning(f"⚠️ {iname}: 자재센터에 재고 없음")
