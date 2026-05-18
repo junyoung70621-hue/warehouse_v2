@@ -13,7 +13,7 @@ import pandas as pd
 import streamlit as st
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
-from utils.auth import is_role, require_login
+from utils.auth import is_role, require_login, logout
 from utils.db import get_supabase
 from utils.permissions import get_center as _get_center
 from utils.routing import CENTERS
@@ -786,8 +786,7 @@ with st.sidebar:
     if st.button("👤 마이페이지", use_container_width=True):
         st.switch_page("pages/06_mypage.py")
     if st.button("🚪 로그아웃", use_container_width=True):
-        st.session_state.user = None
-        st.switch_page("pages/01_login.py")
+        logout()
     render_sidebar_user(user)
 
 

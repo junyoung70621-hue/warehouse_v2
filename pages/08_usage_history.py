@@ -2,7 +2,7 @@
 import streamlit as st
 import pandas as pd
 import io
-from utils.auth import require_login, is_role
+from utils.auth import require_login, is_role, logout
 from utils.db import fetch_usage_history, clear_usage_history_cache
 from utils.routing import CENTERS
 from utils.permissions import get_center as _get_center, get_viewable_centers
@@ -68,8 +68,7 @@ with st.sidebar:
     if st.button("👤 마이페이지", use_container_width=True):
         st.switch_page("pages/06_mypage.py")
     if st.button("🚪 로그아웃", use_container_width=True):
-        st.session_state.user = None
-        st.switch_page("pages/01_login.py")
+        logout()
     render_sidebar_user(user)
 
 # ── 타이틀 ────────────────────────────────────────────────────────────────

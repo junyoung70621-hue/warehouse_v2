@@ -1,6 +1,6 @@
 ﻿# pages/09_rack_map.py
 import streamlit as st
-from utils.auth import require_login, is_role
+from utils.auth import require_login, is_role, logout
 from utils.rack_map import RACK_COORD, get_rack_map_image
 from utils.ui import apply_global_css, render_sidebar_header, render_sidebar_section, render_sidebar_user, render_top_bar
 from utils.permissions import get_center as _get_center, get_viewable_centers
@@ -70,8 +70,7 @@ with st.sidebar:
     if st.button("👤 마이페이지", use_container_width=True):
         st.switch_page("pages/06_mypage.py")
     if st.button("🚪 로그아웃", use_container_width=True):
-        st.session_state.user = None
-        st.switch_page("pages/01_login.py")
+        logout()
     render_sidebar_user(user)
 
 render_top_bar("위치 지도", user)

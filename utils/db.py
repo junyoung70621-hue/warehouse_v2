@@ -609,22 +609,31 @@ def approve_material_request_with_stock(
             req_qty   = int(item.get("requested_qty", 0))
             item_name = item.get("item_name", "")
 
-            # ── 자재센터 원본 조회 ──────────────────────────────────
+            # ── 자재센터 원본 조회 (자재센터 소속인지 검증) ──────────
             src = sb.table("warehouse").select("*") \
                     .eq("id", item_id).execute().data
             if not src:
                 fail_items.append(f"{item_name} (자재센터에서 찾을 수 없음)")
                 continue
             src = src[0]
+            if src.get("location") != "자재센터":
+                fail_items.append(f"{item_name} (자재센터 소속 자재가 아님)")
+                continue
 
             # ── 자재센터 차감 ───────────────────────────────────────
             before_src = int(src["quantity"])
-            after_src  = max(0, before_src - req_qty)
-            sb.table("warehouse").update({
+            if before_src < req_qty:
+                fail_items.append(f"{item_name} (자재센터 재고 부족: 현재 {before_src}개, 요청 {req_qty}개)")
+                continue
+            after_src = before_src - req_qty
+            src_update_res = sb.table("warehouse").update({
                 "quantity":         after_src,
                 "last_modified_by": approver_id,
                 "last_modified_at": "now()",
             }).eq("id", item_id).execute()
+            if not src_update_res.data:
+                fail_items.append(f"{item_name} (자재센터 차감 실패)")
+                continue
             _write_history(sb, approver_id, item_id, "transfer",
                            req_qty, reason, before_src, after_src,
                            "자재센터", from_center)
@@ -633,14 +642,23 @@ def approve_material_request_with_stock(
             dest_res = sb.table("warehouse").select("id, quantity") \
                          .eq("item_name", item_name).eq("location", from_center).execute()
             if dest_res.data:
-                dest       = dest_res.data[0]
+                # 동일 자재명+센터 레코드가 여러 개면 수량 최대인 것 선택
+                dest = max(dest_res.data, key=lambda r: int(r["quantity"]))
                 before_dst = int(dest["quantity"])
                 after_dst  = before_dst + req_qty
-                sb.table("warehouse").update({
+                dest_update_res = sb.table("warehouse").update({
                     "quantity":         after_dst,
                     "last_modified_by": approver_id,
                     "last_modified_at": "now()",
                 }).eq("id", dest["id"]).execute()
+                if not dest_update_res.data:
+                    # 목적지 증가 실패 시 자재센터 차감 롤백
+                    sb.table("warehouse").update({
+                        "quantity": before_src,
+                        "last_modified_at": "now()",
+                    }).eq("id", item_id).execute()
+                    fail_items.append(f"{item_name} (요청센터 증가 실패, 자재센터 롤백됨)")
+                    continue
                 _write_history(sb, approver_id, dest["id"], "transfer",
                                req_qty, reason, before_dst, after_dst,
                                "자재센터", from_center)

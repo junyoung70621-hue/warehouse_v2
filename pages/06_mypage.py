@@ -1,6 +1,6 @@
 ﻿# pages/06_mypage.py
 import streamlit as st
-from utils.auth import require_login, verify_password, hash_password, is_role
+from utils.auth import require_login, verify_password, hash_password, is_role, logout
 from utils.db import get_supabase
 from utils.routing import CENTERS
 from utils.permissions import get_viewable_centers
@@ -78,8 +78,7 @@ with st.sidebar:
         st.switch_page("pages/12_inquiry.py")
     st.button("👤 마이페이지", use_container_width=True, type="primary")
     if st.button("🚪 로그아웃", use_container_width=True):
-        st.session_state.user = None
-        st.switch_page("pages/01_login.py")
+        logout()
     render_sidebar_user(user)
 
 render_top_bar("마이페이지", user)

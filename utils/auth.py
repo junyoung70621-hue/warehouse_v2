@@ -112,12 +112,15 @@ def require_login():
             last = st.session_state.get("last_activity")
             # 유휴 타임아웃 체크
             if last and (now - last).total_seconds() > SESSION_TIMEOUT:
-                st.session_state.user          = None
-                st.session_state.last_activity = None
-                st.session_state.login_time    = None
+                saved_id = st.session_state.get("saved_id")
+                st.session_state.clear()
+                if saved_id:
+                    st.session_state["saved_id"] = saved_id
                 st.warning("세션이 만료되었습니다. 다시 로그인해 주세요.")
                 st.switch_page("pages/01_login.py")
                 st.stop()
+            if not last:
+                st.session_state.last_activity = now
             st.session_state.last_activity = now
             try:
                 from utils.db import update_last_seen
@@ -139,3 +142,12 @@ def require_role(*roles: str):
 def is_role(*roles: str) -> bool:
     """현재 유저 권한 확인 (True/False)."""
     return st.session_state.get("user", {}).get("role") in roles
+
+
+def logout():
+    """세션 전체 정리 후 로그인 페이지로 이동. 아이디 저장값은 유지."""
+    saved_id = st.session_state.get("saved_id")
+    st.session_state.clear()
+    if saved_id:
+        st.session_state["saved_id"] = saved_id
+    st.switch_page("pages/01_login.py")

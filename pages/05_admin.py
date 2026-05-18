@@ -1,6 +1,6 @@
 ﻿# pages/05_admin.py
 import streamlit as st
-from utils.auth import require_role, is_role
+from utils.auth import require_role, is_role, logout
 from utils.db import get_supabase
 from utils.routing import CENTERS
 from utils.ui import apply_global_css, render_sidebar_header, render_sidebar_section, render_sidebar_user, render_top_bar
@@ -56,8 +56,7 @@ with st.sidebar:
     if st.button("👤 마이페이지", use_container_width=True):
         st.switch_page("pages/06_mypage.py")
     if st.button("🚪 로그아웃", use_container_width=True):
-        st.session_state.user = None
-        st.switch_page("pages/01_login.py")
+        logout()
     render_sidebar_user(st.session_state.user)
 
 render_top_bar("관리자", st.session_state.user)
@@ -186,23 +185,37 @@ def render_user_list(users_list, tab_key):
             else:
                 ba3.warning("정말 삭제?")
                 if ba3.button("확인 삭제", key=f"pdelok_{tab_key}_{u['id']}", type="primary", use_container_width=True):
+                    uid = u["id"]
+                    _del_error = None
                     try:
-                        uid = u["id"]
                         sb.table("transfers").delete().eq("requester_id", uid).execute()
-                        sb.table("history").update({"actor_id": None}).eq("actor_id", uid).execute()
-                        sb.table("warehouse").update({"last_modified_by": None}).eq("last_modified_by", uid).execute()
+                    except Exception as e:
+                        _del_error = f"이동신청 정리 실패: {e}"
+                    if not _del_error:
+                        try:
+                            sb.table("history").update({"actor_id": None}).eq("actor_id", uid).execute()
+                            sb.table("warehouse").update({"last_modified_by": None}).eq("last_modified_by", uid).execute()
+                        except Exception as e:
+                            _del_error = f"이력 정리 실패: {e}"
+                    if not _del_error:
                         try:
                             sb.table("material_requests").delete().eq("requester_id", uid).execute()
                             sb.table("material_requests").update({"processed_by": None}).eq("processed_by", uid).execute()
-                        except Exception:
-                            pass
-                        sb.table("users").delete().eq("id", uid).execute()
+                            sb.table("purchase_requests").delete().eq("requester_id", uid).execute()
+                        except Exception as e:
+                            _del_error = f"요청 정리 실패: {e}"
+                    if not _del_error:
+                        try:
+                            sb.table("users").delete().eq("id", uid).execute()
+                        except Exception as e:
+                            _del_error = f"계정 삭제 실패: {e}"
+                    if _del_error:
+                        st.error(f"삭제 중단 — {_del_error}\n일부 데이터는 정리됐을 수 있으니 관리자가 직접 확인해 주세요.")
+                    else:
                         st.session_state[del_key] = False
                         st.session_state[f"panel_open_{tab_key}"] = False
                         st.success(f"✅ {u['name']} 삭제 완료")
                         st.rerun()
-                    except Exception as e:
-                        st.error(f"삭제 실패: {e}")
 
             if ba4.button("✖ 닫기", key=f"pclose_{tab_key}_{u['id']}", use_container_width=True):
                 st.session_state[f"panel_open_{tab_key}"] = False

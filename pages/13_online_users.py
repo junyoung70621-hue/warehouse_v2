@@ -1,7 +1,7 @@
 ﻿# pages/13_online_users.py
 import streamlit as st
 from datetime import datetime, timezone, timedelta
-from utils.auth import require_role, is_role
+from utils.auth import require_role, is_role, logout
 from utils.db import fetch_users_online_status
 from utils.ui import apply_global_css, render_sidebar_header, render_sidebar_section, render_sidebar_user, render_top_bar
 
@@ -91,8 +91,7 @@ with st.sidebar:
     if st.button("👤 마이페이지", use_container_width=True):
         st.switch_page("pages/06_mypage.py")
     if st.button("🚪 로그아웃", use_container_width=True):
-        st.session_state.user = None
-        st.switch_page("pages/01_login.py")
+        logout()
     render_sidebar_user(user)
 
 render_top_bar("접속 현황", user)

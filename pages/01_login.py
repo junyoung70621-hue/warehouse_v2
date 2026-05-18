@@ -105,8 +105,9 @@ with tab_login:
         else:
             if remember_me:
                 st.session_state.saved_id = username
+                import json as _json
                 st.markdown(
-                    f"<script>localStorage.setItem('wms_saved_id','{username}');</script>",
+                    f"<script>localStorage.setItem('wms_saved_id',{_json.dumps(username)});</script>",
                     unsafe_allow_html=True
                 )
             else:
