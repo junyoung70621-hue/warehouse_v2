@@ -86,7 +86,7 @@ if user_role == "guest":
 
 
 # ── 엑셀 생성 헬퍼 ────────────────────────────────────────────────────────
-def _make_excel(items: list, name: str, center: str, reason_txt: str) -> bytes:
+def _make_excel(items: list, name: str, center: str, reason_txt: str, cost_note_txt: str = "") -> bytes:
     import openpyxl
     from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
     wb = openpyxl.Workbook()
@@ -104,18 +104,20 @@ def _make_excel(items: list, name: str, center: str, reason_txt: str) -> bytes:
         ("C3", "소속"),   ("D3", center),
         ("A4", "요청일"), ("B4", datetime.now().strftime("%Y-%m-%d %H:%M")),
         ("A5", "구매사유"), ("B5", reason_txt or "-"),
+        ("A6", "원가반영"), ("B6", cost_note_txt or "-"),
     ]
     for ref, val in info:
         ws[ref] = val
     ws.merge_cells("B5:D5")
-    for ref in ("A3", "C3", "A4", "A5"):
+    ws.merge_cells("B6:D6")
+    for ref in ("A3", "C3", "A4", "A5", "A6"):
         ws[ref].font = Font(bold=True)
 
     header_fill = PatternFill("solid", fgColor="E8EDF5")
     thin = Side(style="thin", color="CCCCCC")
     bdr  = Border(left=thin, right=thin, top=thin, bottom=thin)
     for col, h in enumerate(["No", "품명", "수량", "링크"], 1):
-        c = ws.cell(row=7, column=col, value=h)
+        c = ws.cell(row=8, column=col, value=h)
         c.font = Font(bold=True, color="1A237E")
         c.fill = header_fill
         c.alignment = Alignment(horizontal="center")
@@ -123,7 +125,7 @@ def _make_excel(items: list, name: str, center: str, reason_txt: str) -> bytes:
 
     for i, item in enumerate(items, 1):
         for col, val in enumerate([i, item.get("품명",""), item.get("수량",""), item.get("링크","")], 1):
-            c = ws.cell(row=7 + i, column=col, value=val)
+            c = ws.cell(row=8 + i, column=col, value=val)
             c.border = bdr
 
     ws.column_dimensions["A"].width = 6
@@ -206,7 +208,8 @@ with tab_new:
         key="pr_items_editor",
         hide_index=True,
     )
-    reason = st.text_area("구매사유", placeholder="품의서에 들어갈 구매사유 문구를 입력해주세요.", key="pr_reason")
+    reason    = st.text_area("구매사유", placeholder="품의서에 들어갈 구매사유 문구를 입력해주세요.", key="pr_reason")
+    cost_note = st.text_area("원가반영", placeholder="원가반영 내용을 입력해주세요. (선택)", key="pr_cost_note", height=120)
 
     _mask = df_edit["품명"].notna() & (df_edit["품명"].astype(str).str.strip() != "")
     _df_valid = df_edit[_mask].copy()
@@ -217,7 +220,7 @@ with tab_new:
     col_submit, col_excel = st.columns(2)
 
     # 엑셀 다운로드 (항상 활성화)
-    _excel_data = _make_excel(valid_items, user_name, user_center, reason)
+    _excel_data = _make_excel(valid_items, user_name, user_center, reason, cost_note)
     col_excel.download_button(
         "📥 엑셀 다운로드",
         data=_excel_data,
@@ -246,6 +249,7 @@ with tab_new:
                     "requester_center": user_center,
                     "items":            valid_items,
                     "reason":           reason.strip(),
+                    "cost_note":        cost_note.strip() or None,
                     "status":           "pending",
                 }).execute()
 
@@ -266,6 +270,7 @@ with tab_new:
                         items=valid_items,
                         reason=reason.strip(),
                         requested_at=_now_str,
+                        cost_note=cost_note.strip(),
                     )
 
                 # 신청자 접수 확인 메일
@@ -278,6 +283,7 @@ with tab_new:
                         items=valid_items,
                         reason=reason.strip(),
                         requested_at=_now_str,
+                        cost_note=cost_note.strip(),
                     )
 
                 st.session_state["_pr_last_submit_time"] = datetime.now()
@@ -374,9 +380,11 @@ if tab_all is not None:
                             link = str(it.get("링크") or "")
                             link_md = f"[링크]({link})" if link else "-"
                             st.markdown(f"{i}. **{it.get('품명','')}** — {it.get('수량','')}개 &nbsp; {link_md}")
+                        if req.get("cost_note"):
+                            st.markdown(f"**원가반영:** {req['cost_note']}")
 
                     # 해당 요청 엑셀 다운로드
-                    _dl = _make_excel(items, req["requester_name"], req["requester_center"], req.get("reason",""))
+                    _dl = _make_excel(items, req["requester_name"], req["requester_center"], req.get("reason",""), req.get("cost_note",""))
                     _col_dl, _col_del = st.columns([3, 1])
                     _col_dl.download_button(
                         "📥 요청서 엑셀",
@@ -437,7 +445,7 @@ with tab_mine:
                 m1.caption(req.get("reason", "")[:60])
                 m2.markdown(STATUS_KO.get(status, status))
 
-                _dl = _make_excel(items, req["requester_name"], req["requester_center"], req.get("reason",""))
+                _dl = _make_excel(items, req["requester_name"], req["requester_center"], req.get("reason",""), req.get("cost_note",""))
                 m3.download_button(
                     "📥 엑셀",
                     data=_dl,

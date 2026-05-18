@@ -335,6 +335,7 @@ def send_purchase_request(
     items: list,
     reason: str,
     requested_at: str,
+    cost_note: str = "",
 ):
     """구매 요청 알림 메일. items: [{"품명", "수량", "링크"}, ...]"""
     subject = f"[에이텍모빌리티 자재관리] 구매 요청 — {requester_name} ({requester_center})"
@@ -352,13 +353,13 @@ def send_purchase_request(
           <td style="padding:5px 10px;font-size:12px;">{link_cell}</td>
         </tr>"""
 
-    reason_block = (f'<p style="margin-top:10px;"><b>구매사유:</b> {reason}</p>'
-                    if reason else "")
+    reason_block    = (f'<p style="margin-top:10px;"><b>구매사유:</b> {reason}</p>' if reason else "")
+    cost_note_block = (f'<p style="margin-top:6px;"><b>원가반영:</b> {cost_note}</p>' if cost_note else "")
     body = f"""
     <p>안녕하세요.</p>
     <p><b>{requester_name}</b> ({requester_center})님으로부터 구매 요청이 접수되었습니다.</p>
     <p style="color:#555;font-size:13px;">요청일시: {requested_at}</p>
-    {reason_block}
+    {reason_block}{cost_note_block}
     <table border="1" cellpadding="0" cellspacing="0"
            style="border-collapse:collapse;margin:12px 0;font-size:14px;">
       <thead>
@@ -389,6 +390,7 @@ def send_purchase_request_submitted(
     items: list,
     reason: str,
     requested_at: str,
+    cost_note: str = "",
 ):
     """구매 요청 접수 확인 메일 — 신청자에게 발송."""
     subject = "[에이텍모빌리티 자재관리] 구매 요청이 접수되었습니다"
@@ -404,12 +406,13 @@ def send_purchase_request_submitted(
           <td style="padding:5px 10px;text-align:right;">{it.get("수량","")}</td>
           <td style="padding:5px 10px;font-size:12px;">{link_cell}</td>
         </tr>"""
-    reason_block = (f'<p style="margin-top:10px;"><b>구매사유:</b> {reason}</p>' if reason else "")
+    reason_block    = (f'<p style="margin-top:10px;"><b>구매사유:</b> {reason}</p>' if reason else "")
+    cost_note_block = (f'<p style="margin-top:6px;"><b>원가반영:</b> {cost_note}</p>' if cost_note else "")
     body = f"""
     <p>안녕하세요, <b>{requester_name}</b>님.</p>
     <p>구매 요청이 정상적으로 접수되었습니다. 처리 결과는 이메일로 안내해 드립니다.</p>
     <p style="color:#555;font-size:13px;">요청일시: {requested_at} &nbsp;|&nbsp; 소속: {requester_center}</p>
-    {reason_block}
+    {reason_block}{cost_note_block}
     <table border="1" cellpadding="0" cellspacing="0"
            style="border-collapse:collapse;margin:12px 0;font-size:14px;">
       <thead>
