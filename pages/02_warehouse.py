@@ -1052,25 +1052,26 @@ if st.session_state.show_upload:
                             _norm(r.get("shelf")),
                             _norm(r.get("box_no")),
                         )
+                        has_location = key != ("", "", "")
                         add_qty = int(r.get("quantity") or 0)
-                        # 1) 위치 기반 매칭 (랙번호가 있을 때만)
                         ex = None
-                        if key != ("", "", "") and key in existing_map:
-                            ex = existing_map[key]
-                        # 2) ERP코드 fallback
-                        if ex is None:
+
+                        if has_location:
+                            # 위치(렉/단/박스) 정보가 있으면 정확히 일치하는 row만 매칭.
+                            # 미일치 = 새 위치 → 신규 삽입. ERP/자재명 fallback 금지.
+                            ex = existing_map.get(key)
+                        else:
+                            # 위치 정보 없을 때만 ERP코드 → 자재명 순으로 fallback
                             ec = str(r.get("erp_code") or "").strip()
-                            if ec and ec in existing_by_erp:
-                                ex = existing_by_erp[ec]
-                        # 3) 자재명 fallback
-                        if ex is None:
-                            nm = str(r.get("item_name") or "").strip()
-                            if nm and nm in existing_by_name:
-                                ex = existing_by_name[nm]
+                            if ec:
+                                ex = existing_by_erp.get(ec)
+                            if ex is None:
+                                nm = str(r.get("item_name") or "").strip()
+                                if nm:
+                                    ex = existing_by_name.get(nm)
 
                         if ex is not None:
                             before = int(ex["quantity"] or 0)
-                            # 위치(rack/shelf/box)는 유지, 자재명·분류·ERP정보 갱신
                             meta = {k: v for k, v in r.items()
                                     if k in ("item_name", "erp_code", "erp_name",
                                              "category_large", "category_mid", "category_small")}
