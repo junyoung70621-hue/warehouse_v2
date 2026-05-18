@@ -665,9 +665,7 @@ CAN_MATERIAL_REQUEST = (
 # ── 데이터 로드 ───────────────────────────────────────────────────────────
 raw_data   = fetch_warehouse(selected_center)
 categories = fetch_categories()
-df_all     = pd.DataFrame(raw_data) if raw_data else pd.DataFrame()
-if not df_all.empty and "item_name" in df_all.columns:
-    df_all = df_all.drop_duplicates(subset=["item_name"], keep="first")
+df_all = pd.DataFrame(raw_data) if raw_data else pd.DataFrame()
 
 # ── KPI 카드 렌더링 ───────────────────────────────────────────────────────
 try:
