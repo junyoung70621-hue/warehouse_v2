@@ -11,7 +11,7 @@ from utils.db import (
     get_supabase, fetch_item_history, update_item,
     submit_material_request,
 )
-from utils.routing import get_allowed_destinations, CENTERS
+from utils.routing import get_allowed_destinations, CENTERS, NO_WAREHOUSE_CENTERS
 from utils.permissions import (
     can_stock_in_out,
     can_request_transfer,
@@ -742,16 +742,17 @@ with ab[1]:
         if st.button("⬆️ 업로드", use_container_width=True):
             st.session_state.show_upload = not st.session_state.show_upload
 with ab[2]:
-    if not df_all.empty:
-        dl_df = df_all[[c for c in EXCEL_COL_MAP if c in df_all.columns]].copy()
-        dl_df.rename(columns=EXCEL_COL_MAP, inplace=True)
-        st.download_button("⬇️ 다운로드",
-            data=make_excel_buffer(dl_df, selected_center),
-            file_name=f"{selected_center}_재고현황.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            use_container_width=True)
-    else:
-        st.button("⬇️ 다운로드", disabled=True, use_container_width=True)
+    if user_role != "guest":
+        if not df_all.empty:
+            dl_df = df_all[[c for c in EXCEL_COL_MAP if c in df_all.columns]].copy()
+            dl_df.rename(columns=EXCEL_COL_MAP, inplace=True)
+            st.download_button("⬇️ 다운로드",
+                data=make_excel_buffer(dl_df, selected_center),
+                file_name=f"{selected_center}_재고현황.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True)
+        else:
+            st.button("⬇️ 다운로드", disabled=True, use_container_width=True)
 
 if SHOW_STOCK_BUTTONS:
     with ab[3]:
@@ -765,7 +766,7 @@ if SHOW_STOCK_BUTTONS:
                      type="primary" if n_checked > 0 else "secondary"):
             st.session_state.bulk_mode = "out"
     with ab[5]:
-        if is_role("admin"):
+        if is_role("admin") and _my_center not in NO_WAREHOUSE_CENTERS:
             if st.button("💾 내보내기", use_container_width=True):
                 st.session_state.show_export = not st.session_state.show_export
 else:
@@ -778,7 +779,7 @@ else:
             if st.button("📦 자재 요청", use_container_width=True, key="toolbar_mat_req"):
                 st.session_state.show_material_request = not st.session_state.show_material_request
     with ab[5]:
-        if is_role("admin"):
+        if is_role("admin") and _my_center not in NO_WAREHOUSE_CENTERS:
             if st.button("💾 내보내기", use_container_width=True):
                 st.session_state.show_export = not st.session_state.show_export
 
@@ -792,7 +793,7 @@ if st.session_state.usage_upload_done:
     st.session_state.usage_upload_done = None
 
 # ── 관리자 내보내기 패널 ──────────────────────────────────────────────────
-if is_role("admin") and st.session_state.show_export:
+if is_role("admin") and _my_center not in NO_WAREHOUSE_CENTERS and st.session_state.show_export:
     with st.container(border=True):
         st.markdown("#### 💾 전체 데이터 내보내기")
         export_center = st.selectbox(
