@@ -65,11 +65,11 @@ if _st_dialog:
         _uid   = _user["id"]
         _uname = _user["name"]
 
-        label = STATUS_KO.get(action, action)
-        color = STATUS_COLOR.get(action, "#555")
+        action_label = STATUS_KO.get(action, action)
+        color        = STATUS_COLOR.get(action, "#555")
 
         st.markdown(
-            f"<span style='font-size:18px;font-weight:700;color:{color};'>{label} 처리</span>",
+            f"<span style='font-size:18px;font-weight:700;color:{color};'>{action_label} 처리</span>",
             unsafe_allow_html=True
         )
         st.markdown(
@@ -86,17 +86,67 @@ if _st_dialog:
                          for it in items]
             st.dataframe(pd.DataFrame(item_rows), use_container_width=True, hide_index=True)
 
+        # ── 승인 시: 자재센터 차감 위치 선택 ────────────────────────
+        row_selections = {}
+        if action == "approved" and items:
+            st.divider()
+            st.markdown("**차감 위치 선택** (자재센터 렉/단수/박스)")
+            sb_tmp = get_supabase()
+            for it in items:
+                iname   = it.get("item_name", "")
+                req_q   = int(it.get("requested_qty", 0))
+                hub_rows = sb_tmp.table("warehouse").select(
+                    "id, rack_no, shelf, box_no, quantity"
+                ).eq("item_name", iname).eq("location", "자재센터") \
+                 .order("quantity", desc=True).execute().data
+
+                if not hub_rows:
+                    st.warning(f"⚠️ {iname}: 자재센터에 재고 없음")
+                    continue
+
+                if len(hub_rows) == 1:
+                    row_selections[iname] = hub_rows[0]["id"]
+                    r = hub_rows[0]
+                    avail = int(r["quantity"])
+                    status_icon = "✅" if avail >= req_q else "⚠️"
+                    st.caption(
+                        f"{status_icon} {iname}  —  "
+                        f"렉 {r.get('rack_no','')} "
+                        f"{r.get('shelf','')}단 "
+                        f"박스 {r.get('box_no','')}  "
+                        f"(재고: {avail}개)"
+                    )
+                else:
+                    safe_key = f"row_sel_{req_id}_{abs(hash(iname)) % 100000}"
+                    opts = {}
+                    for r in hub_rows:
+                        avail = int(r["quantity"])
+                        row_lbl = (f"렉 {r.get('rack_no','?')}  "
+                                   f"{r.get('shelf','?')}단  "
+                                   f"박스 {r.get('box_no','?')}  "
+                                   f"(재고: {avail}개)"
+                                   + ("  ⚠️ 부족" if avail < req_q else ""))
+                        opts[row_lbl] = r["id"]
+                    chosen = st.selectbox(iname, list(opts.keys()), key=safe_key)
+                    row_selections[iname] = opts[chosen]
+
         st.divider()
         reply_msg = st.text_area("신청자에게 보낼 메일 메시지", height=100,
                                   label_visibility="collapsed",
                                   placeholder="추가 안내사항을 입력하세요. 비워두면 처리 결과만 전달됩니다.")
         c1, c2 = st.columns(2)
-        confirm_label = {"approved":"✅ 승인 + 발송","rejected":"❌ 거절 + 발송","on_hold":"⏸️ 보류 + 발송"}.get(action,"확인")
+        confirm_label = {
+            "approved": "✅ 승인 + 발송",
+            "rejected": "❌ 거절 + 발송",
+            "on_hold":  "⏸️ 보류 + 발송",
+        }.get(action, "확인")
 
         if c1.button(confirm_label, type="primary", use_container_width=True):
             sb = get_supabase()
             if action == "approved":
-                ok, ok_items, fail_items = approve_material_request_with_stock(req_id, _user)
+                ok, ok_items, fail_items = approve_material_request_with_stock(
+                    req_id, _user, row_selections
+                )
                 if not ok:
                     st.error("재고 반영 중 오류가 발생했습니다.")
                     return
@@ -111,14 +161,14 @@ if _st_dialog:
                     except Exception: pass
                 result_msg = f"✅ 승인 완료 — {len(ok_items)}개 재고 반영"
                 if fail_items:
-                    result_msg += f"  /  ⚠️ {len(fail_items)}개 실패"
+                    result_msg += f"  /  ⚠️ {len(fail_items)}개 실패: {', '.join(fail_items[:3])}"
             else:
                 update_material_request_status(req_id, action, _uid)
                 if req_email:
                     try:
                         send_material_request_reply(req_email, req_name, from_center, action, items, reply_msg)
                     except Exception: pass
-                result_msg = f"{label} 처리 완료"
+                result_msg = f"{action_label} 처리 완료"
             if reply_msg.strip():
                 save_reply_message(req_id, reply_msg.strip())
             st.success(result_msg)

@@ -3,7 +3,7 @@ import streamlit as st
 from utils.auth import require_login, is_role, logout
 from utils.db import (
     fetch_transfers, approve_transfer,
-    clear_transfer_cache, get_supabase
+    clear_transfer_cache, clear_warehouse_cache, get_supabase
 )
 from utils.permissions import can_approve_transfer, filter_transfers_for_user, get_viewable_centers
 from utils.ui import apply_global_css, render_sidebar_header, render_sidebar_section, render_sidebar_user, render_top_bar
@@ -72,6 +72,74 @@ with st.sidebar:
     render_sidebar_user(user)
 
 render_top_bar("이동 신청 현황", user)
+
+# ── 타센터→자재센터 승인 다이얼로그 ─────────────────────────────────────────
+_st_dialog = getattr(st, "dialog", getattr(st, "experimental_dialog", None))
+
+if _st_dialog:
+    @_st_dialog("자재센터 입고 위치 지정", width="large")
+    def approve_to_hub_dialog(transfer_id: int, item_name: str, from_center: str, qty: int):
+        _user = st.session_state.user
+        sb_tmp = get_supabase()
+
+        st.markdown(
+            f"**{item_name}** &nbsp; {from_center} → 자재센터 &nbsp; **{qty}개**"
+        )
+        st.caption("자재센터에서 보관할 위치(렉/단수/박스)를 지정하세요.")
+        st.divider()
+
+        existing = sb_tmp.table("warehouse").select(
+            "rack_no, shelf, box_no, quantity"
+        ).eq("item_name", item_name).eq("location", "자재센터").execute().data
+
+        rack_no = shelf = box_no = ""
+
+        if existing:
+            mode = st.radio(
+                "입고 위치",
+                ["기존 위치에 추가", "새 위치 지정"],
+                horizontal=True,
+                key=f"hub_mode_{transfer_id}",
+            )
+            if mode == "기존 위치에 추가":
+                opts = {}
+                for r in existing:
+                    lbl = (f"렉 {r.get('rack_no','?')}  "
+                           f"{r.get('shelf','?')}단  "
+                           f"박스 {r.get('box_no','?')}  "
+                           f"(현재: {r['quantity']}개)")
+                    opts[lbl] = r
+                chosen = st.selectbox(
+                    "위치 선택", list(opts.keys()), key=f"hub_sel_{transfer_id}"
+                )
+                picked = opts[chosen]
+                rack_no = picked.get("rack_no", "")
+                shelf   = picked.get("shelf", "")
+                box_no  = picked.get("box_no", "")
+            else:
+                c1, c2, c3 = st.columns(3)
+                rack_no = c1.text_input("렉 번호", key=f"hub_rack_{transfer_id}")
+                shelf   = c2.text_input("단수",    key=f"hub_shelf_{transfer_id}")
+                box_no  = c3.text_input("박스 번호", key=f"hub_box_{transfer_id}")
+        else:
+            st.info("자재센터에 해당 자재가 없습니다. 새 위치를 지정하면 신규 등록됩니다.")
+            c1, c2, c3 = st.columns(3)
+            rack_no = c1.text_input("렉 번호", key=f"hub_rack_{transfer_id}")
+            shelf   = c2.text_input("단수",    key=f"hub_shelf_{transfer_id}")
+            box_no  = c3.text_input("박스 번호", key=f"hub_box_{transfer_id}")
+
+        st.divider()
+        ca, cb = st.columns(2)
+        if ca.button("✅ 승인", type="primary", use_container_width=True,
+                     key=f"hub_confirm_{transfer_id}"):
+            if approve_transfer(transfer_id, _user,
+                                rack_no=rack_no, shelf=shelf, box_no=box_no):
+                clear_warehouse_cache()
+                st.success("승인 완료!")
+                st.rerun()
+        if cb.button("취소", use_container_width=True, key=f"hub_cancel_{transfer_id}"):
+            st.rerun()
+
 st.markdown("## 🚚 센터 간 이동 신청 현황")
 st.divider()
 
@@ -118,10 +186,19 @@ def render_transfers(status_filter=None):
                 if status == "pending" and i_can_approve:
                     if st.button("✅ 승인", key=f"approve_{status_filter}_{tr['id']}",
                                  type="primary", use_container_width=True):
-                        if approve_transfer(tr["id"], user):
-                            st.success("✅ 승인 완료!")
-                            clear_transfer_cache()
-                            st.rerun()
+                        if tr.get("to_center") == "자재센터" and _st_dialog:
+                            # 타센터→자재센터: rack/shelf/box 위치 지정 팝업
+                            _iname = item_info.get("item_name","") if isinstance(item_info, dict) else ""
+                            approve_to_hub_dialog(
+                                tr["id"], _iname,
+                                tr.get("from_center",""), tr.get("quantity",0)
+                            )
+                        else:
+                            # 자재센터→타 또는 타→타: 바로 승인
+                            if approve_transfer(tr["id"], user):
+                                st.success("✅ 승인 완료!")
+                                clear_transfer_cache()
+                                st.rerun()
                     if st.button("❌ 거절", key=f"reject_{status_filter}_{tr['id']}",
                                  use_container_width=True):
                         if not can_approve_transfer(user, tr.get("from_center",""), tr.get("to_center","")):

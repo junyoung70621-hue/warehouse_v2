@@ -1238,6 +1238,14 @@ if CAN_MATERIAL_REQUEST and st.session_state.show_material_request:
                     hub_df = hub_df[hub_df["category_large"] == _restrict_cat]
                 st.info(f"ℹ️ 해당 센터는 **{_restrict_cat} 자재**만 요청 가능합니다.")
 
+            # item_name 기준 합산 (렉/단수/박스가 달라도 하나의 자재로 표시)
+            _agg = {"quantity": "sum"}
+            for _c in ["category_large", "category_mid", "category_small",
+                       "erp_code", "erp_name"]:
+                if _c in hub_df.columns:
+                    _agg[_c] = "first"
+            hub_agg = hub_df.groupby("item_name", as_index=False).agg(_agg)
+
             # 검색 필터
             _req_placeholder = (
                 f"{_restrict_cat} 자재명 / 중분류 / ERP코드 검색..."
@@ -1248,7 +1256,7 @@ if CAN_MATERIAL_REQUEST and st.session_state.show_material_request:
                 "자재 검색", placeholder=_req_placeholder,
                 key="req_search_input", label_visibility="collapsed"
             )
-            filtered_hub = hub_df.copy()
+            filtered_hub = hub_agg.copy()
             if req_search.strip():
                 if _restrict_cat:
                     mask = (
@@ -1283,13 +1291,13 @@ if CAN_MATERIAL_REQUEST and st.session_state.show_material_request:
                                            value=1, key="req_qty")
                 if rc2.button("🛒 목록에 추가", key="req_add", use_container_width=True):
                     cart = st.session_state.material_request_cart
+                    # item_name 기준 중복 체크 (item_id 없음)
                     idx  = next((i for i, x in enumerate(cart)
-                                 if x["item_id"] == int(sel_item["id"])), None)
+                                 if x["item_name"] == sel_item["item_name"]), None)
                     if idx is not None:
                         cart[idx]["requested_qty"] = req_qty
                     else:
                         cart.append({
-                            "item_id":       int(sel_item["id"]),
                             "item_name":     sel_item["item_name"],
                             "erp_code":      sel_item.get("erp_code") or "",
                             "current_qty":   int(sel_item["quantity"]),

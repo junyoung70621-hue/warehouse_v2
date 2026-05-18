@@ -193,19 +193,23 @@ def create_transfer(
         return False
 
 
-def approve_transfer(transfer_id: int, approver: dict) -> bool:
+def approve_transfer(
+    transfer_id: int,
+    approver: dict,
+    rack_no: str = None,
+    shelf: str = None,
+    box_no: str = None,
+) -> bool:
     """
     이동 승인 처리.
-    - approver: user dict (id, role, assigned_center 포함)
-    - 백엔드에서 권한 2중 검증
-    - 승인 = 받는 쪽(to_center) 담당자가 처리
+    - rack_no/shelf/box_no: 타센터→자재센터 방향일 때 도착 위치 지정
+    - 자재센터→타센터 방향: 도착지는 rack 정보 없이 item_name 기준 합산
     """
     from utils.permissions import can_approve_transfer
 
     try:
         sb = get_supabase()
 
-        # 이동 신청 정보 조회
         tr = sb.table("transfers").select("*").eq(
             "id", transfer_id
         ).single().execute().data
@@ -213,7 +217,6 @@ def approve_transfer(transfer_id: int, approver: dict) -> bool:
             st.error("이동 신청 정보를 찾을 수 없습니다.")
             return False
 
-        # 백엔드 권한 검증
         if not can_approve_transfer(approver, tr["from_center"], tr["to_center"]):
             st.error("해당 이동 건의 승인 권한이 없습니다.")
             return False
@@ -222,8 +225,9 @@ def approve_transfer(transfer_id: int, approver: dict) -> bool:
         item_id     = tr["item_id"]
         qty         = tr["quantity"]
         reason      = f"센터 이동 승인 ({tr['from_center']} → {tr['to_center']})"
+        to_hub      = (tr["to_center"] == "자재센터")
 
-        # 출발지 차감
+        # 출발지 차감 (item_id 직접 지정 → 특정 rack/shelf/box row)
         src = sb.table("warehouse").select("*").eq(
             "id", item_id
         ).single().execute().data
@@ -246,13 +250,27 @@ def approve_transfer(transfer_id: int, approver: dict) -> bool:
                        tr["from_center"], tr["to_center"])
 
         # 도착지 증가
-        dest_list = sb.table("warehouse").select("*").eq(
-            "item_name", src["item_name"]
-        ).eq("location", tr["to_center"]).execute().data
+        skip_cols = {"id", "quantity", "location", "last_modified_by", "last_modified_at"}
+        if to_hub:
+            # 타센터→자재센터: rack/shelf/box 기반 기존 row 찾거나 신규 생성
+            q = sb.table("warehouse").select("*") \
+                  .eq("item_name", src["item_name"]).eq("location", "자재센터")
+            if rack_no is not None:
+                q = q.eq("rack_no", rack_no)
+            if shelf is not None:
+                q = q.eq("shelf", shelf)
+            if box_no is not None:
+                q = q.eq("box_no", box_no)
+            dest_list = q.execute().data
+        else:
+            # 자재센터→타 또는 타→타: item_name 기준 합산
+            dest_list = sb.table("warehouse").select("*") \
+                          .eq("item_name", src["item_name"]) \
+                          .eq("location", tr["to_center"]).execute().data
 
         if dest_list:
-            dest       = dest_list[0]
-            before_dst = dest["quantity"]
+            dest       = max(dest_list, key=lambda r: int(r.get("quantity") or 0))
+            before_dst = int(dest["quantity"])
             after_dst  = before_dst + qty
             sb.table("warehouse").update({
                 "quantity":         after_dst,
@@ -263,19 +281,26 @@ def approve_transfer(transfer_id: int, approver: dict) -> bool:
                            qty, reason, before_dst, after_dst,
                            tr["from_center"], tr["to_center"])
         else:
-            new_item = {k: v for k, v in src.items()
-                        if k not in ("id","quantity","location",
-                                     "last_modified_by","last_modified_at")}
+            new_item = {k: v for k, v in src.items() if k not in skip_cols}
             new_item["quantity"]         = qty
             new_item["location"]         = tr["to_center"]
             new_item["last_modified_by"] = approver_id
+            if to_hub:
+                # 자재센터 도착: 지정 rack 정보 적용
+                new_item["rack_no"] = rack_no or ""
+                new_item["shelf"]   = shelf   or ""
+                new_item["box_no"]  = box_no  or ""
+            else:
+                # 비자재센터 도착: rack 정보 없음
+                new_item["rack_no"] = ""
+                new_item["shelf"]   = ""
+                new_item["box_no"]  = ""
             result = sb.table("warehouse").insert(new_item).execute()
             new_id = result.data[0]["id"]
             _write_history(sb, approver_id, new_id, "transfer",
                            qty, reason, 0, qty,
                            tr["from_center"], tr["to_center"])
 
-        # 상태 업데이트
         sb.table("transfers").update({
             "status":       "approved",
             "processed_at": "now()"
@@ -581,14 +606,14 @@ def update_material_request_status(
 
 
 def approve_material_request_with_stock(
-    request_id: int, approver: dict
+    request_id: int,
+    approver: dict,
+    row_selections: dict = None,
 ) -> tuple[bool, list, list]:
     """
-    자재 요청 승인 처리:
-      1. 자재센터 수량 차감
-      2. 요청 센터 수량 증가 (없으면 신규 등록)
-      3. 이력 기록
-      4. 상태 → approved
+    자재 요청 승인 처리.
+    row_selections: {item_name: warehouse_row_id} — 자재센터에서 차감할 row 지정.
+                    없으면 자재센터에서 item_name으로 찾아 수량 최대 row 선택.
     반환: (성공여부, 처리된 항목, 실패 항목)
     """
     try:
@@ -605,71 +630,82 @@ def approve_material_request_with_stock(
         ok_items, fail_items = [], []
 
         for item in items:
-            item_id   = item.get("item_id")
-            req_qty   = int(item.get("requested_qty", 0))
             item_name = item.get("item_name", "")
+            req_qty   = int(item.get("requested_qty", 0))
 
-            # ── 자재센터 원본 조회 (자재센터 소속인지 검증) ──────────
-            src = sb.table("warehouse").select("*") \
-                    .eq("id", item_id).execute().data
-            if not src:
-                fail_items.append(f"{item_name} (자재센터에서 찾을 수 없음)")
-                continue
-            src = src[0]
+            # ── 차감할 자재센터 row 결정 ────────────────────────────
+            if row_selections and item_name in row_selections:
+                src_id   = row_selections[item_name]
+                src_data = sb.table("warehouse").select("*").eq("id", src_id).execute().data
+                if not src_data:
+                    fail_items.append(f"{item_name} (선택한 위치를 찾을 수 없음)")
+                    continue
+                src = src_data[0]
+            else:
+                src_data = sb.table("warehouse").select("*") \
+                             .eq("item_name", item_name).eq("location", "자재센터") \
+                             .order("quantity", desc=True).limit(1).execute().data
+                if not src_data:
+                    fail_items.append(f"{item_name} (자재센터에서 찾을 수 없음)")
+                    continue
+                src = src_data[0]
+
             if src.get("location") != "자재센터":
                 fail_items.append(f"{item_name} (자재센터 소속 자재가 아님)")
                 continue
 
+            src_item_id = src["id"]
+
             # ── 자재센터 차감 ───────────────────────────────────────
             before_src = int(src["quantity"])
             if before_src < req_qty:
-                fail_items.append(f"{item_name} (자재센터 재고 부족: 현재 {before_src}개, 요청 {req_qty}개)")
+                loc_str = f"렉{src.get('rack_no','')} {src.get('shelf','')}단 박스{src.get('box_no','')}"
+                fail_items.append(f"{item_name} ({loc_str} 재고 부족: 현재 {before_src}개, 요청 {req_qty}개)")
                 continue
             after_src = before_src - req_qty
-            src_update_res = sb.table("warehouse").update({
+            upd_src = sb.table("warehouse").update({
                 "quantity":         after_src,
                 "last_modified_by": approver_id,
                 "last_modified_at": "now()",
-            }).eq("id", item_id).execute()
-            if not src_update_res.data:
+            }).eq("id", src_item_id).execute()
+            if not upd_src.data:
                 fail_items.append(f"{item_name} (자재센터 차감 실패)")
                 continue
-            _write_history(sb, approver_id, item_id, "transfer",
+            _write_history(sb, approver_id, src_item_id, "transfer",
                            req_qty, reason, before_src, after_src,
                            "자재센터", from_center)
 
-            # ── 요청 센터 증가 ──────────────────────────────────────
+            # ── 요청 센터 증가 (rack 정보 없이 item_name 기준) ──────
             dest_res = sb.table("warehouse").select("id, quantity") \
                          .eq("item_name", item_name).eq("location", from_center).execute()
             if dest_res.data:
-                # 동일 자재명+센터 레코드가 여러 개면 수량 최대인 것 선택
-                dest = max(dest_res.data, key=lambda r: int(r["quantity"]))
+                dest       = max(dest_res.data, key=lambda r: int(r["quantity"]))
                 before_dst = int(dest["quantity"])
                 after_dst  = before_dst + req_qty
-                dest_update_res = sb.table("warehouse").update({
+                upd_dst = sb.table("warehouse").update({
                     "quantity":         after_dst,
                     "last_modified_by": approver_id,
                     "last_modified_at": "now()",
                 }).eq("id", dest["id"]).execute()
-                if not dest_update_res.data:
-                    # 목적지 증가 실패 시 자재센터 차감 롤백
+                if not upd_dst.data:
                     sb.table("warehouse").update({
-                        "quantity": before_src,
-                        "last_modified_at": "now()",
-                    }).eq("id", item_id).execute()
+                        "quantity": before_src, "last_modified_at": "now()",
+                    }).eq("id", src_item_id).execute()
                     fail_items.append(f"{item_name} (요청센터 증가 실패, 자재센터 롤백됨)")
                     continue
                 _write_history(sb, approver_id, dest["id"], "transfer",
                                req_qty, reason, before_dst, after_dst,
                                "자재센터", from_center)
             else:
-                # 요청 센터에 해당 자재가 없으면 자재센터 정보 복사 후 신규 등록
                 skip_cols = {"id", "quantity", "location",
                              "last_modified_by", "last_modified_at"}
-                new_item  = {k: v for k, v in src.items() if k not in skip_cols}
+                new_item = {k: v for k, v in src.items() if k not in skip_cols}
                 new_item["quantity"]         = req_qty
                 new_item["location"]         = from_center
                 new_item["last_modified_by"] = approver_id
+                new_item["rack_no"] = ""
+                new_item["shelf"]   = ""
+                new_item["box_no"]  = ""
                 result = sb.table("warehouse").insert(new_item).execute()
                 new_id = result.data[0]["id"]
                 _write_history(sb, approver_id, new_id, "transfer",
@@ -678,7 +714,6 @@ def approve_material_request_with_stock(
 
             ok_items.append(item_name)
 
-        # ── 상태 업데이트 ───────────────────────────────────────────
         sb.table("material_requests").update({
             "status":       "approved",
             "processed_at": "now()",
