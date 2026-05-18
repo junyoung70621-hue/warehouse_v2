@@ -377,13 +377,42 @@ if tab_all is not None:
 
                     # 해당 요청 엑셀 다운로드
                     _dl = _make_excel(items, req["requester_name"], req["requester_center"], req.get("reason",""))
-                    st.download_button(
+                    _col_dl, _col_del = st.columns([3, 1])
+                    _col_dl.download_button(
                         "📥 요청서 엑셀",
                         data=_dl,
                         file_name=f"구매요청서_{req['requester_name']}_{req_date[:10]}.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                         key=f"pr_dl_{req['id']}",
+                        use_container_width=True,
                     )
+
+                    # 관리자 삭제
+                    if user_role == "admin":
+                        _del_key = f"pr_del_confirm_{req['id']}"
+                        if not st.session_state.get(_del_key):
+                            if _col_del.button("🗑️ 삭제", key=f"pr_del_{req['id']}",
+                                               use_container_width=True):
+                                st.session_state[_del_key] = True
+                                st.rerun()
+                        else:
+                            st.error(f"**{req['requester_name']}** ({req_date}) 요청을 삭제합니다. 되돌릴 수 없습니다.")
+                            _dc1, _dc2 = st.columns(2)
+                            if _dc1.button("✅ 확인 삭제", key=f"pr_del_ok_{req['id']}",
+                                           type="primary", use_container_width=True):
+                                try:
+                                    get_supabase().table("purchase_requests").delete().eq(
+                                        "id", req["id"]
+                                    ).execute()
+                                    st.session_state.pop(_del_key, None)
+                                    clear_purchase_request_cache()
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"삭제 실패: {e}")
+                            if _dc2.button("❌ 취소", key=f"pr_del_cancel_{req['id']}",
+                                           use_container_width=True):
+                                st.session_state.pop(_del_key, None)
+                                st.rerun()
 
 
 # ══════════════════════════════════════════════════════════════════════════
