@@ -208,8 +208,8 @@ with tab_new:
         key="pr_items_editor",
         hide_index=True,
     )
-    reason    = st.text_area("구매사유", placeholder="품의서에 들어갈 구매사유 문구를 입력해주세요.", key="pr_reason")
-    cost_note = st.text_area("원가반영", placeholder="원가반영 내용을 입력해주세요. (선택)", key="pr_cost_note", height=120)
+    reason    = st.text_area("구매사유 *", placeholder="품의서에 들어갈 구매사유 문구를 입력해주세요.", key="pr_reason")
+    cost_note = st.text_area("원가반영 *", placeholder="원가반영 내용을 입력해주세요.", key="pr_cost_note", height=120)
 
     _mask = df_edit["품명"].notna() & (df_edit["품명"].astype(str).str.strip() != "")
     _df_valid = df_edit[_mask].copy()
@@ -217,19 +217,7 @@ with tab_new:
     _df_valid["링크"] = _df_valid["링크"].fillna("").astype(str)
     valid_items = _df_valid.to_dict("records")
 
-    col_submit, col_excel = st.columns(2)
-
-    # 엑셀 다운로드 (항상 활성화)
-    _excel_data = _make_excel(valid_items, user_name, user_center, reason, cost_note)
-    col_excel.download_button(
-        "📥 엑셀 다운로드",
-        data=_excel_data,
-        file_name=f"구매요청서_{user_name}_{datetime.now().strftime('%Y%m%d')}.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        use_container_width=True,
-    )
-
-    if col_submit.button("📨 요청 제출", type="primary", use_container_width=True):
+    if st.button("📨 요청 제출", type="primary", use_container_width=True):
         _last_submit = st.session_state.get("_pr_last_submit_time")
         _cooldown_sec = 60
         if _last_submit and (datetime.now() - _last_submit).total_seconds() < _cooldown_sec:
@@ -239,6 +227,8 @@ with tab_new:
             st.error("구매 목록을 1개 이상 입력해 주세요.")
         elif not reason.strip():
             st.error("구매사유를 입력해 주세요.")
+        elif not cost_note.strip():
+            st.error("원가반영을 입력해 주세요.")
         else:
             sb = get_supabase()
             try:
@@ -252,6 +242,10 @@ with tab_new:
                     "cost_note":        cost_note.strip() or None,
                     "status":           "pending",
                 }).execute()
+
+                # 엑셀 첨부파일 생성
+                _fname = f"구매요청서_{user_name}_{datetime.now().strftime('%Y%m%d')}.xlsx"
+                _attach = (_fname, _make_excel(valid_items, user_name, user_center, reason.strip(), cost_note.strip()))
 
                 # 관리자·자재파트 알림 메일
                 _target_emails = [
@@ -271,6 +265,7 @@ with tab_new:
                         reason=reason.strip(),
                         requested_at=_now_str,
                         cost_note=cost_note.strip(),
+                        attachment=_attach,
                     )
 
                 # 신청자 접수 확인 메일
@@ -284,6 +279,7 @@ with tab_new:
                         reason=reason.strip(),
                         requested_at=_now_str,
                         cost_note=cost_note.strip(),
+                        attachment=_attach,
                     )
 
                 st.session_state["_pr_last_submit_time"] = datetime.now()

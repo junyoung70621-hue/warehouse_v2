@@ -14,13 +14,29 @@ except Exception:
     GMAIL_ADDRESS      = os.getenv("GMAIL_ADDRESS")
     GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD")
 
-def _send_email(to: str, subject: str, body_html: str):
-    """내부 공통 발송 함수."""
-    msg = MIMEMultipart("alternative")
+def _send_email(to: str, subject: str, body_html: str, attachments: list = None):
+    """내부 공통 발송 함수. attachments: [(filename, bytes_data), ...]"""
+    from email.mime.base import MIMEBase
+    from email import encoders as _enc
+
+    if attachments:
+        msg = MIMEMultipart("mixed")
+        alt = MIMEMultipart("alternative")
+        alt.attach(MIMEText(body_html, "html", "utf-8"))
+        msg.attach(alt)
+        for fname, fdata in attachments:
+            part = MIMEBase("application", "octet-stream")
+            part.set_payload(fdata)
+            _enc.encode_base64(part)
+            part.add_header("Content-Disposition", f'attachment; filename="{fname}"')
+            msg.attach(part)
+    else:
+        msg = MIMEMultipart("alternative")
+        msg.attach(MIMEText(body_html, "html", "utf-8"))
+
     msg["From"] = GMAIL_ADDRESS
-    msg["To"] = to
+    msg["To"]   = to
     msg["Subject"] = subject
-    msg.attach(MIMEText(body_html, "html", "utf-8"))
 
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
         server.login(GMAIL_ADDRESS, GMAIL_APP_PASSWORD)
@@ -336,6 +352,7 @@ def send_purchase_request(
     reason: str,
     requested_at: str,
     cost_note: str = "",
+    attachment: tuple = None,
 ):
     """구매 요청 알림 메일. items: [{"품명", "수량", "링크"}, ...]"""
     subject = f"[에이텍모빌리티 자재관리] 구매 요청 — {requester_name} ({requester_center})"
@@ -376,9 +393,10 @@ def send_purchase_request(
     <hr>
     <p style="color:gray;font-size:12px;">에이텍모빌리티 자재관리 자동발송 메일입니다.</p>
     """
+    _attaches = [attachment] if attachment else None
     for email in to_emails:
         try:
-            _send_email(email, subject, body)
+            _send_email(email, subject, body, attachments=_attaches)
         except Exception:
             pass
 
@@ -391,6 +409,7 @@ def send_purchase_request_submitted(
     reason: str,
     requested_at: str,
     cost_note: str = "",
+    attachment: tuple = None,
 ):
     """구매 요청 접수 확인 메일 — 신청자에게 발송."""
     subject = "[에이텍모빌리티 자재관리] 구매 요청이 접수되었습니다"
@@ -429,7 +448,7 @@ def send_purchase_request_submitted(
     <p style="color:gray;font-size:12px;">에이텍모빌리티 자재관리 자동발송 메일입니다.</p>
     """
     try:
-        _send_email(to_email, subject, body)
+        _send_email(to_email, subject, body, attachments=[attachment] if attachment else None)
     except Exception:
         pass
 
