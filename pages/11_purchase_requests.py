@@ -160,7 +160,7 @@ with st.expander("💡 사용 가이드", expanded=True):
     )
 
 # ── 구매 요청 완료 팝업 ────────────────────────────────────────────────────
-@st.dialog("📨 구매 요청 완료")
+@st.experimental_dialog("📨 구매 요청 완료")
 def _purchase_success_dialog():
     items_done = st.session_state.get("_pr_success_items", [])
     st.success("요청이 정상적으로 접수되었습니다.")
