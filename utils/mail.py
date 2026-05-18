@@ -18,6 +18,7 @@ def _send_email(to: str, subject: str, body_html: str, attachments: list = None)
     """내부 공통 발송 함수. attachments: [(filename, bytes_data), ...]"""
     from email.mime.base import MIMEBase
     from email import encoders as _enc
+    from email.header import Header
 
     if attachments:
         msg = MIMEMultipart("mixed")
@@ -25,17 +26,25 @@ def _send_email(to: str, subject: str, body_html: str, attachments: list = None)
         alt.attach(MIMEText(body_html, "html", "utf-8"))
         msg.attach(alt)
         for fname, fdata in attachments:
-            part = MIMEBase("application", "octet-stream")
+            part = MIMEBase(
+                "application",
+                "vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
             part.set_payload(fdata)
             _enc.encode_base64(part)
-            part.add_header("Content-Disposition", f'attachment; filename="{fname}"')
+            # RFC 2231 — 한글 파일명 깨짐 방지
+            part.add_header(
+                "Content-Disposition",
+                "attachment",
+                filename=("utf-8", "", fname),
+            )
             msg.attach(part)
     else:
         msg = MIMEMultipart("alternative")
         msg.attach(MIMEText(body_html, "html", "utf-8"))
 
-    msg["From"] = GMAIL_ADDRESS
-    msg["To"]   = to
+    msg["From"]    = GMAIL_ADDRESS
+    msg["To"]      = to
     msg["Subject"] = subject
 
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
