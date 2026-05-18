@@ -120,6 +120,7 @@ defaults = {
     "upload_done":       None,
     "show_upload":       False,
     "show_export":       False,
+    "show_delete":       False,
     "show_transfer":     False,
     "show_usage_upload":     False,
     "usage_upload_done":     None,
@@ -777,9 +778,9 @@ with fb[4]:
 
 # ── 액션 바 (2행: 기능 버튼) ─────────────────────────────────────────────
 if SHOW_STOCK_BUTTONS:
-    ab = st.columns([0.72, 0.72, 0.82, 0.78, 0.78, 0.82, 4.0])
+    ab = st.columns([0.72, 0.72, 0.82, 0.78, 0.78, 0.82, 0.72, 4.0])
 else:
-    ab = st.columns([0.72, 0.72, 0.82, 0.95, 0.95, 0.82, 4.0])
+    ab = st.columns([0.72, 0.72, 0.82, 0.95, 0.95, 0.82, 0.72, 4.0])
 
 with ab[0]:
     if user_role in ("admin", "materials"):
@@ -822,6 +823,10 @@ if SHOW_STOCK_BUTTONS:
         if is_role("admin") and _my_center not in NO_WAREHOUSE_CENTERS:
             if st.button("💾 내보내기", use_container_width=True):
                 st.session_state.show_export = not st.session_state.show_export
+    with ab[6]:
+        if is_role("admin") and _my_center not in NO_WAREHOUSE_CENTERS:
+            if st.button("🗑️ 삭제", use_container_width=True):
+                st.session_state.show_delete = not st.session_state.show_delete
 else:
     with ab[3]:
         if CAN_USAGE_UPLOAD:
@@ -835,6 +840,10 @@ else:
         if is_role("admin") and _my_center not in NO_WAREHOUSE_CENTERS:
             if st.button("💾 내보내기", use_container_width=True):
                 st.session_state.show_export = not st.session_state.show_export
+    with ab[6]:
+        if is_role("admin") and _my_center not in NO_WAREHOUSE_CENTERS:
+            if st.button("🗑️ 삭제", use_container_width=True):
+                st.session_state.show_delete = not st.session_state.show_delete
 
 # ── 알림 메시지 ──────────────────────────────────────────────────────────
 if st.session_state.upload_done:
@@ -845,7 +854,7 @@ if st.session_state.usage_upload_done:
     st.success(st.session_state.usage_upload_done)
     st.session_state.usage_upload_done = None
 
-# ── 관리자 내보내기 패널 ──────────────────────────────────────────────────
+# ── 관리자 내보내기 패널 (다운로드 전용) ─────────────────────────────────
 if is_role("admin") and _my_center not in NO_WAREHOUSE_CENTERS and st.session_state.show_export:
     with st.container(border=True):
         st.markdown("#### 💾 전체 데이터 내보내기")
@@ -861,10 +870,7 @@ if is_role("admin") and _my_center not in NO_WAREHOUSE_CENTERS and st.session_st
         else:
             export_raw = fw(export_center)
             fname, sheet = f"{export_center}_전체_데이터.xlsx", export_center
-        export_df  = pd.DataFrame(export_raw) if export_raw else pd.DataFrame()
-        deduct_key = "export_deduct_confirm"
-        if deduct_key not in st.session_state:
-            st.session_state[deduct_key] = False
+        export_df = pd.DataFrame(export_raw) if export_raw else pd.DataFrame()
 
         if export_df.empty:
             st.warning("내보낼 데이터가 없습니다.")
@@ -873,36 +879,73 @@ if is_role("admin") and _my_center not in NO_WAREHOUSE_CENTERS and st.session_st
             exp_df = export_df[[c for c in EXCEL_COL_MAP if c in export_df.columns]].copy()
             exp_df.rename(columns=EXCEL_COL_MAP, inplace=True)
             excel_buf = make_excel_buffer(exp_df, sheet)
-
-            # ── 다운로드만 ─────────────────────────────────────────────
             st.download_button(
-                f"⬇️ 다운로드만 ({fname})", data=excel_buf,
+                f"⬇️ 다운로드 ({fname})", data=excel_buf,
                 file_name=fname,
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 use_container_width=True,
             )
 
-            # ── 삭제 포함 내보내기 ──────────────────────────────────────
-            st.divider()
+        if st.button("✖️ 닫기", key="close_export"):
+            st.session_state.show_export = False
+            st.rerun()
+
+# ── 관리자 삭제 패널 ──────────────────────────────────────────────────────
+if is_role("admin") and _my_center not in NO_WAREHOUSE_CENTERS and st.session_state.show_delete:
+    with st.container(border=True):
+        st.markdown("#### 🗑️ 자재 목록 삭제")
+        delete_center = st.selectbox(
+            "삭제할 센터", ["전체 (모든 센터)"] + CENTERS,
+            key="delete_center_select"
+        )
+        from utils.db import fetch_warehouse as fw
+        if delete_center == "전체 (모든 센터)":
+            all_data = []
+            for c in CENTERS: all_data.extend(fw(c))
+            del_raw, del_fname, del_sheet = all_data, "WMS_삭제전_백업.xlsx", "전체"
+        else:
+            del_raw = fw(delete_center)
+            del_fname, del_sheet = f"{delete_center}_삭제전_백업.xlsx", delete_center
+        del_df = pd.DataFrame(del_raw) if del_raw else pd.DataFrame()
+
+        del_key = "delete_confirm"
+        if del_key not in st.session_state:
+            st.session_state[del_key] = False
+
+        if del_df.empty:
+            st.warning("삭제할 데이터가 없습니다.")
+        else:
+            st.info(f"총 **{len(del_df)}개** 항목")
             st.warning(
-                "⚠️ **삭제 포함 내보내기**: 선택한 센터의 모든 자재 목록을 **완전 삭제**합니다. "
-                "이력은 기록되며 되돌릴 수 없습니다."
+                "⚠️ 선택한 센터의 모든 자재 목록을 **완전 삭제**합니다. "
+                "삭제 전 백업 파일이 자동 생성됩니다. 이력은 기록되며 되돌릴 수 없습니다."
             )
-            if not st.session_state[deduct_key]:
-                if st.button("📤 삭제 + 내보내기", type="primary",
-                             use_container_width=True, key="export_deduct_btn"):
-                    st.session_state[deduct_key] = True
+
+            # 백업 다운로드 버튼 항상 표시
+            bak_df = del_df[[c for c in EXCEL_COL_MAP if c in del_df.columns]].copy()
+            bak_df.rename(columns=EXCEL_COL_MAP, inplace=True)
+            bak_buf = make_excel_buffer(bak_df, del_sheet)
+            st.download_button(
+                f"⬇️ 삭제 전 백업 다운로드 ({del_fname})", data=bak_buf,
+                file_name=del_fname,
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True,
+            )
+
+            st.divider()
+            if not st.session_state[del_key]:
+                if st.button("🗑️ 삭제 실행", type="primary",
+                             use_container_width=True, key="delete_exec_btn"):
+                    st.session_state[del_key] = True
                     st.rerun()
             else:
-                st.error(f"**{export_center}** 자재 목록 전체를 삭제합니다. 정말 진행하시겠습니까?")
+                st.error(f"**{delete_center}** 자재 목록 전체를 삭제합니다. 정말 진행하시겠습니까?")
                 cc1, cc2 = st.columns(2)
-                if cc1.button("✅ 확인 — 삭제 + 다운로드", type="primary",
-                              use_container_width=True, key="export_deduct_ok"):
-                    sb_ex   = get_supabase()
+                if cc1.button("✅ 확인 — 삭제", type="primary",
+                              use_container_width=True, key="delete_confirm_ok"):
+                    sb_ex  = get_supabase()
                     deleted = 0
-
-                    # 루프 전 단일 쿼리로 실제 존재하는 ID 일괄 확인
-                    all_iids = [int(r["id"]) for _, r in export_df.iterrows()]
+                    all_iids = [int(r["id"]) for _, r in del_df.iterrows()]
                     try:
                         _chk = sb_ex.table("warehouse").select("id").in_("id", all_iids).execute()
                     except Exception:
@@ -915,12 +958,11 @@ if is_role("admin") and _my_center not in NO_WAREHOUSE_CENTERS and st.session_st
                             st.stop()
                     existing_iids = {int(r["id"]) for r in (_chk.data or [])}
 
-                    for _, ex_row in export_df.iterrows():
+                    for _, ex_row in del_df.iterrows():
                         iid = int(ex_row["id"])
                         qty = int(ex_row.get("quantity", 0))
                         if iid not in existing_iids:
                             continue
-                        # 이력 먼저 기록 (삭제 전)
                         if qty > 0:
                             try:
                                 sb_ex.table("history").insert({
@@ -928,13 +970,12 @@ if is_role("admin") and _my_center not in NO_WAREHOUSE_CENTERS and st.session_st
                                     "item_id":             iid,
                                     "action_type":         "out",
                                     "quantity":            qty,
-                                    "reason":              f"관리자 내보내기 삭제 ({export_center})",
+                                    "reason":              f"관리자 삭제 ({delete_center})",
                                     "snapshot_qty_before": qty,
                                     "snapshot_qty_after":  0,
                                 }).execute()
                             except Exception:
                                 pass
-                        # FK 참조 해제 후 삭제
                         try:
                             sb_ex.table("transfers").update({"item_id": None}).eq("item_id", iid).execute()
                         except Exception:
@@ -949,22 +990,16 @@ if is_role("admin") and _my_center not in NO_WAREHOUSE_CENTERS and st.session_st
                         except Exception:
                             pass
                     clear_warehouse_cache()
-                    st.session_state[deduct_key] = False
-                    st.success(f"✅ {deleted}개 자재 목록 삭제 완료. 아래 버튼으로 파일을 다운로드하세요.")
-                    st.download_button(
-                        f"⬇️ {fname} 다운로드", data=excel_buf,
-                        file_name=fname,
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        use_container_width=True, type="primary",
-                        key="export_deduct_dl",
-                    )
-                if cc2.button("❌ 취소", use_container_width=True, key="export_deduct_cancel"):
-                    st.session_state[deduct_key] = False
+                    st.session_state[del_key] = False
+                    st.success(f"✅ {deleted}개 자재 목록 삭제 완료.")
+                    st.rerun()
+                if cc2.button("❌ 취소", use_container_width=True, key="delete_confirm_cancel"):
+                    st.session_state[del_key] = False
                     st.rerun()
 
-        if st.button("✖️ 닫기", key="close_export"):
-            st.session_state[deduct_key] = False
-            st.session_state.show_export = False
+        if st.button("✖️ 닫기", key="close_delete"):
+            st.session_state[del_key] = False
+            st.session_state.show_delete = False
             st.rerun()
 
 # ── 엑셀 업로드 패널 ──────────────────────────────────────────────────────
