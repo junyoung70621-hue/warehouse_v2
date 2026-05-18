@@ -322,7 +322,6 @@ if IS_MANAGER:
                         action_dialog(req_id, req_email, req_name, center, "on_hold", items, tab_key)
 
                 elif status == "on_hold":
-                    # 보류: 대기중으로 되돌리기 가능
                     rc1b, _ = st.columns([2, 4])
                     if rc1b.button("🔄 대기중으로 되돌리기", key=f"revert_{tab_key}_{req_id}",
                                    use_container_width=True):
@@ -330,8 +329,31 @@ if IS_MANAGER:
                         clear_material_request_cache()
                         st.rerun()
                 else:
-                    # 승인/거절: 읽기 전용
                     st.caption("처리 완료된 요청입니다.")
+
+                if user_role == "admin":
+                    del_key = f"mat_del_{tab_key}_{req_id}"
+                    if del_key not in st.session_state:
+                        st.session_state[del_key] = False
+                    if not st.session_state[del_key]:
+                        da, _ = st.columns([1, 5])
+                        if da.button("🗑️ 삭제", key=f"mat_del_btn_{tab_key}_{req_id}",
+                                     use_container_width=True):
+                            st.session_state[del_key] = True
+                            st.rerun()
+                    else:
+                        st.warning(f"**{req_name}({center})** 자재 요청을 삭제하시겠습니까?")
+                        da, db, _ = st.columns([1, 1, 4])
+                        if da.button("✅ 확인", key=f"mat_del_ok_{tab_key}_{req_id}",
+                                     type="primary", use_container_width=True):
+                            get_supabase().table("material_requests").delete().eq("id", req_id).execute()
+                            st.session_state[del_key] = False
+                            clear_material_request_cache()
+                            st.rerun()
+                        if db.button("취소", key=f"mat_del_no_{tab_key}_{req_id}",
+                                     use_container_width=True):
+                            st.session_state[del_key] = False
+                            st.rerun()
 
     with tab_pending:  render_manager("pending")
     with tab_approved: render_manager("approved")
