@@ -1120,9 +1120,15 @@ if st.session_state.show_upload:
                         else:
                             to_insert.append(r)
 
-                    # 신규 등록 + 입고 이력
+                    # 신규 등록 + 입고 이력 (500건 단위 청크)
+                    _CHUNK = 500
+                    inserted_recs = []
                     if to_insert:
-                        res = sb.table("warehouse").insert(to_insert).execute()
+                        for _i in range(0, len(to_insert), _CHUNK):
+                            _res = sb.table("warehouse").insert(
+                                to_insert[_i:_i + _CHUNK]
+                            ).execute()
+                            inserted_recs.extend(_res.data or [])
                         hist_ins = [
                             {
                                 "actor_id":            user_id,
@@ -1134,11 +1140,11 @@ if st.session_state.show_upload:
                                 "snapshot_qty_before": 0,
                                 "snapshot_qty_after":  int(rec.get("quantity") or 0),
                             }
-                            for rec in (res.data or [])
+                            for rec in inserted_recs
                             if int(rec.get("quantity") or 0) > 0
                         ]
-                        if hist_ins:
-                            sb.table("history").insert(hist_ins).execute()
+                        for _i in range(0, len(hist_ins), _CHUNK):
+                            sb.table("history").insert(hist_ins[_i:_i + _CHUNK]).execute()
 
                     # 기존 항목: 수량 추가 + 입고 이력
                     hist_upd = []
@@ -1160,12 +1166,12 @@ if st.session_state.show_upload:
                                 "snapshot_qty_before": upd["before"],
                                 "snapshot_qty_after":  upd["after"],
                             })
-                    if hist_upd:
-                        sb.table("history").insert(hist_upd).execute()
+                    for _i in range(0, len(hist_upd), _CHUNK):
+                        sb.table("history").insert(hist_upd[_i:_i + _CHUNK]).execute()
 
                     clear_warehouse_cache()
                     clear_history_cache()
-                    st.session_state.upload_done = len(to_insert) + len(to_update)
+                    st.session_state.upload_done = len(inserted_recs) + len(to_update)
                     st.session_state.show_upload = False
                 if c2.button("❌ 취소", use_container_width=True, key="cancel_upload"):
                     st.session_state.show_upload = False
