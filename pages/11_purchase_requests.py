@@ -8,7 +8,7 @@ from utils.db import get_supabase, fetch_purchase_requests, clear_purchase_reque
 from utils.permissions import get_viewable_centers, get_center as _get_center
 from utils.routing import CENTERS
 from utils.ui import apply_global_css, render_sidebar_header, render_sidebar_section, render_sidebar_user, render_top_bar
-from utils.mail import send_purchase_request, send_purchase_request_reply
+from utils.mail import send_purchase_request, send_purchase_request_reply, send_purchase_request_submitted
 
 st.set_page_config(
     page_title="에이텍모빌리티 자재관리",
@@ -159,6 +159,22 @@ with st.expander("💡 사용 가이드", expanded=True):
         unsafe_allow_html=True
     )
 
+# ── 구매 요청 완료 팝업 ────────────────────────────────────────────────────
+@st.dialog("📨 구매 요청 완료")
+def _purchase_success_dialog():
+    items_done = st.session_state.get("_pr_success_items", [])
+    st.success("요청이 정상적으로 접수되었습니다.")
+    st.markdown(f"**{user_name}** ({user_center})님의 구매 요청이 관리자 및 자재파트에 전달되었습니다.")
+    if items_done:
+        st.markdown("**요청 품목**")
+        for i, it in enumerate(items_done, 1):
+            st.caption(f"{i}. {it.get('품명','')} — {it.get('수량','')}개")
+    if st.button("확인", type="primary", use_container_width=True, key="_pr_dialog_ok"):
+        st.session_state.pop("_pr_success_items", None)
+        st.session_state.pop("_pr_success", None)
+        st.rerun()
+
+
 # ── 탭 ────────────────────────────────────────────────────────────────────
 if IS_MANAGER:
     tab_new, tab_all, tab_mine = st.tabs(["📝 새 요청 작성", "📋 전체 요청 현황", "👤 내 요청"])
@@ -211,13 +227,19 @@ with tab_new:
     )
 
     if col_submit.button("📨 요청 제출", type="primary", use_container_width=True):
-        if not valid_items:
+        _last_submit = st.session_state.get("_pr_last_submit_time")
+        _cooldown_sec = 60
+        if _last_submit and (datetime.now() - _last_submit).total_seconds() < _cooldown_sec:
+            _remain = int(_cooldown_sec - (datetime.now() - _last_submit).total_seconds())
+            st.error(f"요청이 이미 제출되었습니다. {_remain}초 후 다시 시도해 주세요.")
+        elif not valid_items:
             st.error("구매 목록을 1개 이상 입력해 주세요.")
         elif not reason.strip():
             st.error("구매사유를 입력해 주세요.")
         else:
             sb = get_supabase()
             try:
+                _now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
                 sb.table("purchase_requests").insert({
                     "requester_id":     user_id,
                     "requester_name":   user_name,
@@ -227,7 +249,7 @@ with tab_new:
                     "status":           "pending",
                 }).execute()
 
-                # 알림 메일: admin + materials 역할 전체
+                # 관리자·자재파트 알림 메일
                 _target_emails = [
                     u["email"] for u in
                     (sb.table("users").select("email, assigned_center")
@@ -243,14 +265,30 @@ with tab_new:
                         requester_center=user_center,
                         items=valid_items,
                         reason=reason.strip(),
-                        requested_at=datetime.now().strftime("%Y-%m-%d %H:%M"),
+                        requested_at=_now_str,
                     )
 
+                # 신청자 접수 확인 메일
+                _requester_email = user.get("email", "")
+                if _requester_email:
+                    send_purchase_request_submitted(
+                        to_email=_requester_email,
+                        requester_name=user_name,
+                        requester_center=user_center,
+                        items=valid_items,
+                        reason=reason.strip(),
+                        requested_at=_now_str,
+                    )
+
+                st.session_state["_pr_last_submit_time"] = datetime.now()
+                st.session_state["_pr_success"] = True
+                st.session_state["_pr_success_items"] = valid_items
                 clear_purchase_request_cache()
-                st.success("✅ 구매 요청이 제출됐습니다. 관리자 및 자재파트에 알림 메일을 발송했습니다.")
-                st.rerun()
             except Exception as e:
                 st.error(f"제출 실패: {e}")
+
+    if st.session_state.get("_pr_success"):
+        _purchase_success_dialog()
 
 
 # ══════════════════════════════════════════════════════════════════════════
