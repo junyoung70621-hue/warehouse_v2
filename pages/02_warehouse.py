@@ -2,6 +2,7 @@
 import streamlit as st
 import pandas as pd
 import io
+import re
 import hashlib
 from utils.auth import require_login, is_role, logout
 from utils.db import (
@@ -203,9 +204,11 @@ SORT_MAP = {
 
 # ── 공통 유틸 ─────────────────────────────────────────────────────────────
 def make_excel_buffer(df_export, sheet_name="Sheet1"):
+    # openpyxl 시트명 제한: \ / * ? : [ ] 불가, 최대 31자
+    safe = re.sub(r'[\\/*?:\[\]]', '_', sheet_name)[:31] or "Sheet1"
     buf = io.BytesIO()
     with pd.ExcelWriter(buf, engine="openpyxl") as writer:
-        df_export.to_excel(writer, index=False, sheet_name=sheet_name)
+        df_export.to_excel(writer, index=False, sheet_name=safe)
     buf.seek(0)
     return buf
 
