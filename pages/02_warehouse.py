@@ -1365,6 +1365,11 @@ if CAN_MATERIAL_REQUEST and st.session_state.show_material_request:
             st.dataframe(pd.DataFrame(cart_rows),
                          use_container_width=True, hide_index=True)
 
+            req_notes = st.text_area(
+                "비고 (선택)", placeholder="담당자에게 전달할 내용을 입력하세요.",
+                height=72, key="req_notes",
+            )
+
             bc1, bc2, bc3 = st.columns([2, 1, 1])
             if bc1.button("📨 요청 발송", type="primary",
                           use_container_width=True, key="req_send"):
@@ -1392,9 +1397,10 @@ if CAN_MATERIAL_REQUEST and st.session_state.show_material_request:
                             requester_email = user.get("email",""),
                             from_center     = selected_center,
                             items           = cart,
+                            notes           = req_notes,
                         )
                         # 메일 발송
-                        _send_req(mat_emails, selected_center, user_name, cart)
+                        _send_req(mat_emails, selected_center, user_name, cart, notes=req_notes)
                         any_short = any(x["current_qty"] < x["requested_qty"] for x in cart)
                         st.session_state["_mat_req_success_info"] = {
                             "items": cart, "any_short": any_short,

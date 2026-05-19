@@ -60,7 +60,7 @@ _st_dialog = getattr(st, "dialog", getattr(st, "experimental_dialog", None))
 
 if _st_dialog:
     @_st_dialog("📋 자재 요청 처리", width="large")
-    def action_dialog(req_id, req_email, req_name, from_center, action, items, tab_key):
+    def action_dialog(req_id, req_email, req_name, from_center, action, items, tab_key, notes=""):
         _user  = st.session_state.user
         _uid   = _user["id"]
         _uname = _user["name"]
@@ -85,6 +85,8 @@ if _st_dialog:
                           "재고상태": "⚠️ 재고부족" if it.get("current_qty",0) < it.get("requested_qty",0) else "✅ 충분"}
                          for it in items]
             st.dataframe(pd.DataFrame(item_rows), use_container_width=True, hide_index=True)
+        if notes and notes.strip():
+            st.info(f"📝 비고: {notes.strip()}")
 
         row_selections = {}
         if action == "approved" and items:
@@ -276,6 +278,7 @@ if IS_MANAGER:
             req_at     = (req.get("requested_at","") or "")[:16].replace("T"," ")
             proc_at    = (req.get("processed_at","") or "")[:16].replace("T"," ")
             prev_reply = req.get("reply_message","") or ""
+            req_notes  = req.get("notes","") or ""
 
             with st.container(border=True):
                 hc1, hc2 = st.columns([5, 2])
@@ -303,6 +306,8 @@ if IS_MANAGER:
                             for it in items]
                     st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
 
+                if req_notes:
+                    st.caption(f"📝 비고: {req_notes}")
                 if prev_reply:
                     st.caption(f"💬 회신: {prev_reply}")
 
@@ -313,13 +318,13 @@ if IS_MANAGER:
                     ac1, ac2, ac3 = st.columns(3)
                     if ac1.button("✅ 승인", key=f"appr_{tab_key}_{req_id}",
                                    use_container_width=True, type="primary"):
-                        action_dialog(req_id, req_email, req_name, center, "approved", items, tab_key)
+                        action_dialog(req_id, req_email, req_name, center, "approved", items, tab_key, req_notes)
                     if ac2.button("❌ 거절", key=f"reje_{tab_key}_{req_id}",
                                    use_container_width=True):
-                        action_dialog(req_id, req_email, req_name, center, "rejected", items, tab_key)
+                        action_dialog(req_id, req_email, req_name, center, "rejected", items, tab_key, req_notes)
                     if ac3.button("⏸️ 보류", key=f"hold_{tab_key}_{req_id}",
                                    use_container_width=True):
-                        action_dialog(req_id, req_email, req_name, center, "on_hold", items, tab_key)
+                        action_dialog(req_id, req_email, req_name, center, "on_hold", items, tab_key, req_notes)
 
                 elif status == "on_hold":
                     rc1b, _ = st.columns([2, 4])

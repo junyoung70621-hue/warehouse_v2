@@ -551,6 +551,7 @@ def submit_material_request(
     requester_email: str,
     from_center: str,
     items: list,
+    notes: str = "",
 ) -> int | None:
     """자재 요청 DB 저장. 생성된 id 반환."""
     try:
@@ -562,6 +563,7 @@ def submit_material_request(
             "from_center":     from_center,
             "status":          "pending",
             "items":           items,
+            "notes":           notes or None,
         }).execute()
         return result.data[0]["id"] if result.data else None
     except Exception as e:

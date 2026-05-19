@@ -147,6 +147,7 @@ def send_material_request(
     from_center: str,
     requester_name: str,
     items: list,
+    notes: str = "",
 ):
     """
     자재 요청 알림 메일.
@@ -178,6 +179,14 @@ def send_material_request(
           ⚠️ 재고가 부족한 자재가 포함되어 있습니다. 구매 검토가 필요합니다.
         </p>"""
 
+    notes_block = ""
+    if notes and notes.strip():
+        notes_block = f"""
+        <div style="margin-top:14px; padding:10px 14px; background:#fffbe6;
+                    border-left:4px solid #f59e0b; font-size:13px;">
+          <b>비고:</b> {notes.strip()}
+        </div>"""
+
     body = f"""
     <p>안녕하세요.</p>
     <p><b>{from_center}</b>에서 자재 요청이 접수되었습니다.</p>
@@ -196,6 +205,7 @@ def send_material_request(
       <tbody>{rows_html}</tbody>
     </table>
     {shortage_block}
+    {notes_block}
     <p>WMS 시스템에서 확인 후 처리해 주세요.</p>
     <hr>
     <p style="color:gray; font-size:12px;">에이텍모빌리티 자재관리 자동발송 메일입니다.</p>
