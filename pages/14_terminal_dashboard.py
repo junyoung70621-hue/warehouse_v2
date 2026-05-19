@@ -1083,12 +1083,12 @@ with tab_trend:
                 daily,
                 x="날짜", y="수량", color="방향",
                 color_discrete_map={"출고": "#D3004F", "입고": "#0284C7"},
-                markers=True,
+                markers=True, text="수량",
                 title=f"일별 단말기 이동 추이  ({tr_from} ~ {tr_to})",
                 labels={"날짜": "", "수량": "대수"},
             )
             fig.update_layout(
-                height=420,
+                height=440,
                 margin=dict(l=10, r=10, t=50, b=10),
                 legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0),
                 plot_bgcolor="#FFFFFF",
@@ -1097,7 +1097,12 @@ with tab_trend:
                 xaxis=dict(showgrid=True, gridcolor="#E2E8F0"),
                 yaxis=dict(showgrid=True, gridcolor="#E2E8F0", rangemode="tozero"),
             )
-            fig.update_traces(line_width=2.5, marker_size=7)
+            fig.update_traces(
+                line_width=2.5, marker_size=7,
+                textposition="top center",
+                textfont=dict(size=11, family="Noto Sans KR, sans-serif"),
+                mode="lines+markers+text",
+            )
             st.plotly_chart(fig, use_container_width=True)
         else:
             # plotly 없을 때 st.line_chart fallback
@@ -1119,12 +1124,12 @@ with tab_trend:
                 fig2 = px.line(
                     dtype_daily,
                     x="날짜", y="수량", color="기종",
-                    markers=True,
+                    markers=True, text="수량",
                     title="기종별 일별 이동 대수",
                     labels={"날짜": "", "수량": "대수"},
                 )
                 fig2.update_layout(
-                    height=380,
+                    height=420,
                     margin=dict(l=10, r=10, t=50, b=10),
                     legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0),
                     plot_bgcolor="#FFFFFF",
@@ -1133,7 +1138,12 @@ with tab_trend:
                     xaxis=dict(showgrid=True, gridcolor="#E2E8F0"),
                     yaxis=dict(showgrid=True, gridcolor="#E2E8F0", rangemode="tozero"),
                 )
-                fig2.update_traces(line_width=2, marker_size=6)
+                fig2.update_traces(
+                    line_width=2, marker_size=6,
+                    textposition="top center",
+                    textfont=dict(size=10, family="Noto Sans KR, sans-serif"),
+                    mode="lines+markers+text",
+                )
                 st.plotly_chart(fig2, use_container_width=True)
             else:
                 pivot2 = dtype_daily.pivot(index="날짜", columns="기종", values="수량").fillna(0)
