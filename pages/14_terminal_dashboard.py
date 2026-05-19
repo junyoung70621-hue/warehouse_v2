@@ -1079,29 +1079,30 @@ with tab_trend:
         st.divider()
 
         if _has_plotly:
-            fig = px.line(
-                daily,
-                x="날짜", y="수량", color="방향",
-                color_discrete_map={"출고": "#D3004F", "입고": "#0284C7"},
-                markers=True, text="수량",
-                title=f"일별 단말기 이동 추이  ({tr_from} ~ {tr_to})",
-                labels={"날짜": "", "수량": "대수"},
-            )
+            import plotly.graph_objects as go
+            _dir_colors = {"출고": "#D3004F", "입고": "#0284C7"}
+            fig = go.Figure()
+            for _dir, _grp in daily.groupby("방향"):
+                _grp = _grp.sort_values("날짜")
+                fig.add_trace(go.Scatter(
+                    x=_grp["날짜"], y=_grp["수량"],
+                    mode="lines+markers+text",
+                    name=_dir,
+                    text=_grp["수량"],
+                    textposition="top center",
+                    textfont=dict(size=11, color=_dir_colors.get(_dir, "#333")),
+                    line=dict(color=_dir_colors.get(_dir, "#888"), width=2.5),
+                    marker=dict(size=7),
+                ))
             fig.update_layout(
-                height=440,
+                title=f"일별 단말기 이동 추이  ({tr_from} ~ {tr_to})",
+                height=460,
                 margin=dict(l=10, r=10, t=50, b=10),
                 legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0),
-                plot_bgcolor="#FFFFFF",
-                paper_bgcolor="#FFFFFF",
+                plot_bgcolor="#FFFFFF", paper_bgcolor="#FFFFFF",
                 font=dict(family="Noto Sans KR, sans-serif", size=12),
-                xaxis=dict(showgrid=True, gridcolor="#E2E8F0"),
-                yaxis=dict(showgrid=True, gridcolor="#E2E8F0", rangemode="tozero"),
-            )
-            fig.update_traces(
-                line_width=2.5, marker_size=7,
-                textposition="top center",
-                textfont=dict(size=11, family="Noto Sans KR, sans-serif"),
-                mode="lines+markers+text",
+                xaxis=dict(showgrid=True, gridcolor="#E2E8F0", title=""),
+                yaxis=dict(showgrid=True, gridcolor="#E2E8F0", rangemode="tozero", title="대수"),
             )
             st.plotly_chart(fig, use_container_width=True)
         else:
@@ -1121,28 +1122,28 @@ with tab_trend:
             dtype_daily = dtype_daily.sort_values("날짜")
 
             if _has_plotly:
-                fig2 = px.line(
-                    dtype_daily,
-                    x="날짜", y="수량", color="기종",
-                    markers=True, text="수량",
-                    title="기종별 일별 이동 대수",
-                    labels={"날짜": "", "수량": "대수"},
-                )
+                fig2 = go.Figure()
+                for _dtype, _grp in dtype_daily.groupby("기종"):
+                    _grp = _grp.sort_values("날짜")
+                    fig2.add_trace(go.Scatter(
+                        x=_grp["날짜"], y=_grp["수량"],
+                        mode="lines+markers+text",
+                        name=_dtype,
+                        text=_grp["수량"],
+                        textposition="top center",
+                        textfont=dict(size=10),
+                        line=dict(width=2),
+                        marker=dict(size=6),
+                    ))
                 fig2.update_layout(
-                    height=420,
+                    title="기종별 일별 이동 대수",
+                    height=440,
                     margin=dict(l=10, r=10, t=50, b=10),
                     legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0),
-                    plot_bgcolor="#FFFFFF",
-                    paper_bgcolor="#FFFFFF",
+                    plot_bgcolor="#FFFFFF", paper_bgcolor="#FFFFFF",
                     font=dict(family="Noto Sans KR, sans-serif", size=12),
-                    xaxis=dict(showgrid=True, gridcolor="#E2E8F0"),
-                    yaxis=dict(showgrid=True, gridcolor="#E2E8F0", rangemode="tozero"),
-                )
-                fig2.update_traces(
-                    line_width=2, marker_size=6,
-                    textposition="top center",
-                    textfont=dict(size=10, family="Noto Sans KR, sans-serif"),
-                    mode="lines+markers+text",
+                    xaxis=dict(showgrid=True, gridcolor="#E2E8F0", title=""),
+                    yaxis=dict(showgrid=True, gridcolor="#E2E8F0", rangemode="tozero", title="대수"),
                 )
                 st.plotly_chart(fig2, use_container_width=True)
             else:
