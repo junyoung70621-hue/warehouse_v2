@@ -941,7 +941,7 @@ with tab_cert:
     cert_dir    = c2.selectbox("방향", ["출고 (자재→센터)", "입고 (센터→자재)"], key="cert_dir")
     cert_center = c3.selectbox("센터 필터 (선택)", ["전체"] + NON_HUB_CENTERS, key="cert_center")
 
-    if st.button("📋 미리보기 & 다운로드 준비", key="cert_go"):
+    if st.button("🔍 검색", key="cert_go"):
         _cv = "out" if "출고" in cert_dir else "in"
         c_rows = fetch_terminal(direction=_cv, upload_date=cert_date)
         if cert_center != "전체":
