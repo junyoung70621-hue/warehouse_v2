@@ -33,9 +33,8 @@ require_login()
 apply_global_css()
 st.markdown("""
 <style>
-@keyframes wms-slidein { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
-.main .block-container { animation:wms-slidein 0.35s cubic-bezier(0.22,1,0.36,1)!important; }
-[data-testid="stSidebarUserContent"] { animation:wms-slidein 0.35s cubic-bezier(0.22,1,0.36,1)!important; }
+@keyframes wms-fadein { from{opacity:0} to{opacity:1} }
+.main .block-container, [data-testid="stSidebarUserContent"] { animation:wms-fadein 0.12s ease-out!important; }
 section[data-testid="stSidebar"] { top:58px!important; height:calc(100vh - 58px)!important; min-width:220px!important; max-width:220px!important; }
 section[data-testid="stSidebar"] > div > div { overflow-y:auto!important; scrollbar-width:none!important; }
 section[data-testid="stSidebar"] > div > div::-webkit-scrollbar { display:none!important; }
