@@ -141,13 +141,16 @@ def apply_global_css():
     }
     [data-testid="collapsedControl"]:hover button::after { color: #D3004F; }
 
-    /* ── 페이지 전환 플래시 방지 ── */
-    @keyframes wms-fadein {
-        from { opacity: 0; }
-        to   { opacity: 1; }
+    /* ── 페이지 전환 자연스러운 슬라이드인 ── */
+    @keyframes wms-slidein {
+        from { opacity: 0; transform: translateY(10px); }
+        to   { opacity: 1; transform: translateY(0);    }
     }
     .main .block-container {
-        animation: wms-fadein 0.18s ease-out !important;
+        animation: wms-slidein 0.35s cubic-bezier(0.22, 1, 0.36, 1) !important;
+    }
+    [data-testid="stSidebarUserContent"] {
+        animation: wms-slidein 0.35s cubic-bezier(0.22, 1, 0.36, 1) !important;
     }
 
     /* ── 1. 전체 세로 스크롤 ── */
