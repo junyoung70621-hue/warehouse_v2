@@ -564,16 +564,33 @@ def gen_handover_xlsx(rows: list, from_c: str, to_c: str, mv_date: date, notes: 
         return r
 
     def _write_trcn_list(ws, r: int, _rows: list) -> int:
-        ws.merge_cells(f"A{r}:B{r}")
+        CHUNK = 30  # 열당 최대 행 수
+        trcn_list = sorted(rec.get("trcn_id", "") for rec in _rows)
+
+        ws.merge_cells(f"A{r}:D{r}")
         h = ws.cell(r, 1, "단말기 IH 목록"); h.font = bold11; h.alignment = ca; h.fill = lblue
         r += 1
-        for ci, hdr in enumerate(["No", "IH (TRCN_ID)"], 1):
-            c = ws.cell(r, ci, hdr); c.font = bold11; c.alignment = ca; c.fill = gray; c.border = bdr
+        # 헤더: A-B, C-D 각각
+        for base in [1, 3]:
+            ws.cell(r, base,   "No").font           = bold11; ws.cell(r, base  ).alignment = ca
+            ws.cell(r, base  ).fill = gray;                   ws.cell(r, base  ).border    = bdr
+            ws.cell(r, base+1, "IH (TRCN_ID)").font = bold11; ws.cell(r, base+1).alignment = ca
+            ws.cell(r, base+1).fill = gray;                   ws.cell(r, base+1).border    = bdr
         r += 1
-        for idx, trcn in enumerate(sorted(rec.get("trcn_id", "") for rec in _rows), 1):
-            ws.cell(r, 1, idx).font  = norm10; ws.cell(r, 1).alignment = ca; ws.cell(r, 1).border = bdr
-            ws.cell(r, 2, trcn).font = norm10; ws.cell(r, 2).alignment = ca; ws.cell(r, 2).border = bdr
-            r += 1
+        # CHUNK*2 개씩 블록: 왼쪽(A-B) 30개, 오른쪽(C-D) 30개
+        for blk in range(0, max(len(trcn_list), 1), CHUNK * 2):
+            left  = trcn_list[blk         : blk + CHUNK]
+            right = trcn_list[blk + CHUNK : blk + CHUNK * 2]
+            for i in range(max(len(left), len(right))):
+                if i < len(left):
+                    no = blk + i + 1
+                    ws.cell(r, 1, no).font         = norm10; ws.cell(r, 1).alignment = ca; ws.cell(r, 1).border = bdr
+                    ws.cell(r, 2, left[i]).font    = norm10; ws.cell(r, 2).alignment = ca; ws.cell(r, 2).border = bdr
+                if i < len(right):
+                    no = blk + CHUNK + i + 1
+                    ws.cell(r, 3, no).font         = norm10; ws.cell(r, 3).alignment = ca; ws.cell(r, 3).border = bdr
+                    ws.cell(r, 4, right[i]).font   = norm10; ws.cell(r, 4).alignment = ca; ws.cell(r, 4).border = bdr
+                r += 1
         return r
 
     def _write_center_sheet(ws, _rows: list, _from: str, _to: str, _notes: str = ""):
