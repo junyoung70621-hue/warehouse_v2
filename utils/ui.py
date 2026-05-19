@@ -141,15 +141,6 @@ def apply_global_css():
     }
     [data-testid="collapsedControl"]:hover button::after { color: #D3004F; }
 
-    /* ── 페이지 전환 페이드인 ── */
-    @keyframes wms-fadein {
-        from { opacity: 0; }
-        to   { opacity: 1; }
-    }
-    .main .block-container,
-    [data-testid="stSidebarUserContent"] {
-        animation: wms-fadein 0.12s ease-out !important;
-    }
 
     /* ── 1. 전체 세로 스크롤 ── */
     html, body {
