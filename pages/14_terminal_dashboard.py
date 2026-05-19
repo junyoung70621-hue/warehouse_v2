@@ -938,8 +938,13 @@ with tab_cert:
     st.markdown("#### 📄 인수인계증 생성")
     c1, c2, c3 = st.columns(3)
     cert_date   = c1.date_input("이동 날짜", value=_today_kst(), key="cert_date")
-    cert_dir    = c2.selectbox("방향", ["출고 (자재→센터)", "입고 (센터→자재)"], key="cert_dir")
-    cert_center = c3.selectbox("센터 필터 (선택)", ["전체"] + NON_HUB_CENTERS, key="cert_center")
+    _cert_dir_default = 0 if _is_jjae else 1
+    _cert_center_opts = ["전체"] + NON_HUB_CENTERS
+    _cert_center_default = 0 if _is_jjae else (
+        _cert_center_opts.index(user_center) if user_center in _cert_center_opts else 0
+    )
+    cert_dir    = c2.selectbox("방향", ["출고 (자재→센터)", "입고 (센터→자재)"], index=_cert_dir_default, key="cert_dir")
+    cert_center = c3.selectbox("센터 필터 (선택)", _cert_center_opts, index=_cert_center_default, key="cert_center")
 
     if st.button("🔍 검색", key="cert_go"):
         _cv = "out" if "출고" in cert_dir else "in"
