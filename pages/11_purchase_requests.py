@@ -54,7 +54,7 @@ with st.sidebar:
 
     if not is_role("guest"):
         render_sidebar_section("요청")
-        if st.button("📦 자재 요청", use_container_width=True, key="sidebar_mat_req"):
+        if st.button("📦 자재요청현황", use_container_width=True, key="sidebar_mat_req"):
             st.switch_page("pages/07_material_requests.py")
         st.button("🛒 구매 요청", use_container_width=True, type="primary")
 
@@ -504,3 +504,4 @@ with tab_mine:
                                        use_container_width=True):
                             st.session_state.pop(_ckey, None)
                             st.rerun()
+

@@ -73,7 +73,7 @@ with st.sidebar:
         st.switch_page("pages/08_usage_history.py")
 
     render_sidebar_section("요청")
-    if st.button("📦 자재 요청", use_container_width=True, key="sidebar_mat_req"):
+    if st.button("📦 자재요청현황", use_container_width=True, key="sidebar_mat_req"):
         st.switch_page("pages/07_material_requests.py")
     if st.button("🛒 구매 요청", use_container_width=True, key="sidebar_pur_req"):
         st.switch_page("pages/11_purchase_requests.py")
@@ -167,3 +167,4 @@ for group, label in [(online, "온라인"), (away, "자리비움"), (offline, "�
         for u in group:
             _render_user_row(u)
         st.write("")
+

@@ -38,7 +38,7 @@ with st.sidebar:
         st.switch_page("pages/08_usage_history.py")
 
     render_sidebar_section("요청")
-    if st.button("📦 자재 요청", use_container_width=True, key="sidebar_mat_req"):
+    if st.button("📦 자재요청현황", use_container_width=True, key="sidebar_mat_req"):
         st.switch_page("pages/07_material_requests.py")
     if st.button("🛒 구매 요청", use_container_width=True, key="sidebar_pur_req"):
         st.switch_page("pages/11_purchase_requests.py")
@@ -412,3 +412,4 @@ with tab_pending:
                     if st.button("❌ 거절", key=f"pd_{u['id']}", use_container_width=True):
                         sb.table("users").delete().eq("id",u["id"]).execute()
                         st.rerun()
+

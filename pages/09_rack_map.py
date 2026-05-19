@@ -50,7 +50,7 @@ with st.sidebar:
 
     if not is_role("guest"):
         render_sidebar_section("요청")
-        if st.button("📦 자재 요청", use_container_width=True, key="sidebar_mat_req"):
+        if st.button("📦 자재요청현황", use_container_width=True, key="sidebar_mat_req"):
             st.switch_page("pages/07_material_requests.py")
         if st.button("🛒 구매 요청", use_container_width=True, key="sidebar_pur_req"):
             st.switch_page("pages/11_purchase_requests.py")
@@ -112,3 +112,4 @@ if buf is None:
     st.warning("map.jpg 파일이 없거나 Pillow 패키지가 설치되지 않았습니다.")
 else:
     st.image(buf, caption=f"📍 랙 {selected_rack} 위치", use_column_width=True)
+

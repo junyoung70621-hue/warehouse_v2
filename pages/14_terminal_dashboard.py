@@ -848,7 +848,7 @@ with st.sidebar:
 
     if not is_role("guest"):
         render_sidebar_section("요청")
-        if st.button("📦 자재 요청", use_container_width=True, key="sb_mat"):
+        if st.button("📦 자재요청현황", use_container_width=True, key="sb_mat"):
             st.switch_page("pages/07_material_requests.py")
         if st.button("🛒 구매 요청", use_container_width=True, key="sb_pur"):
             st.switch_page("pages/11_purchase_requests.py")

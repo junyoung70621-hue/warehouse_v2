@@ -211,7 +211,7 @@ with st.sidebar:
 
     if not is_role("guest"):
         render_sidebar_section("요청")
-        st.button("📦 자재 요청", use_container_width=True, type="primary")
+        st.button("📦 자재요청현황", use_container_width=True, type="primary")
         if st.button("🛒 구매 요청", use_container_width=True, key="sidebar_pur_req"):
             st.switch_page("pages/11_purchase_requests.py")
 
@@ -482,3 +482,4 @@ else:
     with tab_reje2:   render_user("rejected")
     with tab_hold2:   render_user("on_hold")
     with tab_cancel2: render_user("cancelled")
+
