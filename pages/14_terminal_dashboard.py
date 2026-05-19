@@ -630,13 +630,24 @@ def gen_handover_xlsx(rows: list, from_c: str, to_c: str, mv_date: date, notes: 
         total_cnt = len(rows)
 
         # ── Sheet 1: 센터별 전체 요약 ─────────────────────────────────────
+        from openpyxl.utils import get_column_letter
+        _direction  = "out" if center_field == "to_center" else "in"
+        _cpivot     = build_center_pivot(rows, direction=_direction)
+        _pcols      = list(_cpivot.columns) if _cpivot is not None else []
+        _total_cols = len(_pcols) + 2       # 종류 열 + 센터 N개 + 합계 열
+        _last_L     = get_column_letter(_total_cols)
+
         ws0 = wb.active; ws0.title = "전체요약"
-        _set_widths(ws0)
-        ws0.merge_cells("A1:D1")
-        c = ws0.cell(1, 1, "단말기 이동 인수인계증 — 센터별 요약"); c.font = bold14; c.alignment = ca
-        ws0.row_dimensions[1].height = 30
+        ws0.column_dimensions["A"].width = 16
+        for _ci in range(2, _total_cols + 1):
+            ws0.column_dimensions[get_column_letter(_ci)].width = 9
+
         _lbl_from = from_c if from_c != "타센터" else "각 센터"
         _lbl_to   = to_c   if to_c   != "타센터" else "각 센터"
+
+        ws0.merge_cells(f"A1:{_last_L}1")
+        c = ws0.cell(1, 1, "단말기 이동 인수인계증 — 센터별 요약"); c.font = bold14; c.alignment = ca
+        ws0.row_dimensions[1].height = 30
         for ci, (lbl, val) in enumerate([("출발센터", _lbl_from), ("도착센터", _lbl_to)], start=1):
             ws0.cell(2, ci*2-1, lbl).font = bold11; ws0.cell(2, ci*2-1).alignment = la
             ws0.cell(2, ci*2,   val).font = norm10; ws0.cell(2, ci*2  ).alignment = la
@@ -646,24 +657,44 @@ def gen_handover_xlsx(rows: list, from_c: str, to_c: str, mv_date: date, notes: 
         ws0.cell(3, 4, f"{total_cnt:,}대").font = norm10; ws0.cell(3, 4).alignment = la
 
         r = 5
-        ws0.merge_cells(f"A{r}:D{r}")
-        h = ws0.cell(r, 1, "센터별 출고 수량" if center_field == "to_center" else "센터별 입고 수량")
-        h.font = bold11; h.alignment = ca; h.fill = lblue
+        _sec_label = "센터별 출고 현황" if _direction == "out" else "센터별 입고 현황"
+        ws0.merge_cells(f"A{r}:{_last_L}{r}")
+        h = ws0.cell(r, 1, _sec_label); h.font = bold11; h.alignment = ca; h.fill = lblue
         r += 1
-        for ci, hdr in enumerate(["No", "센터명", "수량", "비율(%)"], 1):
-            c = ws0.cell(r, ci, hdr); c.font = bold11; c.alignment = ca; c.fill = gray; c.border = bdr
-        r += 1
-        for idx, cname in enumerate(sorted_centers, 1):
-            cnt = len(groups[cname])
-            pct = f"{cnt / total_cnt * 100:.1f}%" if total_cnt else "0%"
-            for ci, val in enumerate([idx, cname, cnt, pct], 1):
-                c = ws0.cell(r, ci, val); c.font = norm10; c.alignment = ca; c.border = bdr
+
+        if _cpivot is not None:
+            # 컬럼 헤더: 종류 | 센터1 | 센터2 | … | 합계
+            _sum_ci = len(_pcols) + 2
+            ws0.cell(r, 1, "종류").font = bold11; ws0.cell(r, 1).alignment = ca
+            ws0.cell(r, 1).fill = gray; ws0.cell(r, 1).border = bdr
+            for _i, _cn in enumerate(_pcols, 2):
+                c = ws0.cell(r, _i, _cn); c.font = bold11; c.alignment = ca; c.fill = gray; c.border = bdr
+            c = ws0.cell(r, _sum_ci, "합계"); c.font = bold11; c.alignment = ca; c.fill = gray; c.border = bdr
             r += 1
-        ws0.merge_cells(f"A{r}:B{r}")
-        c = ws0.cell(r, 1, "합계"); c.font = bold10; c.alignment = ca; c.fill = total_fill; c.border = bdr
-        ws0.cell(r, 2).fill = total_fill; ws0.cell(r, 2).border = bdr
-        c3 = ws0.cell(r, 3, total_cnt); c3.font = bold10; c3.alignment = ca; c3.fill = total_fill; c3.border = bdr
-        c4 = ws0.cell(r, 4, "100%"); c4.font = bold10; c4.alignment = ca; c4.fill = total_fill; c4.border = bdr
+
+            _col_totals = [0] * len(_pcols)
+            for _rk, _rd in _cpivot.iterrows():
+                ws0.cell(r, 1, _rk).font = norm10; ws0.cell(r, 1).alignment = la; ws0.cell(r, 1).border = bdr
+                _row_total = 0
+                for _i, _cn in enumerate(_pcols, 2):
+                    _v = int(_rd.get(_cn, 0))
+                    c = ws0.cell(r, _i, _v if _v > 0 else ""); c.font = norm10; c.alignment = ca; c.border = bdr
+                    _row_total += _v; _col_totals[_i - 2] += _v
+                c = ws0.cell(r, _sum_ci, _row_total); c.font = bold10; c.alignment = ca
+                c.fill = total_fill; c.border = bdr
+                r += 1
+
+            # 합계 행
+            ws0.cell(r, 1, "합계").font = bold10; ws0.cell(r, 1).alignment = ca
+            ws0.cell(r, 1).fill = total_fill; ws0.cell(r, 1).border = bdr
+            for _i, _ct in enumerate(_col_totals, 2):
+                c = ws0.cell(r, _i, _ct); c.font = bold10; c.alignment = ca
+                c.fill = total_fill; c.border = bdr
+            c = ws0.cell(r, _sum_ci, total_cnt); c.font = bold10; c.alignment = ca
+            c.fill = total_fill; c.border = bdr
+        else:
+            ws0.merge_cells(f"A{r}:{_last_L}{r}")
+            ws0.cell(r, 1, "데이터 없음").font = norm10; ws0.cell(r, 1).alignment = ca
 
         # ── 센터별 시트 ───────────────────────────────────────────────────
         for cname in sorted_centers:
