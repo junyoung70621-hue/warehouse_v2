@@ -886,12 +886,12 @@ if not _table_exists():
     st.code(_SQL_SETUP, language="sql")
     st.stop()
 
-_tab_labels = ["📊 오늘의 현황", "📋 이력 조회", "📄 인수인계증"]
+_tab_labels = ["📊 오늘의 현황", "📋 이력 조회", "📈 이동 추이", "📄 인수인계증"]
 if _is_admin:
     _tab_labels.append("⚙️ 관리")
 _tabs = st.tabs(_tab_labels)
-tab_dash, tab_hist, tab_cert = _tabs[0], _tabs[1], _tabs[2]
-tab_admin = _tabs[3] if _is_admin else None
+tab_dash, tab_hist, tab_trend, tab_cert = _tabs[0], _tabs[1], _tabs[2], _tabs[3]
+tab_admin = _tabs[4] if _is_admin else None
 
 
 # ══ Tab 1: 오늘의 현황 ════════════════════════════════════════════════════════
@@ -1028,7 +1028,119 @@ with tab_hist:
         )
 
 
-# ══ Tab 3: 인수인계증 ══════════════════════════════════════════════════════════
+# ══ Tab 3: 이동 추이 ══════════════════════════════════════════════════════════
+with tab_trend:
+    try:
+        import plotly.express as px
+        _has_plotly = True
+    except ImportError:
+        _has_plotly = False
+
+    tr1, tr2, tr3, tr4 = st.columns([2, 2, 3, 1])
+    tr_from  = tr1.date_input("시작일", value=_today_kst() - timedelta(days=29), key="tr_from")
+    tr_to    = tr2.date_input("종료일", value=_today_kst(),                       key="tr_to")
+    tr_ctr   = tr3.selectbox("센터 필터", ["전체"] + NON_HUB_CENTERS, key="tr_ctr")
+    if tr4.button("🔄", key="tr_ref"):
+        st.rerun()
+
+    tr_rows = fetch_terminal(date_from=tr_from, date_to=tr_to)
+
+    # 센터 필터 적용
+    if tr_ctr != "전체":
+        tr_rows = [r for r in tr_rows if
+                   r.get("to_center") == tr_ctr or r.get("from_center") == tr_ctr]
+
+    if not tr_rows:
+        st.info("조회 결과가 없습니다.")
+    else:
+        tr_df = pd.DataFrame(tr_rows)
+        tr_df["방향"] = tr_df["direction"].map({"out": "출고", "in": "입고"})
+
+        # 일별 집계
+        daily = (
+            tr_df.groupby(["upload_date", "방향"])
+            .size()
+            .reset_index(name="수량")
+            .rename(columns={"upload_date": "날짜"})
+        )
+        daily["날짜"] = pd.to_datetime(daily["날짜"])
+        daily = daily.sort_values("날짜")
+
+        # 요약 지표
+        total_out = int(tr_df[tr_df["direction"] == "out"].shape[0])
+        total_in  = int(tr_df[tr_df["direction"] == "in"].shape[0])
+        days_cnt  = (tr_to - tr_from).days + 1
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("📤 기간 출고", f"{total_out:,}대")
+        m2.metric("📥 기간 입고", f"{total_in:,}대")
+        m3.metric("📅 조회 기간", f"{days_cnt}일")
+        m4.metric("📊 일 평균", f"{(total_out + total_in) / max(days_cnt, 1):.1f}대")
+
+        st.divider()
+
+        if _has_plotly:
+            fig = px.line(
+                daily,
+                x="날짜", y="수량", color="방향",
+                color_discrete_map={"출고": "#D3004F", "입고": "#0284C7"},
+                markers=True,
+                title=f"일별 단말기 이동 추이  ({tr_from} ~ {tr_to})",
+                labels={"날짜": "", "수량": "대수"},
+            )
+            fig.update_layout(
+                height=420,
+                margin=dict(l=10, r=10, t=50, b=10),
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0),
+                plot_bgcolor="#FFFFFF",
+                paper_bgcolor="#FFFFFF",
+                font=dict(family="Noto Sans KR, sans-serif", size=12),
+                xaxis=dict(showgrid=True, gridcolor="#E2E8F0"),
+                yaxis=dict(showgrid=True, gridcolor="#E2E8F0", rangemode="tozero"),
+            )
+            fig.update_traces(line_width=2.5, marker_size=7)
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            # plotly 없을 때 st.line_chart fallback
+            pivot = daily.pivot(index="날짜", columns="방향", values="수량").fillna(0)
+            st.line_chart(pivot, color=["#D3004F", "#0284C7"])
+
+        # 단말기 기종별 일별 추이
+        with st.expander("📊 기종별 추이 보기", expanded=False):
+            dtype_daily = (
+                tr_df.groupby(["upload_date", "device_type"])
+                .size()
+                .reset_index(name="수량")
+                .rename(columns={"upload_date": "날짜", "device_type": "기종"})
+            )
+            dtype_daily["날짜"] = pd.to_datetime(dtype_daily["날짜"])
+            dtype_daily = dtype_daily.sort_values("날짜")
+
+            if _has_plotly:
+                fig2 = px.line(
+                    dtype_daily,
+                    x="날짜", y="수량", color="기종",
+                    markers=True,
+                    title="기종별 일별 이동 대수",
+                    labels={"날짜": "", "수량": "대수"},
+                )
+                fig2.update_layout(
+                    height=380,
+                    margin=dict(l=10, r=10, t=50, b=10),
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0),
+                    plot_bgcolor="#FFFFFF",
+                    paper_bgcolor="#FFFFFF",
+                    font=dict(family="Noto Sans KR, sans-serif", size=12),
+                    xaxis=dict(showgrid=True, gridcolor="#E2E8F0"),
+                    yaxis=dict(showgrid=True, gridcolor="#E2E8F0", rangemode="tozero"),
+                )
+                fig2.update_traces(line_width=2, marker_size=6)
+                st.plotly_chart(fig2, use_container_width=True)
+            else:
+                pivot2 = dtype_daily.pivot(index="날짜", columns="기종", values="수량").fillna(0)
+                st.line_chart(pivot2)
+
+
+# ══ Tab 4: 인수인계증 ══════════════════════════════════════════════════════════
 with tab_cert:
     st.markdown("#### 📄 인수인계증 생성")
     c1, c2, c3 = st.columns(3)
@@ -1081,7 +1193,7 @@ with tab_cert:
             )
 
 
-# ══ Tab 4: 관리 (admin 전용) ══════════════════════════════════════════════════
+# ══ Tab 5: 관리 (admin 전용) ══════════════════════════════════════════════════
 if _is_admin and tab_admin is not None:
     with tab_admin:
         st.markdown("#### 🔄 기존 모뎀 데이터 재분류")
