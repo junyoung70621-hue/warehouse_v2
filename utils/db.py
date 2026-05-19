@@ -554,17 +554,26 @@ def submit_material_request(
     notes: str = "",
 ) -> int | None:
     """자재 요청 DB 저장. 생성된 id 반환."""
-    try:
-        sb     = get_supabase()
-        result = sb.table("material_requests").insert({
+    def _do_insert(sb, include_notes: bool):
+        payload = {
             "requester_id":    requester_id,
             "requester_name":  requester_name,
             "requester_email": requester_email,
             "from_center":     from_center,
             "status":          "pending",
             "items":           items,
-            "notes":           notes or None,
-        }).execute()
+        }
+        if include_notes:
+            payload["notes"] = notes or None
+        return sb.table("material_requests").insert(payload).execute()
+
+    try:
+        sb     = get_supabase()
+        try:
+            result = _do_insert(sb, include_notes=True)
+        except Exception:
+            # notes 컬럼 미생성 환경 대비 — 컬럼 없이 재시도
+            result = _do_insert(sb, include_notes=False)
         return result.data[0]["id"] if result.data else None
     except Exception as e:
         st.error(f"자재 요청 저장 오류: {e}")

@@ -149,7 +149,8 @@ if _st_dialog:
             "on_hold":  "⏸️ 보류 + 발송",
         }.get(action, "확인")
 
-        if c1.button(confirm_label, type="primary", use_container_width=True):
+        if c1.button(confirm_label, type="primary", use_container_width=True,
+                     key=f"dlg_ok_{req_id}_{action}"):
             sb = get_supabase()
             if action == "approved":
                 ok, ok_items, fail_items = approve_material_request_with_stock(
@@ -179,10 +180,12 @@ if _st_dialog:
                 result_msg = f"{action_label} 처리 완료"
             if reply_msg.strip():
                 save_reply_message(req_id, reply_msg.strip())
-            st.success(result_msg)
+            st.session_state["_mat_dlg_result"] = result_msg
+            st.session_state.pop("_mat_dlg_args", None)
             st.rerun()
 
-        if c2.button("취소", use_container_width=True):
+        if c2.button("취소", use_container_width=True, key=f"dlg_cancel_{req_id}"):
+            st.session_state.pop("_mat_dlg_args", None)
             st.rerun()
 
 # ── 사이드바 ──────────────────────────────────────────────────────────────
@@ -235,6 +238,14 @@ with st.sidebar:
     render_sidebar_user(user)
 
 render_top_bar("자재 요청", user)
+
+# ── Dialog: top-level에서 호출해야 안정적으로 렌더링됨 ─────────────────────
+if _st_dialog and "_mat_dlg_args" in st.session_state:
+    action_dialog(*st.session_state["_mat_dlg_args"])
+
+# ── 처리 완료 알림 ────────────────────────────────────────────────────────
+if "_mat_dlg_result" in st.session_state:
+    st.success(st.session_state.pop("_mat_dlg_result"))
 
 # ── 타이틀 ────────────────────────────────────────────────────────────────
 if IS_MANAGER:
@@ -318,13 +329,16 @@ if IS_MANAGER:
                     ac1, ac2, ac3 = st.columns(3)
                     if ac1.button("✅ 승인", key=f"appr_{tab_key}_{req_id}",
                                    use_container_width=True, type="primary"):
-                        action_dialog(req_id, req_email, req_name, center, "approved", items, tab_key, req_notes)
+                        st.session_state["_mat_dlg_args"] = (req_id, req_email, req_name, center, "approved", items, tab_key, req_notes)
+                        st.rerun()
                     if ac2.button("❌ 거절", key=f"reje_{tab_key}_{req_id}",
                                    use_container_width=True):
-                        action_dialog(req_id, req_email, req_name, center, "rejected", items, tab_key, req_notes)
+                        st.session_state["_mat_dlg_args"] = (req_id, req_email, req_name, center, "rejected", items, tab_key, req_notes)
+                        st.rerun()
                     if ac3.button("⏸️ 보류", key=f"hold_{tab_key}_{req_id}",
                                    use_container_width=True):
-                        action_dialog(req_id, req_email, req_name, center, "on_hold", items, tab_key, req_notes)
+                        st.session_state["_mat_dlg_args"] = (req_id, req_email, req_name, center, "on_hold", items, tab_key, req_notes)
+                        st.rerun()
 
                 elif status == "on_hold":
                     rc1b, _ = st.columns([2, 4])
