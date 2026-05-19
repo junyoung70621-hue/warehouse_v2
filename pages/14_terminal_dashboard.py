@@ -987,6 +987,11 @@ with tab_hist:
     if f4.button("🔄", key="h_ref"):
         st.rerun()
 
+    h_search = st.text_input(
+        "검색", placeholder="TRCN_ID · 센터명 · 종류 · 유형 검색",
+        key="h_search", label_visibility="collapsed",
+    )
+
     _dir_map = {"전체": None, "출고 (자재→센터)": "out", "입고 (센터→자재)": "in"}
     hist_rows = fetch_terminal(direction=_dir_map[h_dir], date_from=h_from, date_to=h_to)
 
@@ -1000,6 +1005,13 @@ with tab_hist:
             "to_center": "도착센터", "device_type": "종류",
             "sub_type": "유형", "trcn_id": "TRCN_ID", "file_name": "파일명",
         })[["이동날짜", "방향", "출발센터", "도착센터", "종류", "유형", "TRCN_ID", "파일명"]]
+
+        if h_search and h_search.strip():
+            _kw = h_search.strip().lower()
+            _mask = show.apply(
+                lambda col: col.astype(str).str.lower().str.contains(_kw, na=False)
+            ).any(axis=1)
+            show = show[_mask]
 
         st.markdown(f"**총 {len(show):,}건**")
         st.dataframe(show, use_container_width=True, hide_index=True, height=480)
