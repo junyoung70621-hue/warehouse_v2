@@ -33,6 +33,8 @@ require_login()
 apply_global_css()
 st.markdown("""
 <style>
+@keyframes wms-fadein { from{opacity:0} to{opacity:1} }
+.main .block-container { animation:wms-fadein 0.18s ease-out!important; }
 section[data-testid="stSidebar"] { top:58px!important; height:calc(100vh - 58px)!important; min-width:220px!important; max-width:220px!important; }
 section[data-testid="stSidebar"] > div > div { overflow-y:auto!important; scrollbar-width:none!important; }
 section[data-testid="stSidebar"] > div > div::-webkit-scrollbar { display:none!important; }
