@@ -325,6 +325,14 @@ if tab_all is not None:
                     h2.markdown(f"품목 **{len(items)}**개")
                     h2.caption(req.get("reason", "")[:40])
                     h3.markdown(STATUS_KO.get(status, status))
+                    if status not in ("pending", "cancelled"):
+                        proc_by = req.get("processor") or {}
+                        if proc_by.get("name"):
+                            p_center = proc_by.get("assigned_center") or proc_by.get("center", "")
+                            h3.caption(f"처리자: {proc_by['name']}" + (f" ({p_center})" if p_center else ""))
+                        proc_date = (req.get("processed_at") or "")[:16].replace("T", " ")
+                        if proc_date:
+                            h3.caption(f"처리일: {proc_date}")
 
                     with h4:
                         new_status = st.selectbox(
@@ -349,6 +357,7 @@ if tab_all is not None:
                                     _sb.table("purchase_requests").update({
                                         "status": new_status,
                                         "processed_at": datetime.utcnow().isoformat(),
+                                        "processed_by": user_id,
                                     }).eq("id", req["id"]).execute()
 
                                     # 처리중·완료·거절 → 신청자 회신 메일
@@ -440,6 +449,11 @@ with tab_mine:
                 m1.markdown(f"**{req_date}** — 품목 {len(items)}개")
                 m1.caption(req.get("reason", "")[:60])
                 m2.markdown(STATUS_KO.get(status, status))
+                if status not in ("pending", "cancelled"):
+                    proc_by = req.get("processor") or {}
+                    if proc_by.get("name"):
+                        p_center = proc_by.get("assigned_center") or proc_by.get("center", "")
+                        m2.caption(f"처리자: {proc_by['name']}" + (f" ({p_center})" if p_center else ""))
 
                 _dl = _make_excel(items, req["requester_name"], req["requester_center"], req.get("reason",""), req.get("cost_note",""))
                 m3.download_button(

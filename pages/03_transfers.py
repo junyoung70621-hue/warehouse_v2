@@ -164,7 +164,7 @@ def render_transfers(status_filter=None):
     for tr in data:
         item_info = tr.get("warehouse", {})
         item_name = item_info.get("item_name", "알 수 없음") if isinstance(item_info, dict) else str(item_info)
-        user_info = tr.get("users", {})
+        user_info = tr.get("requester") or tr.get("users") or {}
         requester_name = user_info.get("name", "알 수 없음") if isinstance(user_info, dict) else str(user_info)
         status = tr.get("status","")
         status_label = {
@@ -205,7 +205,8 @@ def render_transfers(status_filter=None):
                         else:
                             sb = get_supabase()
                             sb.table("transfers").update({
-                                "status":"rejected","processed_at":"now()"
+                                "status":"rejected","processed_at":"now()",
+                                "approver_id": user_id,
                             }).eq("id", tr["id"]).execute()
                             clear_transfer_cache()
                             st.rerun()
@@ -224,6 +225,11 @@ def render_transfers(status_filter=None):
             if req_at: st.caption(f"신청일: {req_at[:16].replace('T',' ')}")
             proc_at = tr.get("processed_at")
             if proc_at: st.caption(f"처리일: {proc_at[:16].replace('T',' ')}")
+            if status in ("approved", "rejected"):
+                approver = tr.get("approver") or {}
+                if approver.get("name"):
+                    a_center = approver.get("assigned_center") or approver.get("center", "")
+                    st.caption(f"처리자: {approver['name']}" + (f" ({a_center})" if a_center else ""))
 
             if user_role == "admin":
                 del_key = f"del_confirm_{status_filter}_{tr['id']}"

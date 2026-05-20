@@ -300,6 +300,11 @@ if IS_MANAGER:
                         unsafe_allow_html=True
                     )
                     if proc_at: st.caption(f"처리일: {proc_at}")
+                    if status not in ("pending", "cancelled"):
+                        proc_by = req.get("processor") or {}
+                        if proc_by.get("name"):
+                            p_center = proc_by.get("assigned_center") or proc_by.get("center", "")
+                            st.caption(f"처리자: {proc_by['name']}" + (f" ({p_center})" if p_center else ""))
                     if req_email: st.caption(f"📧 {req_email}")
                 with hc2:
                     c = STATUS_COLOR.get(status, "#555")
@@ -429,6 +434,11 @@ else:
                         unsafe_allow_html=True
                     )
                     if proc_at: st.caption(f"처리일: {proc_at}")
+                    if status not in ("pending", "cancelled"):
+                        proc_by = req.get("processor") or {}
+                        if proc_by.get("name"):
+                            p_center = proc_by.get("assigned_center") or proc_by.get("center", "")
+                            st.caption(f"처리자: {proc_by['name']}" + (f" ({p_center})" if p_center else ""))
                 with hc2:
                     st.markdown(
                         f"<div style='font-size:15px;font-weight:700;color:{c};"

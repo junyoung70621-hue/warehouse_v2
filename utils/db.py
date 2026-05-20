@@ -162,14 +162,25 @@ def stock_out(item_id: int, qty: int, user: dict, reason: str) -> bool:
 @st.cache_data(ttl=30)
 def fetch_transfers(status: str = None) -> list:
     def _q(sb):
-        q = sb.table("transfers").select(
-            "id, requester_id, item_id, from_center, to_center, "
-            "quantity, status, requested_at, processed_at, "
-            "warehouse(item_name), users(name)"
-        ).order("requested_at", desc=True)
-        if status:
-            q = q.eq("status", status)
-        return q.execute().data or []
+        def _run(sel):
+            q = sb.table("transfers").select(sel).order("requested_at", desc=True)
+            if status:
+                q = q.eq("status", status)
+            return q.execute().data or []
+        try:
+            return _run(
+                "id, requester_id, approver_id, item_id, from_center, to_center, "
+                "quantity, status, requested_at, processed_at, "
+                "warehouse(item_name), "
+                "requester:users!requester_id(name), "
+                "approver:users!approver_id(name, center, assigned_center)"
+            )
+        except Exception:
+            return _run(
+                "id, requester_id, item_id, from_center, to_center, "
+                "quantity, status, requested_at, processed_at, "
+                "warehouse(item_name), users(name)"
+            )
     return _query_with_retry(_q)
 
 
@@ -303,7 +314,8 @@ def approve_transfer(
 
         sb.table("transfers").update({
             "status":       "approved",
-            "processed_at": "now()"
+            "processed_at": "now()",
+            "approver_id":  approver_id,
         }).eq("id", transfer_id).execute()
 
         clear_warehouse_cache()
@@ -465,10 +477,15 @@ def clear_inquiry_cache():
 @st.cache_data(ttl=30)
 def fetch_purchase_requests(requester_id: str = None) -> list:
     def _q(sb):
-        q = sb.table("purchase_requests").select("*").order("requested_at", desc=True)
-        if requester_id:
-            q = q.eq("requester_id", requester_id)
-        return q.execute().data or []
+        def _run(sel):
+            q = sb.table("purchase_requests").select(sel).order("requested_at", desc=True)
+            if requester_id:
+                q = q.eq("requester_id", requester_id)
+            return q.execute().data or []
+        try:
+            return _run("*, processor:users!processed_by(name, center, assigned_center)")
+        except Exception:
+            return _run("*")
     return _query_with_retry(_q)
 
 
@@ -584,12 +601,17 @@ def submit_material_request(
 def fetch_material_requests(status: str = None, from_center: str = None) -> list:
     """자재 요청 목록 조회 (최신순)."""
     def _q(sb):
-        q = sb.table("material_requests").select("*").order("requested_at", desc=True)
-        if status:
-            q = q.eq("status", status)
-        if from_center:
-            q = q.eq("from_center", from_center)
-        return q.execute().data or []
+        def _run(sel):
+            q = sb.table("material_requests").select(sel).order("requested_at", desc=True)
+            if status:
+                q = q.eq("status", status)
+            if from_center:
+                q = q.eq("from_center", from_center)
+            return q.execute().data or []
+        try:
+            return _run("*, processor:users!processed_by(name, center, assigned_center)")
+        except Exception:
+            return _run("*")
     return _query_with_retry(_q)
 
 
