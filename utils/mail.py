@@ -16,6 +16,7 @@ except Exception:
 
 def _send_email(to: str, subject: str, body_html: str, attachments: list = None):
     """내부 공통 발송 함수. attachments: [(filename, bytes_data), ...]"""
+    import mimetypes
     from email.mime.base import MIMEBase
     from email import encoders as _enc
     from email.header import Header
@@ -26,10 +27,11 @@ def _send_email(to: str, subject: str, body_html: str, attachments: list = None)
         alt.attach(MIMEText(body_html, "html", "utf-8"))
         msg.attach(alt)
         for fname, fdata in attachments:
-            part = MIMEBase(
-                "application",
-                "vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            )
+            mime_type, _ = mimetypes.guess_type(fname)
+            if not mime_type:
+                mime_type = "application/octet-stream"
+            maintype, subtype = mime_type.split("/", 1)
+            part = MIMEBase(maintype, subtype)
             part.set_payload(fdata)
             _enc.encode_base64(part)
             # RFC 2231 — 한글 파일명 깨짐 방지
@@ -371,7 +373,7 @@ def send_purchase_request(
     reason: str,
     requested_at: str,
     cost_note: str = "",
-    attachment: tuple = None,
+    attachments: list = None,
 ):
     """구매 요청 알림 메일. items: [{"품명", "수량", "링크"}, ...]"""
     subject = f"[에이텍모빌리티 자재관리] 구매 요청 — {requester_name} ({requester_center})"
@@ -412,10 +414,9 @@ def send_purchase_request(
     <hr>
     <p style="color:gray;font-size:12px;">에이텍모빌리티 자재관리 자동발송 메일입니다.</p>
     """
-    _attaches = [attachment] if attachment else None
     for email in to_emails:
         try:
-            _send_email(email, subject, body, attachments=_attaches)
+            _send_email(email, subject, body, attachments=attachments or None)
         except Exception:
             pass
 
@@ -428,7 +429,7 @@ def send_purchase_request_submitted(
     reason: str,
     requested_at: str,
     cost_note: str = "",
-    attachment: tuple = None,
+    attachments: list = None,
 ):
     """구매 요청 접수 확인 메일 — 신청자에게 발송."""
     subject = "[에이텍모빌리티 자재관리] 구매 요청이 접수되었습니다"
@@ -467,7 +468,7 @@ def send_purchase_request_submitted(
     <p style="color:gray;font-size:12px;">에이텍모빌리티 자재관리 자동발송 메일입니다.</p>
     """
     try:
-        _send_email(to_email, subject, body, attachments=[attachment] if attachment else None)
+        _send_email(to_email, subject, body, attachments=attachments or None)
     except Exception:
         pass
 

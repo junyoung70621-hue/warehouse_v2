@@ -210,6 +210,14 @@ with tab_new:
     reason    = st.text_area("구매사유 *", placeholder="품의서에 들어갈 구매사유 문구를 입력해주세요.", key="pr_reason")
     cost_note = st.text_area("원가반영 *", placeholder="원가반영 내용을 입력해주세요.", key="pr_cost_note", height=120)
 
+    uploaded_files = st.file_uploader(
+        "📎 첨부파일 (선택)",
+        accept_multiple_files=True,
+        type=["pdf", "png", "jpg", "jpeg", "gif", "xlsx", "xls", "docx", "doc", "hwp", "zip"],
+        key="pr_attachments",
+        help="견적서·사양서 등을 첨부하세요. 파일은 이메일로 함께 전달됩니다.",
+    )
+
     _mask = df_edit["품명"].notna() & (df_edit["품명"].astype(str).str.strip() != "")
     _df_valid = df_edit[_mask].copy()
     _df_valid["수량"] = _df_valid["수량"].fillna(1).astype(int)
@@ -242,9 +250,11 @@ with tab_new:
                     "status":           "pending",
                 }).execute()
 
-                # 엑셀 첨부파일 생성
+                # 엑셀 구매요청서 + 사용자 첨부파일 합치기
                 _fname = f"구매요청서_{user_name}_{datetime.now().strftime('%Y%m%d')}.xlsx"
-                _attach = (_fname, _make_excel(valid_items, user_name, user_center, reason.strip(), cost_note.strip()))
+                _excel_attach = (_fname, _make_excel(valid_items, user_name, user_center, reason.strip(), cost_note.strip()))
+                _extra = [(uf.name, uf.read()) for uf in (uploaded_files or [])]
+                _all_attachments = [_excel_attach] + _extra
 
                 # 관리자·자재파트 알림 메일
                 _target_emails = [
@@ -264,7 +274,7 @@ with tab_new:
                         reason=reason.strip(),
                         requested_at=_now_str,
                         cost_note=cost_note.strip(),
-                        attachment=_attach,
+                        attachments=_all_attachments,
                     )
 
                 # 신청자 접수 확인 메일
@@ -278,7 +288,7 @@ with tab_new:
                         reason=reason.strip(),
                         requested_at=_now_str,
                         cost_note=cost_note.strip(),
-                        attachment=_attach,
+                        attachments=_all_attachments,
                     )
 
                 st.session_state["_pr_last_submit_time"] = datetime.now()
