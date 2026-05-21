@@ -680,6 +680,8 @@ with st.sidebar:
     st.button("📦 재고 현황", use_container_width=True, type="primary")
     if st.button("🚚 이동 신청 현황", use_container_width=True):
         st.switch_page("pages/03_transfers.py")
+    if st.button("🗂️ 통합 뷰", use_container_width=True):
+        st.switch_page("pages/15_combined.py")
     if st.button("📋 입출고 이력", use_container_width=True):
         st.switch_page("pages/04_history.py")
     if not is_role("guest"):
