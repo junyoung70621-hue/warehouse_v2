@@ -8,9 +8,10 @@ from utils.db import (
     fetch_warehouse, fetch_categories, fetch_transfers,
     approve_transfer, create_transfer,
     clear_warehouse_cache, clear_transfer_cache, clear_history_cache,
-    get_supabase,
+    get_supabase, fetch_item_history, update_item,
 )
-from utils.routing import get_allowed_destinations, NO_WAREHOUSE_CENTERS, CATEGORY_DESTINATIONS
+from utils.routing import get_allowed_destinations, NO_WAREHOUSE_CENTERS, CATEGORY_DESTINATIONS, CENTERS as _ALL_CENTERS_ROUTING
+from utils.rack_map import RACK_COORD
 from utils.permissions import (
     can_stock_in_out, can_request_transfer,
     can_approve_transfer, filter_transfers_for_user,
@@ -33,7 +34,8 @@ require_login()
 # ── 세션 초기화 (cv_ 프리픽스로 기존 페이지와 충돌 방지) ─────────────────────
 _cv_defaults = {
     "cv_large": "전체", "cv_mid": "전체", "cv_small": "전체",
-    "cv_page": 1, "cv_page_size": 20,
+    "cv_page": 1, "cv_page_size": 20, "cv_kpi_filter": None,
+    "_cv_detail_item": None,
 }
 for k, v in _cv_defaults.items():
     if k not in st.session_state:
@@ -88,6 +90,224 @@ if _st_dialog:
                 st.rerun()
         if cb.button("취소", use_container_width=True, key=f"cv_hub_cancel_{transfer_id}"):
             st.rerun()
+
+    @_st_dialog("자재 상세 정보", width="large")
+    def _cv_item_detail_modal(item_id: int, item_name: str, item_loc: str):
+        _user   = st.session_state.user
+        _role   = _user.get("role", "guest")
+        _center = _get_center(_user)
+        can_edit = (_role == "admin")
+        can_view = (
+            can_edit or
+            (item_loc == _center) or
+            (_center == "자재센터" and _role != "guest")
+        )
+        if not can_view:
+            st.error("🔒 이 자재의 이력을 볼 권한이 없습니다. (본인 센터 자재만 조회 가능)")
+            return
+        st.markdown(
+            f"<span style='font-size:15px;font-weight:700;'>{item_name}</span>"
+            f"<span style='font-size:12px;color:#666;margin-left:8px;'>· {item_loc}</span>",
+            unsafe_allow_html=True,
+        )
+        st.divider()
+
+        _pre     = get_supabase().table("warehouse").select("rack_no").eq("id", item_id).execute().data
+        _rack_no = str((_pre[0].get("rack_no") or "") if _pre else "").strip()
+        _show_map = (item_loc == "자재센터") and (_rack_no in RACK_COORD) and (_role in ("admin", "materials"))
+
+        _tab_labels = ["🔍 이력 조회"]
+        if _show_map:
+            _tab_labels.append("📍 위치 보기")
+        if can_edit:
+            _tab_labels.append("✏️ 자재 수정")
+            _tab_labels.append("🗑️ 삭제")
+
+        if not can_edit:
+            st.caption("ℹ️ 이력 조회만 가능합니다. 수정은 관리자에게 문의하세요.")
+
+        _dtabs = st.tabs(_tab_labels)
+        _tidx  = 0
+        tab_hist = _dtabs[_tidx]; _tidx += 1
+        if _show_map:
+            tab_map = _dtabs[_tidx]; _tidx += 1
+        if can_edit:
+            tab_edit = _dtabs[_tidx]; _tidx += 1
+            tab_del  = _dtabs[_tidx]
+
+        with tab_hist:
+            hist = fetch_item_history(item_id, limit=50)
+            if not hist:
+                st.info("이력이 없습니다.")
+            else:
+                ACTION_LABEL = {"in": "📥 입고", "out": "📤 출고",
+                                "transfer": "🚚 이동", "edit": "✏️ 수정"}
+                h_rows = []
+                for h in hist:
+                    actor = h.get("users", {}) or {}
+                    h_rows.append({
+                        "일시":     (h.get("acted_at", "") or "")[:16].replace("T", " "),
+                        "작업자":   actor.get("name", "") if isinstance(actor, dict) else "",
+                        "작업유형": ACTION_LABEL.get(h.get("action_type", ""), h.get("action_type", "")),
+                        "수량":     h.get("quantity", 0),
+                        "변경전":   h.get("snapshot_qty_before", ""),
+                        "변경후":   h.get("snapshot_qty_after", ""),
+                        "사유":     h.get("reason", ""),
+                    })
+                st.dataframe(
+                    pd.DataFrame(h_rows),
+                    use_container_width=True, hide_index=True,
+                    column_config={
+                        "일시":     st.column_config.TextColumn("일시",     width=120),
+                        "작업자":   st.column_config.TextColumn("작업자",   width=80),
+                        "작업유형": st.column_config.TextColumn("작업유형", width=80),
+                        "수량":     st.column_config.NumberColumn("수량",   width=60),
+                        "변경전":   st.column_config.NumberColumn("변경전", width=60),
+                        "변경후":   st.column_config.NumberColumn("변경후", width=60),
+                        "사유":     st.column_config.TextColumn("사유",     width=230),
+                    },
+                )
+
+        if _show_map:
+            with tab_map:
+                st.markdown(
+                    f"<div style='font-size:14px;margin-bottom:8px;'>"
+                    f"📍 <b>랙번호:</b> <code>{_rack_no}</code></div>",
+                    unsafe_allow_html=True,
+                )
+                st.caption("전체 지도에서 정확한 위치를 확인하세요.")
+                if st.button("🗺️ 전체 지도에서 보기", key=f"cv_map_goto_{item_id}",
+                             type="primary", use_container_width=True):
+                    st.session_state.map_rack_no   = _rack_no
+                    st.session_state.map_item_name = item_name
+                    st.switch_page("pages/09_rack_map.py")
+
+        if can_edit:
+            with tab_edit:
+                _sb2     = get_supabase()
+                row_data = _sb2.table("warehouse").select("*").eq("id", item_id).single().execute().data
+                if not row_data:
+                    st.error("자재 정보를 불러올 수 없습니다.")
+                    return
+                cat_raw  = _sb2.table("warehouse").select(
+                    "category_large,category_mid,category_small"
+                ).execute().data or []
+
+                NONE_OPT = "(없음)"; NEW_OPT = "+ 직접 입력"
+                all_lg   = sorted({r["category_large"] for r in cat_raw if r.get("category_large")})
+                mid_by_lg, sm_by_md = {}, {}
+                for r in cat_raw:
+                    lg, md, sm = r.get("category_large",""), r.get("category_mid","") or "", r.get("category_small","") or ""
+                    if lg and md: mid_by_lg.setdefault(lg, set()).add(md)
+                    if sm:        sm_by_md.setdefault((lg, md), set()).add(sm)
+
+                pfx     = f"cv_ei_{item_id}"
+                _cur_lg = str(row_data.get("category_large", "") or "")
+                _cur_md = str(row_data.get("category_mid",   "") or "")
+                _cur_sm = str(row_data.get("category_small", "") or "")
+
+                r1c1, r1c2, r1c3 = st.columns([3, 1, 2])
+                new_name = r1c1.text_input("자재명 *",  value=str(row_data.get("item_name","") or ""),  key=f"{pfx}_name")
+                new_qty  = r1c2.number_input("수량 *",  min_value=0, step=1, value=int(row_data.get("quantity", 0)), key=f"{pfx}_qty")
+                _cur_loc2 = str(row_data.get("location", _ALL_CENTERS_ROUTING[0]))
+                new_loc  = r1c3.selectbox("센터 *", _ALL_CENTERS_ROUTING,
+                                          index=_ALL_CENTERS_ROUTING.index(_cur_loc2) if _cur_loc2 in _ALL_CENTERS_ROUTING else 0,
+                                          key=f"{pfx}_loc")
+
+                ec1, ec2, ec3 = st.columns(3)
+                lg_opts = [NONE_OPT] + all_lg + [NEW_OPT]
+                sel_lg  = ec1.selectbox("대분류", lg_opts,
+                                        index=lg_opts.index(_cur_lg) if _cur_lg in lg_opts else 0,
+                                        key=f"{pfx}_lg")
+                if sel_lg == NEW_OPT:
+                    final_lg = ec1.text_input("새 대분류명", key=f"{pfx}_lg_new",
+                                              label_visibility="collapsed", placeholder="새 대분류명 입력").strip() or None
+                else:
+                    final_lg = sel_lg if sel_lg != NONE_OPT else None
+
+                avail_md = sorted(mid_by_lg.get(final_lg or "", set()))
+                md_opts  = [NONE_OPT] + avail_md + [NEW_OPT]
+                sel_md   = ec2.selectbox("중분류", md_opts,
+                                         index=md_opts.index(_cur_md) if _cur_md in md_opts else 0,
+                                         key=f"{pfx}_md")
+                if sel_md == NEW_OPT:
+                    final_md = ec2.text_input("새 중분류명", key=f"{pfx}_md_new",
+                                              label_visibility="collapsed", placeholder="새 중분류명 입력").strip() or None
+                else:
+                    final_md = sel_md if sel_md != NONE_OPT else None
+
+                avail_sm = sorted(sm_by_md.get((final_lg or "", final_md or ""), set()))
+                sm_opts  = [NONE_OPT] + avail_sm + [NEW_OPT]
+                sel_sm   = ec3.selectbox("소분류", sm_opts,
+                                         index=sm_opts.index(_cur_sm) if _cur_sm in sm_opts else 0,
+                                         key=f"{pfx}_sm")
+                if sel_sm == NEW_OPT:
+                    final_sm = ec3.text_input("새 소분류명", key=f"{pfx}_sm_new",
+                                              label_visibility="collapsed", placeholder="새 소분류명 입력").strip() or None
+                else:
+                    final_sm = sel_sm if sel_sm != NONE_OPT else None
+
+                r3c1, r3c2, r3c3 = st.columns(3)
+                new_rack  = r3c1.text_input("랙번호",   value=str(row_data.get("rack_no","") or ""),   key=f"{pfx}_rack")
+                new_shelf = r3c2.text_input("단",       value=str(row_data.get("shelf","")  or ""),    key=f"{pfx}_shelf")
+                new_box   = r3c3.text_input("박스번호", value=str(row_data.get("box_no","") or ""),    key=f"{pfx}_box")
+
+                r4c1, r4c2 = st.columns(2)
+                new_erp_n  = r4c1.text_input("ERP품명", value=str(row_data.get("erp_name","") or ""), key=f"{pfx}_erpn")
+                new_erp_c  = r4c2.text_input("ERP코드", value=str(row_data.get("erp_code","") or ""), key=f"{pfx}_erpc")
+
+                r5c1, r5c2 = st.columns(2)
+                new_repair = r5c1.text_input("수리담당자",   value=str(row_data.get("repair_manager","") or ""), key=f"{pfx}_repair")
+                new_i_loc  = r5c2.text_input("지역(사용처)", value=str(row_data.get("item_location","")  or ""), key=f"{pfx}_iloc")
+                new_notes  = st.text_area("비고", value=str(row_data.get("notes","") or ""), height=60, key=f"{pfx}_notes")
+                edit_reason = st.text_input("✏️ 수정 사유 * (필수)",
+                                            placeholder="예: 오입력 수정, 정기 재고 조정",
+                                            key=f"{pfx}_reason")
+
+                if st.button("💾 저장", type="primary", use_container_width=True, key=f"{pfx}_save"):
+                    if not new_name.strip():
+                        st.error("자재명은 필수입니다.")
+                    elif not edit_reason.strip():
+                        st.error("⚠️ 수정 사유를 반드시 입력해야 합니다.")
+                    else:
+                        updates = {
+                            "item_name": new_name.strip(), "quantity": new_qty,
+                            "location": new_loc, "category_large": final_lg,
+                            "category_mid": final_md, "category_small": final_sm,
+                            "rack_no": new_rack or None, "shelf": new_shelf or None,
+                            "box_no": new_box or None, "erp_name": new_erp_n or None,
+                            "erp_code": new_erp_c or None, "repair_manager": new_repair or None,
+                            "item_location": new_i_loc or None, "notes": new_notes or None,
+                        }
+                        if update_item(item_id, updates, _user, edit_reason):
+                            st.success("✅ 자재 정보가 수정됐습니다!")
+                            st.rerun()
+
+            with tab_del:
+                st.warning(
+                    f"⚠️ **{item_name}** 을(를) 영구 삭제합니다.\n\n"
+                    "삭제 후 복구할 수 없으며, 관련 이동·이력 기록은 보존됩니다."
+                )
+                del_confirm = st.checkbox(f'"{item_name}" 삭제에 동의합니다', key=f"cv_del_chk_{item_id}")
+                if st.button("🗑️ 삭제 실행", type="primary", use_container_width=True,
+                             disabled=not del_confirm, key=f"cv_del_exec_{item_id}"):
+                    _sb3 = get_supabase()
+                    _qty_res = _sb3.table("warehouse").select("quantity").eq("id", item_id).execute()
+                    _qty_v   = int(_qty_res.data[0]["quantity"]) if _qty_res.data else 0
+                    if _qty_v > 0:
+                        try:
+                            _sb3.table("history").insert({
+                                "actor_id": _user["id"], "item_id": item_id,
+                                "action_type": "out", "quantity": _qty_v,
+                                "reason": "관리자 삭제", "from_center": item_loc,
+                                "snapshot_qty_before": _qty_v, "snapshot_qty_after": 0,
+                            }).execute()
+                        except Exception:
+                            pass
+                    _sb3.table("warehouse").delete().eq("id", item_id).execute()
+                    clear_warehouse_cache(); clear_history_cache()
+                    st.success(f"✅ '{item_name}' 삭제 완료")
+                    st.rerun()
 
 # 이동 신청 완료 팝업 표시
 if st.session_state.get("_cv_done_msg"):
@@ -173,6 +393,50 @@ with tab_wh:
     categories = fetch_categories()
     df_all     = pd.DataFrame(raw_data) if raw_data else pd.DataFrame()
 
+    # ── KPI 카드 ─────────────────────────────────────────────────────────
+    if not df_all.empty:
+        _q_s     = df_all["quantity"].fillna(0).astype(int)
+        _kv_all  = len(df_all)
+        _kv_low  = int(_q_s.between(1, 9).sum())
+        _kv_zero = int((_q_s == 0).sum())
+        _tr_pending_cnt = sum(
+            1 for t in fetch_transfers("pending")
+            if t.get("from_center") == selected_center
+            or t.get("to_center")   == selected_center
+        )
+        _kpi_specs = [
+            (None,   "📦 전체 품목",      _kv_all,          "#4A9EFF"),
+            ("low",  "⚠️ 재고 부족 (1~9)", _kv_low,           "#FFAA00"),
+            ("zero", "🚨 재고 없음",       _kv_zero,          "#FF4444"),
+            ("_transit", "🚚 이동 중 (대기)", _tr_pending_cnt, "#6C757D"),
+        ]
+        _kf_now = st.session_state.get("cv_kpi_filter")
+        _kms    = st.columns(4)
+        for _ki, (_fv, _lbl, _cnt, _clr) in enumerate(_kpi_specs):
+            _active = (_kf_now == _fv) and (_fv is not None)
+            _brd    = f"2px solid {_clr}" if _active else f"1px solid {_clr}55"
+            _bg     = f"{_clr}22"          if _active else f"{_clr}11"
+            _kms[_ki].markdown(
+                f"<div style='padding:10px 14px;border-radius:8px;background:{_bg};"
+                f"border:{_brd};text-align:center;margin-bottom:4px;'>"
+                f"<div style='font-size:11px;color:#aaa;'>{_lbl}</div>"
+                f"<div style='font-size:24px;font-weight:700;color:{_clr};'>{_cnt:,}</div>"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
+            if _fv is not None and _fv != "_transit":
+                if _kms[_ki].button(
+                    "필터 해제" if _active else "필터",
+                    key=f"cv_kpi_btn_{_fv}",
+                    use_container_width=True,
+                ):
+                    st.session_state.cv_kpi_filter = None if _active else _fv
+                    st.session_state.cv_page = 1
+                    st.rerun()
+        if _kf_now in ("low", "zero"):
+            st.caption(f"📌 KPI 필터 적용 중 — {'재고 부족 (1~9)' if _kf_now == 'low' else '재고 없음'}")
+        st.divider()
+
     # ── 필터 바 ─────────────────────────────────────────────────────────
     large_cats = ["전체"] + sorted(categories.keys())
     _sl = st.session_state.cv_large
@@ -244,6 +508,12 @@ with tab_wh:
                 filtered.get("rack_no",     pd.Series(dtype=str)).fillna("").str.lower().str.contains(q)
             )
             filtered = filtered[mask]
+        # KPI 필터 적용
+        _kf_active = st.session_state.get("cv_kpi_filter")
+        if _kf_active == "low":
+            filtered = filtered[filtered["quantity"].fillna(0).astype(int).between(1, 9)]
+        elif _kf_active == "zero":
+            filtered = filtered[filtered["quantity"].fillna(0).astype(int) == 0]
     else:
         filtered = pd.DataFrame()
 
@@ -482,7 +752,19 @@ with tab_wh:
             "erp_code":       "ERP코드",
         }
         disp = page_df[show_cols].rename(columns=col_labels)
-        st.dataframe(disp, use_container_width=True, hide_index=True, height=520)
+        st.caption("💡 행을 클릭하면 자재 상세 정보(이력·수정)를 볼 수 있습니다.")
+        _tbl_sel = st.dataframe(
+            disp, use_container_width=True, hide_index=True, height=500,
+            on_select="rerun", selection_mode="single-row",
+        )
+        if _tbl_sel and _tbl_sel.selection.rows and _st_dialog:
+            _sel_idx = _tbl_sel.selection.rows[0]
+            _sel_row = page_df.iloc[_sel_idx]
+            _cv_item_detail_modal(
+                int(_sel_row["id"]),
+                str(_sel_row.get("item_name", "")),
+                str(_sel_row.get("location", selected_center)),
+            )
 
         # 페이지네이션
         pa, pb, pc, pd_ = st.columns([1, 3, 1, 1])
