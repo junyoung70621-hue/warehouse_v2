@@ -260,6 +260,11 @@ def apply_global_css():
     [data-testid="stAppViewBlockContainer"] { overflow-y: auto !important; height: auto !important; }
     .main { overflow-y: auto !important; min-height: 100vh !important; }
     [data-testid="stTabsContent"] { overflow-y: visible !important; padding-bottom: 2rem !important; }
+    [data-testid="stTabs"] button[data-baseweb="tab"] {
+        border-radius: 6px 6px 0 0 !important;
+        padding-left: 22px !important;
+        padding-right: 22px !important;
+    }
     .main .block-container { overflow: visible !important; padding-top: 0.6rem !important; padding-bottom: 3rem !important; max-width: 100% !important; }
     hr { margin: 2px 0 4px 0 !important; border-color: rgba(0,0,0,0.08) !important; }
 
