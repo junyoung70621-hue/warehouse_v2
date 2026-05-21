@@ -388,19 +388,47 @@ def render_sidebar_section(label: str):
 
 
 @st.cache_data(ttl=30)
-def _get_pending_counts(role: str) -> dict:
-    """상단바 대기 건수 조회 — 30초 캐시."""
+def _get_pending_counts(role: str, center: str) -> dict:
+    """상단바 대기 건수 — 본인이 승인해야 하는 건만, 30초 캐시."""
     try:
         from utils.db import get_supabase
+        from utils.routing import EXTERNAL
         sb = get_supabase()
-        tr_cnt = (sb.table("transfers").select("id", count="exact")
-                    .eq("status", "pending").execute().count or 0)
-        mr_cnt = (sb.table("material_requests").select("id", count="exact")
-                    .eq("status", "pending").execute().count or 0)
+
+        # ── 이동신청 대기 ──────────────────────────────────────────────
+        if role == "admin":
+            tr_cnt = (sb.table("transfers").select("id", count="exact")
+                        .eq("status", "pending").execute().count or 0)
+        elif role == "materials":
+            # 자재센터 또는 외부창고가 포함된 이동신청
+            _relevant = {"자재센터"} | EXTERNAL
+            _rows = (sb.table("transfers").select("from_center,to_center")
+                       .eq("status", "pending").execute().data or [])
+            tr_cnt = sum(1 for t in _rows
+                         if t.get("from_center") in _relevant
+                         or t.get("to_center")   in _relevant)
+        elif role == "manager":
+            # 본인 센터로 들어오는 이동신청만 승인 가능
+            tr_cnt = (sb.table("transfers").select("id", count="exact")
+                        .eq("status", "pending")
+                        .eq("to_center", center)
+                        .execute().count or 0)
+        else:
+            tr_cnt = 0
+
+        # ── 자재요청 대기 (admin/materials만 처리) ─────────────────────
+        if role in ("admin", "materials"):
+            mr_cnt = (sb.table("material_requests").select("id", count="exact")
+                        .eq("status", "pending").execute().count or 0)
+        else:
+            mr_cnt = 0
+
+        # ── 구매요청 대기 (admin/materials만 처리) ─────────────────────
         pr_cnt = 0
         if role in ("admin", "materials"):
             pr_cnt = (sb.table("purchase_requests").select("id", count="exact")
                         .eq("status", "pending").execute().count or 0)
+
         return {"tr": tr_cnt, "mr": mr_cnt, "pr": pr_cnt}
     except Exception:
         return {"tr": 0, "mr": 0, "pr": 0}
@@ -433,10 +461,10 @@ def render_top_bar(title: str, user: dict):
     _uc   = user.get("assigned_center") or user.get("center","")
     _nm   = user.get("name","")
 
-    # 대기 건수 뱃지
+    # 대기 건수 뱃지 (승인 권한 있는 역할만)
     _badge_html = ""
-    if _role != "guest":
-        _cnt = _get_pending_counts(_role)
+    if _role in ("admin", "materials", "manager"):
+        _cnt = _get_pending_counts(_role, _uc)
         def _pill(label, n, color="#D3004F"):
             _bg = f"{color}15"
             return (
@@ -447,8 +475,11 @@ def render_top_bar(title: str, user: dict):
                 f"<span style='font-size:12px;font-weight:700;color:{color};'>{n}</span>"
                 f"</span>"
             )
-        _pills = _pill("이동신청", _cnt["tr"]) + _pill("자재요청", _cnt["mr"])
+        # 이동신청: admin/materials/manager 모두 표시
+        _pills = _pill("이동신청", _cnt["tr"])
+        # 자재요청/구매요청: admin/materials만 표시
         if _role in ("admin", "materials"):
+            _pills += _pill("자재요청", _cnt["mr"])
             _pills += _pill("구매요청", _cnt["pr"])
         _badge_html = (
             f"<div style='display:flex;align-items:center;gap:6px;'>"
@@ -518,9 +549,7 @@ def render_top_bar(title: str, user: dict):
                          font-weight:700;color:#1E293B;user-select:none;letter-spacing:0.01em;">
                 {title}
             </span>
-            <div style="display:flex;align-items:center;gap:12px;">
-                {_badge_html}
-                <div style="display:flex;align-items:center;gap:6px;" id="wms-session-block">
+            <div style="display:flex;align-items:center;gap:12px;">{_badge_html}<div style="display:flex;align-items:center;gap:6px;" id="wms-session-block">
                     <div id="wms-session-dot" style="width:6px;height:6px;border-radius:50%;
                                 background:{_session_color};animation:wms-pulse 2s ease-in-out infinite;
                                 flex-shrink:0;"></div>
