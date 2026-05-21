@@ -154,7 +154,13 @@ render_top_bar("통합 뷰", user)
 # ══════════════════════════════════════════════════════════════════════════
 # 메인 탭
 # ══════════════════════════════════════════════════════════════════════════
-tab_wh, tab_tr = st.tabs(["📦 재고 현황", "🚚 이동 신청 현황"])
+_tab_list = ["📦 재고 현황", "🚚 이동 신청 현황"]
+if user_role == "admin":
+    _tab_list.append("⚙️ 관리자")
+_tabs = st.tabs(_tab_list)
+tab_wh = _tabs[0]
+tab_tr = _tabs[1]
+tab_admin = _tabs[2] if user_role == "admin" else None
 
 
 # ══ 탭 1: 재고 현황 ════════════════════════════════════════════════════════
@@ -589,3 +595,123 @@ with tab_tr:
         _cv_render_transfers("rejected")
     with tr_all:
         _cv_render_transfers(None)
+
+
+# ══ 탭 3: 관리자 메뉴 ═════════════════════════════════════════════════════
+if tab_admin:
+    with tab_admin:
+        from utils.routing import CENTERS as _ALL_CENTERS
+
+        _EXP_COLS = {"item_name":"자재명","quantity":"수량","rack_no":"렉번호",
+                     "shelf":"단","box_no":"박스번호","category_large":"대분류",
+                     "category_mid":"중분류","category_small":"소분류",
+                     "item_location":"지역","location":"자재위치",
+                     "erp_name":"ERP품명","erp_code":"ERP코드",
+                     "repair_manager":"수리담당자명","notes":"비고"}
+
+        adm_export, adm_delete = st.tabs(["💾 내보내기", "🗑️ 삭제"])
+
+        # ── 내보내기 ──────────────────────────────────────────────────────
+        with adm_export:
+            st.markdown("#### 💾 전체 데이터 내보내기")
+            _exp_center = st.selectbox(
+                "내보낼 센터",
+                ["전체 (모든 센터)"] + [c for c in _ALL_CENTERS if c not in NO_WAREHOUSE_CENTERS],
+                key="cv_adm_exp_center"
+            )
+            if _exp_center == "전체 (모든 센터)":
+                _exp_raw = []
+                for _c in _ALL_CENTERS:
+                    _exp_raw.extend(fetch_warehouse(_c))
+                _exp_fname, _exp_sheet = "WMS_전체_데이터.xlsx", "전체"
+            else:
+                _exp_raw   = fetch_warehouse(_exp_center)
+                _exp_fname = f"{_exp_center}_전체_데이터.xlsx"
+                _exp_sheet = _exp_center
+
+            _exp_df = pd.DataFrame(_exp_raw) if _exp_raw else pd.DataFrame()
+            if _exp_df.empty:
+                st.warning("내보낼 데이터가 없습니다.")
+            else:
+                _dl_df = _exp_df[[c for c in _EXP_COLS if c in _exp_df.columns]].copy()
+                _dl_df.rename(columns=_EXP_COLS, inplace=True)
+                st.info(f"총 **{len(_dl_df)}개** 항목")
+                st.download_button(
+                    f"⬇️ 다운로드 ({_exp_fname})",
+                    data=_cv_excel(_dl_df, _exp_sheet),
+                    file_name=_exp_fname,
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True,
+                )
+
+        # ── 삭제 ──────────────────────────────────────────────────────────
+        with adm_delete:
+            st.markdown("#### 🗑️ 센터 자재 목록 삭제")
+            st.warning("⚠️ 삭제 후 복구할 수 없습니다. 삭제 전 반드시 내보내기로 백업하세요.")
+            _del_center = st.selectbox(
+                "삭제할 센터",
+                [c for c in _ALL_CENTERS if c not in NO_WAREHOUSE_CENTERS],
+                key="cv_adm_del_center"
+            )
+            _del_raw = fetch_warehouse(_del_center)
+            _del_df  = pd.DataFrame(_del_raw) if _del_raw else pd.DataFrame()
+
+            if _del_df.empty:
+                st.info("해당 센터에 자재 데이터가 없습니다.")
+            else:
+                # 백업 다운로드
+                _bak_df = _del_df[[c for c in _EXP_COLS if c in _del_df.columns]].copy()
+                _bak_df.rename(columns=_EXP_COLS, inplace=True)
+                _bak_fname = f"{_del_center}_삭제전_백업.xlsx"
+                st.download_button(
+                    f"⬇️ 삭제 전 백업 ({_bak_fname})",
+                    data=_cv_excel(_bak_df, _del_center),
+                    file_name=_bak_fname,
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True,
+                )
+                st.info(f"**{_del_center}** — {len(_del_df)}개 항목")
+
+                _del_key = f"cv_del_confirm_{_del_center}"
+                if _del_key not in st.session_state:
+                    st.session_state[_del_key] = False
+
+                if not st.session_state[_del_key]:
+                    if st.button("🗑️ 삭제 실행", type="primary",
+                                 use_container_width=True, key="cv_del_exec"):
+                        st.session_state[_del_key] = True
+                        st.rerun()
+                else:
+                    st.error(f"**{_del_center}** 자재 목록 전체를 삭제합니다. 정말 진행하시겠습니까?")
+                    _dc1, _dc2 = st.columns(2)
+                    if _dc1.button("✅ 확인 — 삭제", type="primary",
+                                   use_container_width=True, key="cv_del_ok"):
+                        _sb2  = get_supabase()
+                        _iids = [int(r["id"]) for r in _del_raw]
+                        _deleted = 0
+                        for _iid in _iids:
+                            _qty_r = _sb2.table("warehouse").select("quantity").eq("id", _iid).execute()
+                            _qty   = int(_qty_r.data[0]["quantity"]) if _qty_r.data else 0
+                            if _qty > 0:
+                                try:
+                                    _sb2.table("history").insert({
+                                        "actor_id": user_id, "item_id": _iid,
+                                        "action_type": "out", "quantity": _qty,
+                                        "reason": f"관리자 삭제 ({_del_center})",
+                                        "snapshot_qty_before": _qty, "snapshot_qty_after": 0,
+                                    }).execute()
+                                except Exception: pass
+                            try:
+                                _sb2.table("transfers").update({"item_id": None}).eq("item_id", _iid).execute()
+                                _sb2.table("history").update({"item_id": None}).eq("item_id", _iid).execute()
+                                _sb2.table("warehouse").delete().eq("id", _iid).execute()
+                                _deleted += 1
+                            except Exception: pass
+                        clear_warehouse_cache()
+                        clear_history_cache()
+                        st.session_state[_del_key] = False
+                        st.session_state["_cv_done_msg"] = f"✅ {_deleted}개 삭제 완료"
+                        st.rerun()
+                    if _dc2.button("❌ 취소", use_container_width=True, key="cv_del_cancel"):
+                        st.session_state[_del_key] = False
+                        st.rerun()
