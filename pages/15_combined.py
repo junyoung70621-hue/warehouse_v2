@@ -350,7 +350,7 @@ with tab_wh:
                         use_container_width=True,
                     ):
                         st.session_state.cv_tr_cat = _cat
-                        st.session_state.pop("cv_tr_items", None)
+                        st.session_state.cv_tr_cart = []
 
                 # 선택된 카테고리로 항목 필터링
                 _tr_filtered = filtered.copy()
@@ -359,10 +359,10 @@ with tab_wh:
 
                 # 라벨: 자재명  |  수량 N  렉 A1  박스 3
                 def _tr_label(row):
-                    qty_v  = int(row.get("quantity", 0) or 0)
-                    rack   = str(row.get("rack_no", "") or "").strip()
-                    box_v  = str(row.get("box_no",  "") or "").strip()
-                    parts  = [f"수량 {qty_v}"]
+                    qty_v = int(row.get("quantity", 0) or 0)
+                    rack  = str(row.get("rack_no", "") or "").strip()
+                    box_v = str(row.get("box_no",  "") or "").strip()
+                    parts = [f"수량 {qty_v}"]
                     if rack:  parts.append(f"렉 {rack}")
                     if box_v: parts.append(f"박스 {box_v}")
                     return f"{row['item_name']}  |  {' · '.join(parts)}"
@@ -374,28 +374,75 @@ with tab_wh:
                     _label_to_id[_lbl] = int(_row["id"])
                     _label_opts.append(_lbl)
 
-                sel_labels = st.multiselect(
-                    f"이동할 자재 선택 ({st.session_state.cv_tr_cat})",
-                    options=_label_opts,
-                    key="cv_tr_items"
+                # ── 카트 초기화 ────────────────────────────────────────
+                if "cv_tr_cart" not in st.session_state:
+                    st.session_state.cv_tr_cart = []
+
+                # ── 항목 추가 행 ───────────────────────────────────────
+                _c1, _c2, _c3 = st.columns([5, 1.5, 1.5])
+                _pick = _c1.selectbox(
+                    "자재 선택", [""] + _label_opts,
+                    label_visibility="collapsed", key="cv_tr_pick"
                 )
-                qty = st.number_input("수량", min_value=1, value=1, key="cv_tr_qty")
-                if st.button("✅ 이동 신청", type="primary",
-                             use_container_width=True, key="cv_tr_submit",
-                             disabled=not sel_labels):
-                    ok_count = 0
-                    for lbl in sel_labels:
-                        item_id = _label_to_id.get(lbl)
-                        if item_id is None:
-                            continue
-                        try:
-                            create_transfer(item_id, selected_center, dst, qty, user_id)
-                            ok_count += 1
-                        except Exception:
-                            pass
-                    if ok_count:
-                        clear_transfer_cache()
-                        st.success(f"✅ {ok_count}개 이동 신청 완료 → {dst}")
+                _pick_qty = _c2.number_input(
+                    "수량", min_value=1, value=1,
+                    label_visibility="collapsed", key="cv_tr_pick_qty"
+                )
+                if _c3.button("➕ 항목 추가", use_container_width=True,
+                              key="cv_tr_add", disabled=not _pick):
+                    if _pick in _label_to_id:
+                        _existing_ids = [x["item_id"] for x in st.session_state.cv_tr_cart]
+                        _new_id = _label_to_id[_pick]
+                        if _new_id in _existing_ids:
+                            st.warning("이미 추가된 항목입니다.")
+                        else:
+                            st.session_state.cv_tr_cart.append({
+                                "label":   _pick,
+                                "item_id": _new_id,
+                                "qty":     int(_pick_qty),
+                            })
+
+                # ── 신청 목록 ──────────────────────────────────────────
+                if st.session_state.cv_tr_cart:
+                    st.markdown("**신청 목록**")
+                    for _ci, _cart_item in enumerate(st.session_state.cv_tr_cart):
+                        _lc1, _lc2, _lc3 = st.columns([5, 1, 1])
+                        _lc1.markdown(
+                            f"<span style='font-size:12px;'>{_cart_item['label']}</span>",
+                            unsafe_allow_html=True
+                        )
+                        _lc2.markdown(
+                            f"<div style='padding-top:6px;font-size:12px;'>{_cart_item['qty']}개</div>",
+                            unsafe_allow_html=True
+                        )
+                        if _lc3.button("✕", key=f"cv_cart_rm_{_ci}",
+                                       use_container_width=True):
+                            st.session_state.cv_tr_cart.pop(_ci)
+                            st.rerun()
+
+                    st.divider()
+                    _sa, _sb = st.columns(2)
+                    if _sb.button("🗑️ 전체 삭제", use_container_width=True,
+                                  key="cv_cart_clear"):
+                        st.session_state.cv_tr_cart = []
+                        st.rerun()
+                    if _sa.button("✅ 이동 신청", type="primary",
+                                  use_container_width=True, key="cv_tr_submit"):
+                        _ok = 0
+                        for _ci in st.session_state.cv_tr_cart:
+                            try:
+                                create_transfer(_ci["item_id"], selected_center,
+                                                dst, _ci["qty"], user_id)
+                                _ok += 1
+                            except Exception:
+                                pass
+                        if _ok:
+                            st.session_state.cv_tr_cart = []
+                            clear_transfer_cache()
+                            st.session_state["_cv_done_msg"] = f"✅ {_ok}개 이동 신청 완료 → {dst}"
+                            st.rerun()
+                else:
+                    st.caption("항목을 추가한 뒤 이동 신청하세요.")
 
     # ── 데이터 테이블 ────────────────────────────────────────────────────
     if filtered.empty:
