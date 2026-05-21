@@ -47,6 +47,7 @@ _cv_defaults = {
     "_cv_detail_item": None,
     "cv_tr_cat": "전체", "cv_tr_cart": [],
     "cv_in_cart": [], "cv_out_cart": [],
+    "cv_in_reason_mode": "통합", "cv_out_reason_mode": "통합",
 }
 for k, v in _cv_defaults.items():
     if k not in st.session_state:
@@ -217,10 +218,13 @@ if _st_dialog:
             except Exception as e:
                 st.error(f"파일 처리 오류: {e}")
 
-    @_st_dialog("📥 입고", width="large")
-    def _cv_stock_in_dialog(center: str, usr: dict, all_rows: list):
-        if "cv_in_cart" not in st.session_state:
-            st.session_state.cv_in_cart = []
+    def _stock_dialog_body(
+        mode_key, cart_key, pick_key, qty_key, add_key,
+        action_label, confirm_key, cancel_key, fn_stock, done_msg_prefix,
+        all_rows
+    ):
+        """입고/출고 공용 다이얼로그 본문."""
+        cart = st.session_state.get(cart_key, [])
 
         def _lbl(row):
             qty_v = int(row.get("quantity", 0) or 0)
@@ -234,122 +238,117 @@ if _st_dialog:
         _id_map = {_lbl(r): int(r["id"]) for r in all_rows if r.get("item_name")}
         _opts   = list(_id_map.keys())
 
+        # ── 항목 추가 행 ──────────────────────────────────────────────────
         _c1, _c2, _c3 = st.columns([5, 1.5, 1.5])
         _pick = _c1.selectbox("자재 선택", [""] + _opts,
-                               label_visibility="collapsed", key="cv_in_pick")
+                               label_visibility="collapsed", key=pick_key)
         _qty  = _c2.number_input("수량", min_value=1, value=1,
-                                  label_visibility="collapsed", key="cv_in_qty")
+                                  label_visibility="collapsed", key=qty_key)
         if _c3.button("➕ 추가", use_container_width=True,
-                      key="cv_in_add", disabled=not _pick):
+                      key=add_key, disabled=not _pick):
             _iid = _id_map.get(_pick)
-            if _iid and _iid not in [x["item_id"] for x in st.session_state.cv_in_cart]:
-                st.session_state.cv_in_cart.append({"label": _pick, "item_id": _iid, "qty": int(_qty)})
+            if _iid and _iid not in [x["item_id"] for x in cart]:
+                cart.append({"label": _pick, "item_id": _iid, "qty": int(_qty), "reason": ""})
+                st.session_state[cart_key] = cart
             elif _iid:
                 st.warning("이미 추가된 항목입니다.")
 
-        if st.session_state.cv_in_cart:
-            st.markdown("**입고 목록**")
-            for _ci, _it in enumerate(st.session_state.cv_in_cart):
-                _lc1, _lc2, _lc3 = st.columns([5, 1.5, 1])
-                _lc1.markdown(f"<span style='font-size:12px;'>{_it['label']}</span>",
-                              unsafe_allow_html=True)
+        # ── 사유 방식 선택 ────────────────────────────────────────────────
+        _mode = st.radio("사유 입력 방식", ["통합 사유", "개별 사유"],
+                         horizontal=True,
+                         index=0 if st.session_state.get(mode_key, "통합") == "통합" else 1,
+                         key=f"{mode_key}_radio",
+                         label_visibility="collapsed")
+        _is_unified = (_mode == "통합 사유")
+        if st.session_state.get(mode_key) != ("통합" if _is_unified else "개별"):
+            st.session_state[mode_key] = "통합" if _is_unified else "개별"
+
+        # ── 목록 ──────────────────────────────────────────────────────────
+        if cart:
+            st.markdown(f"**{action_label} 목록**")
+            for _ci, _it in enumerate(cart):
+                if _is_unified:
+                    _lc1, _lc2, _lc3 = st.columns([5, 1.5, 1])
+                else:
+                    _lc1, _lc2, _lc3, _lc4 = st.columns([3, 1.2, 2.8, 0.8])
+                _lc1.markdown(
+                    f"<span style='font-size:12px;'>{_it['label']}</span>",
+                    unsafe_allow_html=True,
+                )
                 _nq = _lc2.number_input("수량", min_value=1, value=_it["qty"],
                                          label_visibility="collapsed",
-                                         key=f"cv_in_cart_qty_{_ci}")
+                                         key=f"{cart_key}_qty_{_ci}")
                 if _nq != _it["qty"]:
-                    st.session_state.cv_in_cart[_ci]["qty"] = int(_nq)
-                if _lc3.button("✕", key=f"cv_in_cart_rm_{_ci}", use_container_width=True):
-                    st.session_state.cv_in_cart.pop(_ci)
+                    cart[_ci]["qty"] = int(_nq)
+                    st.session_state[cart_key] = cart
+                if not _is_unified:
+                    _nr = _lc3.text_input("사유", value=_it.get("reason", ""),
+                                          placeholder="사유 입력",
+                                          label_visibility="collapsed",
+                                          key=f"{cart_key}_reason_{_ci}")
+                    if _nr != _it.get("reason", ""):
+                        cart[_ci]["reason"] = _nr
+                        st.session_state[cart_key] = cart
+                    _rm_col = _lc4
+                else:
+                    _rm_col = _lc3
+                if _rm_col.button("✕", key=f"{cart_key}_rm_{_ci}", use_container_width=True):
+                    cart.pop(_ci)
+                    st.session_state[cart_key] = cart
                     st.rerun()
 
         st.divider()
-        _reason = st.text_input("입고 사유 *", placeholder="예: 신규 입고, 반납, 재고 조정",
-                                 key="cv_in_reason")
+
+        # ── 통합 사유 입력 ─────────────────────────────────────────────────
+        _unified_reason = ""
+        if _is_unified:
+            _unified_reason = st.text_input(
+                f"{action_label} 사유 *",
+                placeholder="예: 신규 입고, 반납, 재고 조정" if action_label == "입고"
+                            else "예: 현장 출고, 이동, 폐기",
+                key=f"{cart_key}_unified_reason",
+            )
+
+        # ── 확정/취소 ──────────────────────────────────────────────────────
         _sa, _sb2 = st.columns(2)
-        if _sa.button("✅ 입고 확정", type="primary", use_container_width=True,
-                      key="cv_in_confirm",
-                      disabled=not st.session_state.cv_in_cart):
-            if not _reason.strip():
-                st.error("입고 사유를 입력해 주세요.")
+        if _sa.button(f"✅ {action_label} 확정", type="primary",
+                      use_container_width=True, key=confirm_key,
+                      disabled=not cart):
+            if _is_unified and not _unified_reason.strip():
+                st.error(f"{action_label} 사유를 입력해 주세요.")
+            elif not _is_unified and any(not _it.get("reason", "").strip() for _it in cart):
+                st.error("모든 항목의 사유를 입력해 주세요.")
             else:
                 _ok = 0
-                for _it in st.session_state.cv_in_cart:
-                    if stock_in(_it["item_id"], _it["qty"], usr, _reason.strip()):
+                for _it in cart:
+                    _r = _unified_reason.strip() if _is_unified else _it.get("reason", "").strip()
+                    if fn_stock(_it["item_id"], _it["qty"], st.session_state.user, _r):
                         _ok += 1
                 if _ok:
-                    st.session_state.cv_in_cart = []
-                    st.session_state["_cv_done_msg"] = f"✅ {_ok}개 항목 입고 완료"
+                    st.session_state[cart_key] = []
+                    st.session_state["_cv_done_msg"] = f"✅ {_ok}개 항목 {action_label} 완료"
                     st.rerun()
-        if _sb2.button("❌ 취소", use_container_width=True, key="cv_in_cancel"):
-            st.session_state.cv_in_cart = []
+        if _sb2.button("❌ 취소", use_container_width=True, key=cancel_key):
+            st.session_state[cart_key] = []
             st.rerun()
+
+    @_st_dialog("📥 입고", width="large")
+    def _cv_stock_in_dialog(center: str, usr: dict, all_rows: list):
+        _stock_dialog_body(
+            mode_key="cv_in_reason_mode", cart_key="cv_in_cart",
+            pick_key="cv_in_pick", qty_key="cv_in_qty", add_key="cv_in_add",
+            action_label="입고", confirm_key="cv_in_confirm", cancel_key="cv_in_cancel",
+            fn_stock=stock_in, done_msg_prefix="입고", all_rows=all_rows,
+        )
 
     @_st_dialog("📤 출고", width="large")
     def _cv_stock_out_dialog(center: str, usr: dict, all_rows: list):
-        if "cv_out_cart" not in st.session_state:
-            st.session_state.cv_out_cart = []
-
-        def _lbl(row):
-            qty_v = int(row.get("quantity", 0) or 0)
-            rack  = str(row.get("rack_no", "") or "").strip()
-            box_v = str(row.get("box_no",  "") or "").strip()
-            parts = [f"현재 {qty_v}개"]
-            if rack:  parts.append(f"렉 {rack}")
-            if box_v: parts.append(f"박스 {box_v}")
-            return f"{row['item_name']}  |  {' · '.join(parts)}"
-
-        _id_map = {_lbl(r): int(r["id"]) for r in all_rows if r.get("item_name")}
-        _opts   = list(_id_map.keys())
-
-        _c1, _c2, _c3 = st.columns([5, 1.5, 1.5])
-        _pick = _c1.selectbox("자재 선택", [""] + _opts,
-                               label_visibility="collapsed", key="cv_out_pick")
-        _qty  = _c2.number_input("수량", min_value=1, value=1,
-                                  label_visibility="collapsed", key="cv_out_qty")
-        if _c3.button("➕ 추가", use_container_width=True,
-                      key="cv_out_add", disabled=not _pick):
-            _iid = _id_map.get(_pick)
-            if _iid and _iid not in [x["item_id"] for x in st.session_state.cv_out_cart]:
-                st.session_state.cv_out_cart.append({"label": _pick, "item_id": _iid, "qty": int(_qty)})
-            elif _iid:
-                st.warning("이미 추가된 항목입니다.")
-
-        if st.session_state.cv_out_cart:
-            st.markdown("**출고 목록**")
-            for _ci, _it in enumerate(st.session_state.cv_out_cart):
-                _lc1, _lc2, _lc3 = st.columns([5, 1.5, 1])
-                _lc1.markdown(f"<span style='font-size:12px;'>{_it['label']}</span>",
-                              unsafe_allow_html=True)
-                _nq = _lc2.number_input("수량", min_value=1, value=_it["qty"],
-                                         label_visibility="collapsed",
-                                         key=f"cv_out_cart_qty_{_ci}")
-                if _nq != _it["qty"]:
-                    st.session_state.cv_out_cart[_ci]["qty"] = int(_nq)
-                if _lc3.button("✕", key=f"cv_out_cart_rm_{_ci}", use_container_width=True):
-                    st.session_state.cv_out_cart.pop(_ci)
-                    st.rerun()
-
-        st.divider()
-        _reason = st.text_input("출고 사유 *", placeholder="예: 현장 출고, 이동, 폐기",
-                                 key="cv_out_reason")
-        _sa, _sb2 = st.columns(2)
-        if _sa.button("✅ 출고 확정", type="primary", use_container_width=True,
-                      key="cv_out_confirm",
-                      disabled=not st.session_state.cv_out_cart):
-            if not _reason.strip():
-                st.error("출고 사유를 입력해 주세요.")
-            else:
-                _ok = 0
-                for _it in st.session_state.cv_out_cart:
-                    if stock_out(_it["item_id"], _it["qty"], usr, _reason.strip()):
-                        _ok += 1
-                if _ok:
-                    st.session_state.cv_out_cart = []
-                    st.session_state["_cv_done_msg"] = f"✅ {_ok}개 항목 출고 완료"
-                    st.rerun()
-        if _sb2.button("❌ 취소", use_container_width=True, key="cv_out_cancel"):
-            st.session_state.cv_out_cart = []
-            st.rerun()
+        _stock_dialog_body(
+            mode_key="cv_out_reason_mode", cart_key="cv_out_cart",
+            pick_key="cv_out_pick", qty_key="cv_out_qty", add_key="cv_out_add",
+            action_label="출고", confirm_key="cv_out_confirm", cancel_key="cv_out_cancel",
+            fn_stock=stock_out, done_msg_prefix="출고", all_rows=all_rows,
+        )
 
     @_st_dialog("자재센터 입고 위치 지정", width="large")
     def _cv_hub_dialog(transfer_id, item_name, from_center, qty):
