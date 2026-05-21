@@ -406,15 +406,19 @@ with tab_wh:
                 if st.session_state.cv_tr_cart:
                     st.markdown("**신청 목록**")
                     for _ci, _cart_item in enumerate(st.session_state.cv_tr_cart):
-                        _lc1, _lc2, _lc3 = st.columns([5, 1, 1])
+                        _lc1, _lc2, _lc3 = st.columns([5, 1.5, 1])
                         _lc1.markdown(
                             f"<span style='font-size:12px;'>{_cart_item['label']}</span>",
                             unsafe_allow_html=True
                         )
-                        _lc2.markdown(
-                            f"<div style='padding-top:6px;font-size:12px;'>{_cart_item['qty']}개</div>",
-                            unsafe_allow_html=True
+                        _new_qty = _lc2.number_input(
+                            "수량", min_value=1,
+                            value=_cart_item["qty"],
+                            label_visibility="collapsed",
+                            key=f"cv_cart_qty_{_ci}",
                         )
+                        if _new_qty != _cart_item["qty"]:
+                            st.session_state.cv_tr_cart[_ci]["qty"] = int(_new_qty)
                         if _lc3.button("✕", key=f"cv_cart_rm_{_ci}",
                                        use_container_width=True):
                             st.session_state.cv_tr_cart.pop(_ci)
