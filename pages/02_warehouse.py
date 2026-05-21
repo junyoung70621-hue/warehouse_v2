@@ -1185,17 +1185,23 @@ if CAN_USAGE_UPLOAD and st.session_state.show_usage_upload:
     with st.container(border=True):
         st.markdown("#### 📋 사용내역 업로드")
         st.caption(
-            "자재명 또는 ERP코드로 자재를 찾아 사용수량만큼 재고에서 차감합니다.\n\n"
-            "**필수 컬럼:** 자재명(또는 ERP코드), 사용수량, 사용사유"
+            "재고목록을 다운로드한 후 **사용수량**을 입력한 행만 차감됩니다. "
+            "사용사유는 선택 항목입니다."
         )
 
-        # 사용내역 양식 다운로드
-        usage_sample = make_excel_buffer(
-            pd.DataFrame(columns=list(USAGE_COL_MAP.values())), "사용내역양식"
+        # 본인 센터 재고목록 다운로드 (자재명·ERP코드 채워진 양식)
+        _usage_dl = df_all[["item_name", "erp_code"]].copy() if not df_all.empty \
+                    else pd.DataFrame(columns=["item_name", "erp_code"])
+        _usage_dl = _usage_dl.sort_values("item_name", ignore_index=True)
+        _usage_dl.rename(columns={"item_name": "자재명", "erp_code": "ERP코드"}, inplace=True)
+        _usage_dl["사용수량"] = ""
+        _usage_dl["사용사유"] = ""
+        st.download_button(
+            "⬇️ 재고목록 다운로드 (수량 입력용)",
+            data=make_excel_buffer(_usage_dl, selected_center),
+            file_name=f"{selected_center}_사용내역_양식.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
-        st.download_button("📋 사용내역 양식 다운로드", data=usage_sample,
-            file_name="사용내역_업로드_양식.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
         usage_file = st.file_uploader("사용내역 파일 선택", type=["xlsx"],
                                        label_visibility="collapsed", key="usage_uploader")
