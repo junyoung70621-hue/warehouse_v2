@@ -212,6 +212,66 @@ def make_excel_buffer(df_export, sheet_name="Sheet1"):
     buf.seek(0)
     return buf
 
+
+def make_usage_template_buffer(df_usage, sheet_name="Sheet1"):
+    """사용내역 양식 엑셀: 표 테두리 + 사용수량 열 노란색 음영."""
+    from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+
+    safe = re.sub(r'[\\/*?:\[\]]', '_', sheet_name)[:31] or "Sheet1"
+    buf  = io.BytesIO()
+    with pd.ExcelWriter(buf, engine="openpyxl") as writer:
+        df_usage.to_excel(writer, index=False, sheet_name=safe)
+        ws = writer.sheets[safe]
+
+        thin  = Side(style="thin", color="AAAAAA")
+        thick = Side(style="medium", color="888888")
+        border_header = Border(top=thick, bottom=thick, left=thin, right=thin)
+        border_cell   = Border(top=thin,  bottom=thin,  left=thin, right=thin)
+
+        fill_header = PatternFill("solid", fgColor="2D2D2D")  # 다크 헤더
+        fill_qty    = PatternFill("solid", fgColor="FFF9C4")  # 노란 음영
+        fill_qty_hd = PatternFill("solid", fgColor="F9A825")  # 헤더 노란색
+
+        font_header = Font(bold=True, color="FFFFFF", size=10)
+        font_qty_hd = Font(bold=True, color="FFFFFF", size=10)
+        font_body   = Font(size=10)
+
+        qty_col_idx = None
+        for idx, col in enumerate(df_usage.columns, start=1):
+            if col == "사용수량":
+                qty_col_idx = idx
+
+        n_cols = len(df_usage.columns)
+        n_rows = len(df_usage) + 1  # +1 헤더
+
+        for col_idx in range(1, n_cols + 1):
+            is_qty = (col_idx == qty_col_idx)
+            # 헤더
+            cell = ws.cell(row=1, column=col_idx)
+            cell.fill      = fill_qty_hd if is_qty else fill_header
+            cell.font      = font_qty_hd if is_qty else font_header
+            cell.border    = border_header
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+            # 데이터 행
+            for row_idx in range(2, n_rows + 1):
+                c = ws.cell(row=row_idx, column=col_idx)
+                c.fill      = fill_qty if is_qty else PatternFill()
+                c.font      = font_body
+                c.border    = border_cell
+                c.alignment = Alignment(horizontal="center" if is_qty else "left",
+                                        vertical="center")
+
+        # 열 너비 자동 조정
+        col_widths = {"자재명": 35, "ERP코드": 16, "사용수량": 12, "사용사유": 22}
+        for idx, col in enumerate(df_usage.columns, start=1):
+            ws.column_dimensions[get_column_letter(idx)].width = col_widths.get(col, 14)
+
+        ws.row_dimensions[1].height = 18
+
+    buf.seek(0)
+    return buf
+
 def clean_records(records):
     return [{k: (None if (v != v or str(v) in ("nan","NaN","None")) else v)
              for k, v in r.items()} for r in records]
@@ -1198,7 +1258,7 @@ if CAN_USAGE_UPLOAD and st.session_state.show_usage_upload:
         _usage_dl["사용사유"] = ""
         st.download_button(
             "⬇️ 재고목록 다운로드 (수량 입력용)",
-            data=make_excel_buffer(_usage_dl, selected_center),
+            data=make_usage_template_buffer(_usage_dl, selected_center),
             file_name=f"{selected_center}_사용내역_양식.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
