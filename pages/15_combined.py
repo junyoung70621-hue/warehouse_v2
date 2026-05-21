@@ -36,9 +36,6 @@ st.set_page_config(
 apply_global_css()
 require_login()
 
-if not is_role("admin", "materials"):
-    st.error("🔒 통합 뷰는 관리자 및 자재파트만 접근할 수 있습니다.")
-    st.stop()
 
 # ── 세션 초기화 (cv_ 프리픽스로 기존 페이지와 충돌 방지) ─────────────────────
 _cv_defaults = {
