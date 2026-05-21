@@ -1167,11 +1167,11 @@ with tab_dash:
 
 # ══ Tab 2: 이력 조회 ══════════════════════════════════════════════════════════
 with tab_hist:
-    f1, f2, f3, f4 = st.columns([2, 2, 3, 1])
+    f1, f2, f3 = st.columns([2, 2, 3])
     h_from  = f1.date_input("시작일", value=_today_kst() - timedelta(days=30), key="h_from")
     h_to    = f2.date_input("종료일", value=_today_kst(),                       key="h_to")
     h_dir   = f3.selectbox("방향", ["전체", "출고 (자재→센터)", "입고 (센터→자재)"],  key="h_dir")
-    if f4.button("🔄", key="h_ref"):
+    if st.button("🔄 새로고침", key="h_ref", use_container_width=True):
         st.rerun()
 
     h_search = st.text_input(
