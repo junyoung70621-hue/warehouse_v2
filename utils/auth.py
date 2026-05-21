@@ -160,11 +160,17 @@ def require_login():
             st.switch_page("pages/01_login.py")
             st.stop()
         st.session_state.last_activity = now
-        # 새로고침 대응용 query_params 유지
-        if "t" not in st.query_params and user:
-            token = _make_session_token(user["id"], user["password_hash"])
-            st.query_params["uid"] = user["id"]
-            st.query_params["t"]   = token
+        # 새로고침 대응: JS로 URL에 세션 토큰 삽입 (history.replaceState)
+        if user:
+            _uid = user["id"]
+            _tok = _make_session_token(_uid, user["password_hash"])
+            st.markdown(
+                f'<script>(function(){{var u=new URL(window.location.href);'
+                f'if(u.searchParams.get("t")!=="{_tok}")'
+                f'{{u.searchParams.set("uid","{_uid}");u.searchParams.set("t","{_tok}");'
+                f'window.history.replaceState({{}},"",u.toString());}}}})();</script>',
+                unsafe_allow_html=True
+            )
         try:
             from utils.db import update_last_seen
             update_last_seen(st.session_state.user["id"])
