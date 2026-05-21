@@ -987,22 +987,8 @@ def _upload_section(direction: str, from_c: str, to_c_fixed: str | None, key_pre
             }
             for _, row in new_df.iterrows()
         ]
-        # 저장 전 업로드 현황 스냅샷 (출고일 때만)
-        centers_before = _check_uploaded_out_centers(mv_date) if direction == "out" else set()
-
         if save_terminal(records):
             st.success(f"✅ {len(records)}건 저장 완료!")
-
-            # 출고이고 이번 업로드로 4개 센터가 처음으로 모두 완료된 경우 Teams 알림
-            if direction == "out":
-                centers_after = _check_uploaded_out_centers(mv_date)
-                if (_TEAMS_NOTIFY_CENTERS.issubset(centers_after)
-                        and not _TEAMS_NOTIFY_CENTERS.issubset(centers_before)):
-                    fresh_out = fetch_terminal(direction="out", upload_date=mv_date)
-                    pivot_teams = build_center_pivot(fresh_out, direction="out")
-                    if pivot_teams is not None and _send_teams_out_summary(pivot_teams, mv_date):
-                        st.info("📨 Teams 채팅방으로 출고 현황을 전송했습니다.")
-
             st.rerun()
 
 
