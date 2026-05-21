@@ -21,6 +21,11 @@ from utils.permissions import (
 )
 from utils.rack_map import RACK_COORD
 from utils.ui import apply_global_css, render_sidebar_header, render_sidebar_section, render_sidebar_user, render_top_bar
+from utils.uploads import (
+    EXCEL_COL_MAP, USAGE_COL_MAP,
+    make_excel_buffer, make_usage_template_buffer,
+    clean_records, validate_upload, process_usage_upload,
+)
 
 st.set_page_config(
     page_title="에이텍모빌리티 자재관리",
@@ -118,13 +123,10 @@ defaults = {
     "selected_small":    "전체",
     "bulk_mode":         None,
     "checked_ids":       [],
-    "upload_done":       None,
-    "show_upload":       False,
     "show_export":       False,
     "show_delete":       False,
     "show_transfer":     False,
     "show_usage_upload":     False,
-    "usage_upload_done":     None,
     "show_material_request": False,
     "material_request_cart": [],
     "sort_col":              "item_name",
@@ -170,30 +172,6 @@ def _transfer_success_dialog():
 
 
 # ── 컬럼 매핑 ─────────────────────────────────────────────────────────────
-EXCEL_COL_MAP = {
-    "item_name":      "자재명",
-    "quantity":       "수량",
-    "rack_no":        "랙번호",
-    "shelf":          "단",
-    "box_no":         "박스번호",
-    "category_large": "대분류",
-    "category_mid":   "중분류",
-    "category_small": "소분류",
-    "item_location":  "지역",
-    "location":       "자재위치",
-    "erp_name":       "ERP품명",
-    "erp_code":       "ERP코드",
-    "repair_manager": "수리담당자명",
-    "notes":          "비고",
-}
-
-USAGE_COL_MAP = {
-    "item_name": "자재명",
-    "erp_code":  "ERP코드",
-    "quantity":  "사용수량",
-    "reason":    "사용사유",
-}
-
 SORT_MAP = {
     "자재명":  "item_name",
     "수량":   "quantity",
@@ -201,99 +179,6 @@ SORT_MAP = {
     "중분류":  "category_mid",
     "소분류":  "category_small",
 }
-
-# ── 공통 유틸 ─────────────────────────────────────────────────────────────
-def make_excel_buffer(df_export, sheet_name="Sheet1"):
-    # openpyxl 시트명 제한: \ / * ? : [ ] 불가, 최대 31자
-    safe = re.sub(r'[\\/*?:\[\]]', '_', sheet_name)[:31] or "Sheet1"
-    buf = io.BytesIO()
-    with pd.ExcelWriter(buf, engine="openpyxl") as writer:
-        df_export.to_excel(writer, index=False, sheet_name=safe)
-    buf.seek(0)
-    return buf
-
-
-def make_usage_template_buffer(df_usage, sheet_name="Sheet1"):
-    """사용내역 양식 엑셀: 표 테두리 + 사용수량 열 노란색 음영."""
-    from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
-    from openpyxl.utils import get_column_letter
-
-    safe = re.sub(r'[\\/*?:\[\]]', '_', sheet_name)[:31] or "Sheet1"
-    buf  = io.BytesIO()
-    with pd.ExcelWriter(buf, engine="openpyxl") as writer:
-        df_usage.to_excel(writer, index=False, sheet_name=safe)
-        ws = writer.sheets[safe]
-
-        thin  = Side(style="thin", color="AAAAAA")
-        thick = Side(style="medium", color="888888")
-        border_header = Border(top=thick, bottom=thick, left=thin, right=thin)
-        border_cell   = Border(top=thin,  bottom=thin,  left=thin, right=thin)
-
-        fill_header = PatternFill("solid", fgColor="2D2D2D")  # 다크 헤더
-        fill_qty    = PatternFill("solid", fgColor="FFF9C4")  # 노란 음영
-        fill_qty_hd = PatternFill("solid", fgColor="F9A825")  # 헤더 노란색
-
-        font_header = Font(bold=True, color="FFFFFF", size=10)
-        font_qty_hd = Font(bold=True, color="FFFFFF", size=10)
-        font_body   = Font(size=10)
-
-        qty_col_idx = None
-        for idx, col in enumerate(df_usage.columns, start=1):
-            if col == "사용수량":
-                qty_col_idx = idx
-
-        n_cols = len(df_usage.columns)
-        n_rows = len(df_usage) + 1  # +1 헤더
-
-        for col_idx in range(1, n_cols + 1):
-            is_qty = (col_idx == qty_col_idx)
-            # 헤더
-            cell = ws.cell(row=1, column=col_idx)
-            cell.fill      = fill_qty_hd if is_qty else fill_header
-            cell.font      = font_qty_hd if is_qty else font_header
-            cell.border    = border_header
-            cell.alignment = Alignment(horizontal="center", vertical="center")
-            # 데이터 행
-            for row_idx in range(2, n_rows + 1):
-                c = ws.cell(row=row_idx, column=col_idx)
-                c.fill      = fill_qty if is_qty else PatternFill()
-                c.font      = font_body
-                c.border    = border_cell
-                c.alignment = Alignment(horizontal="center" if is_qty else "left",
-                                        vertical="center")
-
-        # 열 너비 자동 조정
-        col_widths = {"자재명": 35, "ERP코드": 16, "사용수량": 12, "사용사유": 22}
-        for idx, col in enumerate(df_usage.columns, start=1):
-            ws.column_dimensions[get_column_letter(idx)].width = col_widths.get(col, 14)
-
-        ws.row_dimensions[1].height = 18
-
-    buf.seek(0)
-    return buf
-
-def clean_records(records):
-    return [{k: (None if (v != v or str(v) in ("nan","NaN","None")) else v)
-             for k, v in r.items()} for r in records]
-
-def validate_upload(up_df):
-    if "location" not in up_df.columns:
-        return True, ""
-    invalid = set(up_df["location"].dropna().unique()) - set(CENTERS)
-    if invalid:
-        return False, (
-            f"❌ 등록되지 않은 센터명이 포함되어 있습니다: {', '.join(invalid)}\n\n"
-            f"허용된 센터: {', '.join(CENTERS)}"
-        )
-    if user_role != "admin":
-        assigned  = user.get("assigned_center") or user.get("center","")
-        different = set(up_df["location"].dropna().unique()) - {assigned}
-        if different:
-            return False, (
-                f"❌ 소속 센터({assigned}) 데이터만 업로드 가능합니다.\n\n"
-                f"업로드 파일에 포함된 다른 센터: {', '.join(different)}"
-            )
-    return True, ""
 
 @st.experimental_dialog("✅ 처리 완료")
 def _done_popup(msg: str):
@@ -304,72 +189,199 @@ def _done_popup(msg: str):
         st.rerun()
 
 
-def process_usage_upload(records: list, center: str, actor: dict):
-    """사용내역 처리: 자재명/ERP코드로 매칭 후 수량 차감 + 이력 기록."""
-    sb = get_supabase()
-    ok, not_found, insufficient = 0, [], []
-
-    for r in records:
-        item_name = str(r.get("item_name","") or "").strip()
-        erp_code  = str(r.get("erp_code","")  or "").strip()
-        qty       = int(r.get("quantity", 0)  or 0)
-        reason    = str(r.get("reason","사용내역 업로드") or "사용내역 업로드").strip()
-
-        if (not item_name and not erp_code) or qty <= 0:
-            continue
-
-        # ERP코드 우선 → 자재명 순으로 검색
-        item = None
-        if erp_code:
-            res = sb.table("warehouse").select("id, quantity") \
-                    .eq("erp_code", erp_code).eq("location", center).execute()
-            if res.data:
-                item = res.data[0]
-        if not item and item_name:
-            res = sb.table("warehouse").select("id, quantity") \
-                    .eq("item_name", item_name).eq("location", center).execute()
-            if res.data:
-                item = res.data[0]
-
-        label = item_name or erp_code
-        if not item:
-            not_found.append(label)
-            continue
-
-        before = item["quantity"]
-        if before < qty:
-            insufficient.append(f"{label} (현재:{before} / 요청:{qty})")
-            continue
-
-        after = before - qty
-        sb.table("warehouse").update({
-            "quantity":         after,
-            "last_modified_by": actor["id"],
-            "last_modified_at": "now()",
-        }).eq("id", item["id"]).execute()
-
-        sb.table("history").insert({
-            "actor_id":            actor["id"],
-            "item_id":             item["id"],
-            "action_type":         "out",
-            "quantity":            qty,
-            "reason":              reason,
-            "from_center":         center,
-            "snapshot_qty_before": before,
-            "snapshot_qty_after":  after,
-        }).execute()
-
-        ok += 1
-
-    clear_warehouse_cache()
-    clear_history_cache()
-    clear_usage_history_cache()
-    return ok, not_found, insufficient
-
 # ── 팝업 다이얼로그 (자재 상세 / 이력 / 수정) ────────────────────────────
 _st_dialog = getattr(st, "dialog", getattr(st, "experimental_dialog", None))
 
 if _st_dialog is not None:
+    @_st_dialog("⬆️ 엑셀 업로드", width="large")
+    def _upload_dialog(center: str, usr_id: str, usr_role: str, usr: dict):
+        st.caption("📋 양식을 다운로드한 후 채워서 업로드하세요.")
+        sample_buf = make_excel_buffer(
+            pd.DataFrame(columns=list(EXCEL_COL_MAP.values())), "양식"
+        )
+        st.download_button("📋 업로드 양식 다운로드", data=sample_buf,
+            file_name="WMS_업로드_양식.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True, key="dlg_sample_dl")
+        if usr_role != "admin":
+            assigned = usr.get("assigned_center") or usr.get("center", "")
+            st.info(f"ℹ️ **{assigned}** 센터 데이터만 업로드 가능합니다.")
+        st.divider()
+        uploaded = st.file_uploader("파일 선택", type=["xlsx"],
+                                    label_visibility="collapsed", key="dlg_upload_file")
+        if uploaded:
+            try:
+                up_df = pd.read_excel(uploaded)
+                col_map = {v: k for k, v in EXCEL_COL_MAP.items()}
+                col_map["수리담당자명"] = "repair_manager"
+                col_map["수리담당자"]   = "repair_manager"
+                up_df.rename(columns=col_map, inplace=True)
+                if "quantity" in up_df.columns:
+                    up_df["quantity"] = pd.to_numeric(
+                        up_df["quantity"], errors="coerce"
+                    ).fillna(0).astype(int)
+                if "location" not in up_df.columns:
+                    up_df["location"] = center
+                passed, err_msg = validate_upload(up_df, usr_role, usr, CENTERS)
+                if not passed:
+                    st.error(err_msg)
+                    return
+                total_rows = len(up_df)
+                up_df = up_df[up_df["item_name"].notna()]
+                up_df = up_df[up_df["item_name"].astype(str).str.strip() != ""]
+                removed = total_rows - len(up_df)
+                up_df["last_modified_by"] = usr_id
+                valid_cols = {
+                    "item_name","quantity","rack_no","shelf","box_no",
+                    "category_large","category_mid","category_small","location",
+                    "erp_name","erp_code","repair_manager","notes",
+                    "item_location","last_modified_by"
+                }
+                up_df   = up_df[[c for c in up_df.columns if c in valid_cols]]
+                records = clean_records(up_df.where(pd.notnull(up_df), None).to_dict("records"))
+                if removed > 0:
+                    st.warning(f"⚠️ 자재명 없는 {removed}개 행 제외")
+                qty_empty = sum(1 for r in records if not r.get("quantity"))
+                if qty_empty:
+                    st.info(f"ℹ️ 수량 미입력 {qty_empty}개 → 수량 0으로 등록")
+                st.success(f"✅ 업로드 예정: **{len(records)}개** → **{center}**")
+                preview_cols = ["item_name","quantity","category_large","category_mid","location"]
+                prev = up_df[[c for c in preview_cols if c in up_df.columns]].copy()
+                prev.columns = [{"item_name":"자재명","quantity":"수량","category_large":"대분류",
+                                  "category_mid":"중분류","location":"센터"}.get(c, c)
+                                 for c in prev.columns]
+                st.dataframe(prev, use_container_width=True, hide_index=True, height=260)
+                st.caption(f"전체 {len(records)}개 항목")
+                st.divider()
+                c1, c2 = st.columns(2)
+                if c1.button("✅ 업로드 확정", type="primary",
+                             use_container_width=True, key="dlg_confirm_upload"):
+                    sb = get_supabase()
+                    def _norm(v): return str(v or "").strip()
+                    existing_rows = sb.table("warehouse").select(
+                        "id,item_name,quantity,rack_no,shelf,box_no,erp_code"
+                    ).eq("location", center).execute().data or []
+                    existing_map     = {(_norm(r.get("rack_no")), _norm(r.get("shelf")), _norm(r.get("box_no"))): r for r in existing_rows}
+                    existing_by_erp  = {str(r.get("erp_code") or "").strip(): r for r in existing_rows if (r.get("erp_code") or "").strip()}
+                    existing_by_name = {str(r.get("item_name") or "").strip(): r for r in existing_rows if (r.get("item_name") or "").strip()}
+                    to_insert, to_update = [], []
+                    for r in records:
+                        key = (_norm(r.get("rack_no")), _norm(r.get("shelf")), _norm(r.get("box_no")))
+                        has_loc = key != ("", "", "")
+                        add_qty = int(r.get("quantity") or 0)
+                        ex = None
+                        if has_loc:
+                            ex = existing_map.get(key)
+                        else:
+                            ec = str(r.get("erp_code") or "").strip()
+                            if ec: ex = existing_by_erp.get(ec)
+                            if ex is None:
+                                nm = str(r.get("item_name") or "").strip()
+                                if nm: ex = existing_by_name.get(nm)
+                        if ex is not None:
+                            before = int(ex["quantity"] or 0)
+                            meta = {k: v for k, v in r.items()
+                                    if k in ("item_name","erp_code","erp_name",
+                                             "category_large","category_mid","category_small")}
+                            to_update.append({"id": ex["id"], "before": before,
+                                              "add_qty": add_qty, "after": before + add_qty, "meta": meta})
+                        else:
+                            to_insert.append(r)
+                    _CHUNK = 500
+                    inserted_recs = []
+                    if to_insert:
+                        for _i in range(0, len(to_insert), _CHUNK):
+                            _res = sb.table("warehouse").insert(to_insert[_i:_i+_CHUNK]).execute()
+                            inserted_recs.extend(_res.data or [])
+                        hist_ins = [{"actor_id": usr_id, "item_id": rec["id"],
+                                     "action_type": "in", "quantity": int(rec.get("quantity") or 0),
+                                     "reason": "엑셀 업로드 신규 등록",
+                                     "from_center": rec.get("location", center),
+                                     "snapshot_qty_before": 0,
+                                     "snapshot_qty_after": int(rec.get("quantity") or 0)}
+                                    for rec in inserted_recs if int(rec.get("quantity") or 0) > 0]
+                        for _i in range(0, len(hist_ins), _CHUNK):
+                            sb.table("history").insert(hist_ins[_i:_i+_CHUNK]).execute()
+                    hist_upd = []
+                    for upd in to_update:
+                        sb.table("warehouse").update({**upd["meta"], "quantity": upd["after"],
+                            "last_modified_by": usr_id, "last_modified_at": "now()"
+                        }).eq("id", upd["id"]).execute()
+                        if upd["add_qty"] > 0:
+                            hist_upd.append({"actor_id": usr_id, "item_id": upd["id"],
+                                             "action_type": "in", "quantity": upd["add_qty"],
+                                             "reason": "엑셀 업로드 입고", "from_center": center,
+                                             "snapshot_qty_before": upd["before"],
+                                             "snapshot_qty_after": upd["after"]})
+                    for _i in range(0, len(hist_upd), _CHUNK):
+                        sb.table("history").insert(hist_upd[_i:_i+_CHUNK]).execute()
+                    clear_warehouse_cache(); clear_history_cache()
+                    st.session_state["_done_popup_msg"] = f"🎉 {len(inserted_recs) + len(to_update)}개 자재 업로드 완료!"
+                    st.rerun()
+                if c2.button("❌ 취소", use_container_width=True, key="dlg_cancel_upload"):
+                    st.rerun()
+            except Exception as e:
+                st.error(f"업로드 오류: {e}")
+
+    @_st_dialog("📋 사용내역 업로드", width="large")
+    def _usage_upload_dialog(center: str, usr_id: str, usr: dict, df_template):
+        st.caption(
+            "재고목록을 다운로드한 후 **사용수량** 열에만 수량을 입력하세요. "
+            "수량이 입력된 행만 차감됩니다."
+        )
+        _usage_dl = df_template[["item_name","erp_code"]].copy() if not df_template.empty \
+                    else pd.DataFrame(columns=["item_name","erp_code"])
+        _usage_dl = _usage_dl.sort_values("item_name", ignore_index=True)
+        _usage_dl.rename(columns={"item_name":"자재명","erp_code":"ERP코드"}, inplace=True)
+        _usage_dl["사용수량"] = ""
+        _usage_dl["사용사유"] = ""
+        st.download_button(
+            "⬇️ 재고목록 다운로드 (수량 입력용)",
+            data=make_usage_template_buffer(_usage_dl, center),
+            file_name=f"{center}_사용내역_양식.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True, key="dlg_usage_dl",
+        )
+        st.divider()
+        usage_file = st.file_uploader("사용내역 파일 선택", type=["xlsx"],
+                                      label_visibility="collapsed", key="dlg_usage_file")
+        if usage_file:
+            try:
+                u_df = pd.read_excel(usage_file)
+                col_map = {v: k for k, v in USAGE_COL_MAP.items()}
+                u_df.rename(columns=col_map, inplace=True)
+                if "quantity" in u_df.columns:
+                    u_df["quantity"] = pd.to_numeric(u_df["quantity"], errors="coerce").fillna(0).astype(int)
+                u_df = u_df[u_df.get("item_name", pd.Series(dtype=str)).notna() |
+                            u_df.get("erp_code",  pd.Series(dtype=str)).notna()]
+                u_df = u_df[u_df.get("quantity", pd.Series(dtype=int)).fillna(0) > 0]
+                if u_df.empty:
+                    st.warning("처리할 유효한 행이 없습니다.")
+                    return
+                records = clean_records(u_df.where(pd.notnull(u_df), None).to_dict("records"))
+                st.success(f"✅ 처리 예정: **{len(records)}개** → **{center}** 재고에서 차감")
+                preview_cols = [c for c in ["item_name","erp_code","quantity","reason"] if c in u_df.columns]
+                prev = u_df[preview_cols].copy()
+                prev.columns = [USAGE_COL_MAP.get(c, c) for c in prev.columns]
+                st.dataframe(prev, use_container_width=True, hide_index=True, height=260)
+                st.caption(f"전체 {len(records)}개 항목")
+                st.divider()
+                c1, c2 = st.columns(2)
+                if c1.button("✅ 차감 확정", type="primary",
+                             use_container_width=True, key="dlg_confirm_usage"):
+                    ok, not_found, insufficient = process_usage_upload(records, center, usr)
+                    msg_parts = [f"✅ {ok}개 차감 완료"]
+                    if not_found:
+                        msg_parts.append(f"⚠️ 미발견 {len(not_found)}개: {', '.join(not_found[:3])}{'...' if len(not_found)>3 else ''}")
+                    if insufficient:
+                        msg_parts.append(f"⚠️ 재고부족 {len(insufficient)}개: {', '.join(insufficient[:2])}{'...' if len(insufficient)>2 else ''}")
+                    st.session_state["_done_popup_msg"] = " / ".join(msg_parts)
+                    st.rerun()
+                if c2.button("❌ 취소", use_container_width=True, key="dlg_cancel_usage"):
+                    st.rerun()
+            except Exception as e:
+                st.error(f"파일 처리 오류: {e}")
+
     @_st_dialog("자재 상세 정보", width="large")
     def item_detail_modal(item_id: int, item_name: str, item_loc: str):
         _user      = st.session_state.user
@@ -856,18 +868,11 @@ else:
     ab = st.columns([0.72, 0.72, 0.82, 0.95, 0.95, 0.82, 0.72, 4.0])
 
 with ab[0]:
-    if user_role in ("admin", "materials"):
-        sample_buf = make_excel_buffer(
-            pd.DataFrame(columns=list(EXCEL_COL_MAP.values())), "양식"
-        )
-        st.download_button("📋 양식", data=sample_buf,
-            file_name="WMS_업로드_양식.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            use_container_width=True)
+    pass  # 양식은 업로드 팝업 내에서 제공
 with ab[1]:
-    if user_role in ("admin", "materials"):
+    if user_role in ("admin", "materials") and _st_dialog:
         if st.button("⬆️ 업로드", use_container_width=True):
-            st.session_state.show_upload = not st.session_state.show_upload
+            _upload_dialog(selected_center, user_id, user_role, user)
 with ab[2]:
     if user_role != "guest":
         if not df_all.empty:
@@ -902,9 +907,9 @@ if SHOW_STOCK_BUTTONS:
                 st.session_state.show_delete = not st.session_state.show_delete
 else:
     with ab[3]:
-        if CAN_USAGE_UPLOAD:
+        if CAN_USAGE_UPLOAD and _st_dialog:
             if st.button("📋 사용내역", use_container_width=True):
-                st.session_state.show_usage_upload = not st.session_state.show_usage_upload
+                _usage_upload_dialog(selected_center, user_id, user, df_all)
     with ab[4]:
         if CAN_MATERIAL_REQUEST:
             if st.button("📦 자재 요청", use_container_width=True, key="toolbar_mat_req"):
@@ -919,12 +924,6 @@ else:
                 st.session_state.show_delete = not st.session_state.show_delete
 
 # ── 알림 메시지 ──────────────────────────────────────────────────────────
-if st.session_state.upload_done:
-    st.session_state["_done_popup_msg"] = f"🎉 {st.session_state.upload_done}개 자재 업로드 완료!"
-    st.session_state.upload_done = None
-if st.session_state.usage_upload_done:
-    st.session_state["_done_popup_msg"] = st.session_state.usage_upload_done
-    st.session_state.usage_upload_done = None
 if st.session_state.get("_done_popup_msg"):
     _done_popup(st.session_state["_done_popup_msg"])
 
@@ -1075,260 +1074,6 @@ if is_role("admin") and _my_center not in NO_WAREHOUSE_CENTERS and st.session_st
             st.session_state[del_key] = False
             st.session_state.show_delete = False
             st.rerun()
-
-# ── 엑셀 업로드 패널 ──────────────────────────────────────────────────────
-if st.session_state.show_upload and user_role not in ("admin", "materials"):
-    st.session_state.show_upload = False
-
-if st.session_state.show_upload:
-    with st.container(border=True):
-        st.markdown("#### ⬆️ 엑셀 업로드")
-        st.caption("📋 양식 버튼으로 빈 양식을 받아서 채운 후 업로드하세요.")
-        if user_role != "admin":
-            assigned = user.get("assigned_center") or user.get("center","")
-            st.info(f"ℹ️ **{assigned}** 센터 데이터만 업로드 가능합니다.")
-        uploaded = st.file_uploader("파일 선택", type=["xlsx"], label_visibility="collapsed")
-        if uploaded:
-            try:
-                up_df = pd.read_excel(uploaded)
-                col_map = {v: k for k, v in EXCEL_COL_MAP.items()}
-                col_map["수리담당자명"] = "repair_manager"
-                col_map["수리담당자"]   = "repair_manager"
-                up_df.rename(columns=col_map, inplace=True)
-                if "quantity" in up_df.columns:
-                    up_df["quantity"] = pd.to_numeric(
-                        up_df["quantity"], errors="coerce"
-                    ).fillna(0).astype(int)
-                if "location" not in up_df.columns:
-                    up_df["location"] = selected_center
-                passed, err_msg = validate_upload(up_df)
-                if not passed:
-                    st.error(err_msg)
-                    st.stop()
-                total_rows = len(up_df)
-                up_df = up_df[up_df["item_name"].notna()]
-                up_df = up_df[up_df["item_name"].astype(str).str.strip() != ""]
-                removed = total_rows - len(up_df)
-                up_df["last_modified_by"] = user_id
-                valid_cols = {
-                    "item_name","quantity","rack_no","shelf","box_no",
-                    "category_large","category_mid","category_small","location",
-                    "erp_name","erp_code","repair_manager","notes",
-                    "item_location","last_modified_by"
-                }
-                up_df   = up_df[[c for c in up_df.columns if c in valid_cols]]
-                records = clean_records(up_df.where(pd.notnull(up_df), None).to_dict("records"))
-                if removed > 0: st.warning(f"⚠️ 자재명 없는 {removed}개 행 제외")
-                qty_empty = sum(1 for r in records if not r.get("quantity"))
-                if qty_empty > 0: st.info(f"ℹ️ 수량 미입력 {qty_empty}개 → 수량 0으로 등록")
-                st.success(f"✅ 업로드 예정: **{len(records)}개** → **{selected_center}**")
-                preview_cols = ["item_name","quantity","category_large","category_mid","location"]
-                preview_df = up_df[[c for c in preview_cols if c in up_df.columns]].copy()
-                preview_df.columns = [{"item_name":"자재명","quantity":"수량",
-                    "category_large":"대분류","category_mid":"중분류","location":"센터"
-                    }.get(c,c) for c in preview_df.columns]
-                st.dataframe(preview_df, use_container_width=True, hide_index=True, height=280)
-                st.caption(f"전체 {len(records)}개 항목")
-                c1, c2 = st.columns(2)
-                if c1.button("✅ 업로드 확정", type="primary",
-                             use_container_width=True, key="confirm_upload"):
-                    sb = get_supabase()
-
-                    def _norm(v):
-                        return str(v or "").strip()
-
-                    # 기존 재고 조회 — 위치(rack/shelf/box) 우선, erp_code → item_name 순 fallback
-                    existing_rows = sb.table("warehouse").select(
-                        "id, item_name, quantity, rack_no, shelf, box_no, erp_code"
-                    ).eq("location", selected_center).execute().data or []
-                    existing_map = {
-                        (_norm(r.get("rack_no")), _norm(r.get("shelf")), _norm(r.get("box_no"))): r
-                        for r in existing_rows
-                    }
-                    existing_by_erp = {
-                        str(r.get("erp_code") or "").strip(): r
-                        for r in existing_rows if (r.get("erp_code") or "").strip()
-                    }
-                    existing_by_name = {
-                        str(r.get("item_name") or "").strip(): r
-                        for r in existing_rows if (r.get("item_name") or "").strip()
-                    }
-
-                    to_insert, to_update = [], []
-                    for r in records:
-                        key = (
-                            _norm(r.get("rack_no")),
-                            _norm(r.get("shelf")),
-                            _norm(r.get("box_no")),
-                        )
-                        has_location = key != ("", "", "")
-                        add_qty = int(r.get("quantity") or 0)
-                        ex = None
-
-                        if has_location:
-                            # 위치(렉/단/박스) 정보가 있으면 정확히 일치하는 row만 매칭.
-                            # 미일치 = 새 위치 → 신규 삽입. ERP/자재명 fallback 금지.
-                            ex = existing_map.get(key)
-                        else:
-                            # 위치 정보 없을 때만 ERP코드 → 자재명 순으로 fallback
-                            ec = str(r.get("erp_code") or "").strip()
-                            if ec:
-                                ex = existing_by_erp.get(ec)
-                            if ex is None:
-                                nm = str(r.get("item_name") or "").strip()
-                                if nm:
-                                    ex = existing_by_name.get(nm)
-
-                        if ex is not None:
-                            before = int(ex["quantity"] or 0)
-                            meta = {k: v for k, v in r.items()
-                                    if k in ("item_name", "erp_code", "erp_name",
-                                             "category_large", "category_mid", "category_small")}
-                            to_update.append({
-                                "id":      ex["id"],
-                                "before":  before,
-                                "add_qty": add_qty,
-                                "after":   before + add_qty,
-                                "meta":    meta,
-                            })
-                        else:
-                            to_insert.append(r)
-
-                    # 신규 등록 + 입고 이력 (500건 단위 청크)
-                    _CHUNK = 500
-                    inserted_recs = []
-                    if to_insert:
-                        for _i in range(0, len(to_insert), _CHUNK):
-                            _res = sb.table("warehouse").insert(
-                                to_insert[_i:_i + _CHUNK]
-                            ).execute()
-                            inserted_recs.extend(_res.data or [])
-                        hist_ins = [
-                            {
-                                "actor_id":            user_id,
-                                "item_id":             rec["id"],
-                                "action_type":         "in",
-                                "quantity":            int(rec.get("quantity") or 0),
-                                "reason":              "엑셀 업로드 신규 등록",
-                                "from_center":         rec.get("location", selected_center),
-                                "snapshot_qty_before": 0,
-                                "snapshot_qty_after":  int(rec.get("quantity") or 0),
-                            }
-                            for rec in inserted_recs
-                            if int(rec.get("quantity") or 0) > 0
-                        ]
-                        for _i in range(0, len(hist_ins), _CHUNK):
-                            sb.table("history").insert(hist_ins[_i:_i + _CHUNK]).execute()
-
-                    # 기존 항목: 수량 추가 + 입고 이력
-                    hist_upd = []
-                    for upd in to_update:
-                        sb.table("warehouse").update({
-                            **upd["meta"],
-                            "quantity":         upd["after"],
-                            "last_modified_by": user_id,
-                            "last_modified_at": "now()",
-                        }).eq("id", upd["id"]).execute()
-                        if upd["add_qty"] > 0:
-                            hist_upd.append({
-                                "actor_id":            user_id,
-                                "item_id":             upd["id"],
-                                "action_type":         "in",
-                                "quantity":            upd["add_qty"],
-                                "reason":              "엑셀 업로드 입고",
-                                "from_center":         selected_center,
-                                "snapshot_qty_before": upd["before"],
-                                "snapshot_qty_after":  upd["after"],
-                            })
-                    for _i in range(0, len(hist_upd), _CHUNK):
-                        sb.table("history").insert(hist_upd[_i:_i + _CHUNK]).execute()
-
-                    clear_warehouse_cache()
-                    clear_history_cache()
-                    st.session_state.upload_done = len(inserted_recs) + len(to_update)
-                    st.session_state.show_upload = False
-                if c2.button("❌ 취소", use_container_width=True, key="cancel_upload"):
-                    st.session_state.show_upload = False
-                    st.rerun()
-            except Exception as e:
-                st.error(f"업로드 오류: {e}")
-
-# ── 사용내역 업로드 패널 (비자재센터) ────────────────────────────────────
-if CAN_USAGE_UPLOAD and st.session_state.show_usage_upload:
-    with st.container(border=True):
-        st.markdown("#### 📋 사용내역 업로드")
-        st.caption(
-            "재고목록을 다운로드한 후 **사용수량**을 입력한 행만 차감됩니다. "
-            "사용사유는 선택 항목입니다."
-        )
-
-        # 본인 센터 재고목록 다운로드 (자재명·ERP코드 채워진 양식)
-        _usage_dl = df_all[["item_name", "erp_code"]].copy() if not df_all.empty \
-                    else pd.DataFrame(columns=["item_name", "erp_code"])
-        _usage_dl = _usage_dl.sort_values("item_name", ignore_index=True)
-        _usage_dl.rename(columns={"item_name": "자재명", "erp_code": "ERP코드"}, inplace=True)
-        _usage_dl["사용수량"] = ""
-        _usage_dl["사용사유"] = ""
-        st.download_button(
-            "⬇️ 재고목록 다운로드 (수량 입력용)",
-            data=make_usage_template_buffer(_usage_dl, selected_center),
-            file_name=f"{selected_center}_사용내역_양식.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
-
-        usage_file = st.file_uploader("사용내역 파일 선택", type=["xlsx"],
-                                       label_visibility="collapsed", key="usage_uploader")
-        if usage_file:
-            try:
-                u_df = pd.read_excel(usage_file)
-                # 한글 컬럼명 → 영문 매핑
-                col_map = {v: k for k, v in USAGE_COL_MAP.items()}
-                u_df.rename(columns=col_map, inplace=True)
-
-                # 수량 변환
-                if "quantity" in u_df.columns:
-                    u_df["quantity"] = pd.to_numeric(
-                        u_df["quantity"], errors="coerce"
-                    ).fillna(0).astype(int)
-
-                # 유효 행만
-                u_df = u_df[u_df.get("item_name", pd.Series(dtype=str)).notna() |
-                            u_df.get("erp_code",  pd.Series(dtype=str)).notna()]
-                u_df = u_df[u_df.get("quantity", pd.Series(dtype=int)).fillna(0) > 0]
-
-                if u_df.empty:
-                    st.warning("처리할 유효한 행이 없습니다.")
-                else:
-                    records = clean_records(
-                        u_df.where(pd.notnull(u_df), None).to_dict("records")
-                    )
-                    st.success(f"✅ 처리 예정: **{len(records)}개** 항목 → **{selected_center}** 재고에서 차감")
-
-                    # 미리보기
-                    preview_cols = [c for c in ["item_name","erp_code","quantity","reason"] if c in u_df.columns]
-                    prev = u_df[preview_cols].copy()
-                    prev.columns = [USAGE_COL_MAP.get(c,c) for c in prev.columns]
-                    st.dataframe(prev, use_container_width=True, hide_index=True, height=280)
-                    st.caption(f"전체 {len(records)}개 항목")
-
-                    c1, c2 = st.columns(2)
-                    if c1.button("✅ 차감 확정", type="primary",
-                                 use_container_width=True, key="confirm_usage"):
-                        ok, not_found, insufficient = process_usage_upload(
-                            records, selected_center, user
-                        )
-                        msg_parts = [f"✅ {ok}개 차감 완료"]
-                        if not_found:
-                            msg_parts.append(f"⚠️ 미발견 {len(not_found)}개: {', '.join(not_found[:3])}{'...' if len(not_found)>3 else ''}")
-                        if insufficient:
-                            msg_parts.append(f"⚠️ 재고부족 {len(insufficient)}개: {', '.join(insufficient[:2])}{'...' if len(insufficient)>2 else ''}")
-                        st.session_state.usage_upload_done = " / ".join(msg_parts)
-                        st.session_state.show_usage_upload = False
-                    if c2.button("❌ 취소", use_container_width=True, key="cancel_usage"):
-                        st.session_state.show_usage_upload = False
-                        st.rerun()
-            except Exception as e:
-                st.error(f"파일 처리 오류: {e}")
 
 # ── 자재 요청 패널 (비자재센터, 자재파트·게스트 제외) ────────────────────
 if CAN_MATERIAL_REQUEST and st.session_state.show_material_request:
