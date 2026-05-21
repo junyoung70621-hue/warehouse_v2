@@ -286,7 +286,6 @@ with tab_wh:
                     ):
                         st.session_state.cv_tr_cat = _cat
                         st.session_state.pop("cv_tr_items", None)
-                        st.rerun()
 
                 # 선택된 카테고리로 항목 필터링
                 _tr_filtered = filtered.copy()
