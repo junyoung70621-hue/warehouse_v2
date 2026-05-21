@@ -336,6 +336,96 @@ def check_dups(trcn_ids: list[str], upload_date: date, direction: str) -> set[st
         return set()
 
 
+_TEAMS_NOTIFY_CENTERS = {"강남센터", "강동센터", "강북센터", "강서센터"}
+
+
+def _check_uploaded_out_centers(upload_date: date) -> set:
+    """해당 날짜 출고 업로드된 to_center 집합 반환."""
+    try:
+        res = get_supabase().table(TABLE).select("to_center") \
+            .eq("upload_date", upload_date.isoformat()) \
+            .eq("direction", "out").execute()
+        return {r["to_center"] for r in (res.data or [])}
+    except Exception:
+        return set()
+
+
+def _build_teams_card(pivot: pd.DataFrame, ref_date: date) -> dict:
+    """센터별 출고 현황 Adaptive Card JSON 생성 (Table 요소 사용)."""
+    date_str = f"{ref_date.month}월 {ref_date.day}일"
+    cols = [c for c in _COL_ORDER if c in pivot.columns]
+
+    def _cell(text, bold=False, align="Center", color=None, style=None):
+        tb = {"type": "TextBlock", "text": str(text) if text else " ",
+              "size": "Small", "horizontalAlignment": align, "wrap": False}
+        if bold:  tb["weight"] = "Bolder"
+        if color: tb["color"]  = color
+        cell = {"type": "TableCell", "items": [tb]}
+        if style: cell["style"] = style
+        return cell
+
+    # 헤더 행
+    header_cells = [_cell("종류", bold=True, align="Left", color="Accent", style="accent")]
+    for c in cols:
+        header_cells.append(_cell(c, bold=True, color="Accent", style="accent"))
+
+    # 데이터 행
+    data_rows = []
+    for row_key, row_data in pivot.iterrows():
+        cells = [_cell(str(row_key), bold=True, align="Left", color="Accent")]
+        for c in cols:
+            v = row_data.get(c, 0)
+            cells.append(_cell(str(int(v)) if v > 0 else ""))
+        data_rows.append({"type": "TableRow", "cells": cells})
+
+    # 컬럼 너비: 종류 2, 센터별 1
+    col_defs = [{"width": 2}] + [{"width": 1}] * len(cols)
+
+    return {
+        "type": "AdaptiveCard",
+        "version": "1.5",
+        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "body": [
+            {"type": "TextBlock", "text": "📤 센터별 출고 현황",
+             "size": "Large", "weight": "Bolder", "color": "Accent"},
+            {"type": "TextBlock", "text": f"{date_str}  ·  ✅ 4개 센터 업로드 완료",
+             "size": "Small", "color": "Good", "spacing": "Small"},
+            {
+                "type": "Table",
+                "firstRowAsHeaders": True,
+                "showGridLines": True,
+                "gridStyle": "accent",
+                "horizontalCellContentAlignment": "Center",
+                "columns": col_defs,
+                "rows": [
+                    {"type": "TableRow", "cells": header_cells}
+                ] + data_rows,
+                "spacing": "Medium"
+            }
+        ]
+    }
+
+
+def _send_teams_out_summary(pivot: pd.DataFrame, ref_date: date) -> bool:
+    """센터별 출고 현황을 Teams 그룹채팅으로 전송."""
+    webhook_url = st.secrets.get("TEAMS_WEBHOOK_URL", "")
+    if not webhook_url:
+        return False
+    try:
+        import urllib.request, json as _json
+        payload = {"card": _build_teams_card(pivot, ref_date)}
+        data = _json.dumps(payload).encode("utf-8")
+        req  = urllib.request.Request(
+            webhook_url, data=data,
+            headers={"Content-Type": "application/json"}
+        )
+        urllib.request.urlopen(req, timeout=10)
+        return True
+    except Exception as e:
+        st.warning(f"Teams 알림 전송 실패: {e}")
+        return False
+
+
 def save_terminal(records: list) -> bool:
     try:
         get_supabase().table(TABLE).insert(records).execute()
@@ -820,8 +910,22 @@ def _upload_section(direction: str, from_c: str, to_c_fixed: str | None, key_pre
             }
             for _, row in new_df.iterrows()
         ]
+        # 저장 전 업로드 현황 스냅샷 (출고일 때만)
+        centers_before = _check_uploaded_out_centers(mv_date) if direction == "out" else set()
+
         if save_terminal(records):
             st.success(f"✅ {len(records)}건 저장 완료!")
+
+            # 출고이고 이번 업로드로 4개 센터가 처음으로 모두 완료된 경우 Teams 알림
+            if direction == "out":
+                centers_after = _check_uploaded_out_centers(mv_date)
+                if (_TEAMS_NOTIFY_CENTERS.issubset(centers_after)
+                        and not _TEAMS_NOTIFY_CENTERS.issubset(centers_before)):
+                    fresh_out = fetch_terminal(direction="out", upload_date=mv_date)
+                    pivot_teams = build_center_pivot(fresh_out, direction="out")
+                    if pivot_teams is not None and _send_teams_out_summary(pivot_teams, mv_date):
+                        st.info("📨 Teams 채팅방으로 출고 현황을 전송했습니다.")
+
             st.rerun()
 
 
@@ -916,10 +1020,18 @@ with tab_dash:
     # ── 단말기종류 × 센터 크로스표 (출고 | 입고) ─────────────────────────────
     _tbl_out, _tbl_in = st.columns(2)
     with _tbl_out:
-        st.markdown("#### 📤 센터별 출고 현황")
+        _out_hdr, _out_btn = st.columns([4, 1])
+        _out_hdr.markdown("#### 📤 센터별 출고 현황")
         _cp_out = build_center_pivot(out_rows, direction="out")
         if _cp_out is not None:
             render_center_table(_cp_out, sel_date)
+            if _is_admin or _is_jjae:
+                if _out_btn.button("📨 Teams", key="teams_send_btn",
+                                   use_container_width=True, help="Teams 채팅방으로 출고 현황 전송"):
+                    if _send_teams_out_summary(_cp_out, sel_date):
+                        st.success("📨 Teams 채팅방으로 출고 현황을 전송했습니다.")
+                    else:
+                        st.error("전송 실패 — secrets.toml의 TEAMS_WEBHOOK_URL을 확인하세요.")
         else:
             st.info("📭 해당 날짜 출고 데이터가 없습니다.")
     with _tbl_in:
