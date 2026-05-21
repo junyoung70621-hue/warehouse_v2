@@ -1110,12 +1110,12 @@ if st.session_state.show_upload:
                 if qty_empty > 0: st.info(f"ℹ️ 수량 미입력 {qty_empty}개 → 수량 0으로 등록")
                 st.success(f"✅ 업로드 예정: **{len(records)}개** → **{selected_center}**")
                 preview_cols = ["item_name","quantity","category_large","category_mid","location"]
-                preview_df = up_df[[c for c in preview_cols if c in up_df.columns]].head(5).copy()
+                preview_df = up_df[[c for c in preview_cols if c in up_df.columns]].copy()
                 preview_df.columns = [{"item_name":"자재명","quantity":"수량",
                     "category_large":"대분류","category_mid":"중분류","location":"센터"
                     }.get(c,c) for c in preview_df.columns]
-                st.dataframe(preview_df, use_container_width=True, hide_index=True)
-                st.caption(f"상위 5개 미리보기 (전체 {len(records)}개)")
+                st.dataframe(preview_df, use_container_width=True, hide_index=True, height=280)
+                st.caption(f"전체 {len(records)}개 항목")
                 c1, c2 = st.columns(2)
                 if c1.button("✅ 업로드 확정", type="primary",
                              use_container_width=True, key="confirm_upload"):
@@ -1293,10 +1293,10 @@ if CAN_USAGE_UPLOAD and st.session_state.show_usage_upload:
 
                     # 미리보기
                     preview_cols = [c for c in ["item_name","erp_code","quantity","reason"] if c in u_df.columns]
-                    prev = u_df[preview_cols].head(5).copy()
+                    prev = u_df[preview_cols].copy()
                     prev.columns = [USAGE_COL_MAP.get(c,c) for c in prev.columns]
-                    st.dataframe(prev, use_container_width=True, hide_index=True)
-                    st.caption(f"상위 5개 미리보기 (전체 {len(records)}개)")
+                    st.dataframe(prev, use_container_width=True, hide_index=True, height=280)
+                    st.caption(f"전체 {len(records)}개 항목")
 
                     c1, c2 = st.columns(2)
                     if c1.button("✅ 차감 확정", type="primary",
