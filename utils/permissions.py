@@ -49,21 +49,22 @@ def can_stock_in_out(user: dict, target_center: str) -> bool:
 def can_request_transfer(user: dict, from_center: str) -> bool:
     """
     이동 신청 가능 여부 — 보내는 쪽(from_center) 기준.
-    - admin     : 모든 센터에서 신청 가능
-    - materials : 자재센터에서만 신청 가능
-    - manager   : 본인 소속 센터에서만 신청 가능
-    - user      : 본인 소속 센터에서만 신청 가능
+    - admin     : 모든 센터에서 신청 가능 (외부창고 포함)
+    - materials : 자재센터 + 외부창고에서 신청 가능 (외부→자재센터 반납)
+    - manager   : 본인 소속 센터에서만 (외부창고 제외)
+    - user      : 본인 소속 센터에서만 (외부창고 제외)
     - guest     : 불가
     """
+    from utils.routing import EXTERNAL
     role   = get_role(user)
     center = get_center(user)
 
     if role == "admin":
         return True
     if role == "materials":
-        return from_center == MAIN_HUB
+        return from_center == MAIN_HUB or from_center in EXTERNAL
     if role in ("manager", "user"):
-        return from_center == center
+        return from_center == center and from_center not in EXTERNAL
     return False
 
 
@@ -89,11 +90,14 @@ def can_approve_transfer(user: dict, from_center: str, to_center: str) -> bool:
     if role == "admin":
         return True
     if role == "materials":
-        # 자재센터가 받는 이동 OR 자재센터가 보내는 이동 모두 승인 가능
-        return to_center == MAIN_HUB or from_center == MAIN_HUB
+        # 자재센터 또는 외부창고가 관여된 이동 승인 가능
+        from utils.routing import EXTERNAL
+        return (to_center == MAIN_HUB or from_center == MAIN_HUB
+                or to_center in EXTERNAL or from_center in EXTERNAL)
     if role == "manager":
-        # 본인 센터로 들어오는 이동만 승인
-        return to_center == center
+        # 본인 센터로 들어오는 이동만 승인 (외부창고 제외)
+        from utils.routing import EXTERNAL
+        return to_center == center and center not in EXTERNAL
     return False
 
 
@@ -137,16 +141,18 @@ def filter_transfers_for_user(user: dict, transfers: list) -> list:
 def get_viewable_centers(user: dict) -> list:
     """
     사이드바 센터 선택 드롭다운에 표시할 센터 목록.
-    - admin/materials/guest : 재고 없는 센터(NO_WAREHOUSE_CENTERS) 제외 전체
-    - manager/user          : 본인 소속 센터만
+    - admin/materials : 외부창고 포함 전체 (NO_WAREHOUSE 제외)
+    - guest           : 외부창고 제외 전체
+    - manager/user    : 본인 소속 센터만 (외부창고 소속 불가)
     """
-    from utils.routing import CENTERS, NO_WAREHOUSE_CENTERS
+    from utils.routing import CENTERS, NO_WAREHOUSE_CENTERS, EXTERNAL
     role   = get_role(user)
     center = get_center(user)
 
-    viewable = [c for c in CENTERS if c not in NO_WAREHOUSE_CENTERS]
-    if role in ("admin", "materials", "guest"):
-        return viewable
+    if role in ("admin", "materials"):
+        return [c for c in CENTERS if c not in NO_WAREHOUSE_CENTERS]
     if role in ("manager", "user"):
-        return [center] if center in CENTERS else viewable
-    return viewable
+        base = [c for c in CENTERS if c not in NO_WAREHOUSE_CENTERS and c not in EXTERNAL]
+        return [center] if center in CENTERS and center not in EXTERNAL else base
+    # guest
+    return [c for c in CENTERS if c not in NO_WAREHOUSE_CENTERS and c not in EXTERNAL]
