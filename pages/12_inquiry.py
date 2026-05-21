@@ -159,7 +159,7 @@ if is_role("admin"):
                     if inq.get("reply"):
                         st.markdown("**답변**")
                         st.markdown(
-                            f"<div style='background:#0d1f0d;padding:12px 16px;border-radius:4px;"
+                            f"<div style='background:#F8F9FA;padding:12px 16px;border-radius:4px;"
                             f"border-left:3px solid #0284C7;font-size:13px;white-space:pre-wrap;'>"
                             f"{inq['reply']}</div>",
                             unsafe_allow_html=True,
@@ -226,7 +226,7 @@ else:
                     if inq.get("reply"):
                         st.markdown("**답변**")
                         st.markdown(
-                            f"<div style='background:#0d1f0d;padding:12px 16px;border-radius:4px;"
+                            f"<div style='background:#F8F9FA;padding:12px 16px;border-radius:4px;"
                             f"border-left:3px solid #0284C7;font-size:13px;white-space:pre-wrap;'>"
                             f"{inq['reply']}</div>",
                             unsafe_allow_html=True,
