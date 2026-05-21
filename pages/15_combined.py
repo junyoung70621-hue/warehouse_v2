@@ -1,6 +1,8 @@
 # pages/15_combined.py  — 재고 현황 + 이동 신청 통합 뷰
 import streamlit as st
 import pandas as pd
+import io
+import re
 from utils.auth import require_login, is_role, logout
 from utils.db import (
     fetch_warehouse, fetch_categories, fetch_transfers,
@@ -239,14 +241,77 @@ with tab_wh:
     else:
         filtered = pd.DataFrame()
 
-    # ── 요약 + 링크 ──────────────────────────────────────────────────────
-    total = len(filtered)
-    r1, r2 = st.columns([6, 1])
-    r1.caption(f"**{selected_center}** — 총 {total:,}개 품목" +
+    # ── 권한 계산 ────────────────────────────────────────────────────────
+    total            = len(filtered)
+    CAN_STOCK_WH     = can_stock_in_out(user, selected_center)
+    SHOW_STOCK_BTNS  = CAN_STOCK_WH and IS_HUB
+    CAN_USAGE_UP     = (not IS_HUB and
+                        (user_role == "admin" or
+                         (user_role == "manager" and my_center == selected_center)))
+    CAN_MAT_REQ      = (not IS_HUB and user_role not in ("guest", "materials"))
+
+    st.caption(f"**{selected_center}** — 총 {total:,}개 품목" +
                (f"  (검색: {search})" if search else ""))
-    if r2.button("전체 페이지", use_container_width=True, key="cv_goto_wh",
-                 help="전체 기능 보기 (입출고, 업로드 등)"):
-        st.switch_page("pages/02_warehouse.py")
+
+    # ── 액션 바 ──────────────────────────────────────────────────────────
+    def _cv_excel(df, sheet="Sheet1"):
+        safe = re.sub(r'[\\/*?:\[\]]', '_', sheet)[:31] or "Sheet1"
+        buf  = io.BytesIO()
+        with pd.ExcelWriter(buf, engine="openpyxl") as writer:
+            df.to_excel(writer, index=False, sheet_name=safe)
+        buf.seek(0)
+        return buf
+
+    _COLS = {"item_name":"자재명","quantity":"수량","rack_no":"렉번호",
+             "category_large":"대분류","category_mid":"중분류","category_small":"소분류",
+             "erp_code":"ERP코드","location":"자재위치"}
+
+    _ab = st.columns(6)
+    _bi = 0
+
+    # 양식 (admin/materials + 자재센터)
+    if user_role in ("admin", "materials") and IS_HUB:
+        _sample = _cv_excel(pd.DataFrame(columns=list(_COLS.values())), "양식")
+        _ab[_bi].download_button("📋 양식", data=_sample,
+            file_name="WMS_업로드_양식.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True)
+        _bi += 1
+
+    # 업로드 (admin/materials + 자재센터)
+    if user_role in ("admin", "materials") and IS_HUB:
+        if _ab[_bi].button("⬆️ 업로드", use_container_width=True, key="cv_ab_upload"):
+            st.switch_page("pages/02_warehouse.py")
+        _bi += 1
+
+    # 다운로드 (비게스트)
+    if user_role != "guest" and not df_all.empty:
+        _dl = df_all[[c for c in _COLS if c in df_all.columns]].copy().rename(columns=_COLS)
+        _ab[_bi].download_button("⬇️ 다운로드", data=_cv_excel(_dl, selected_center),
+            file_name=f"{selected_center}_재고현황.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True)
+        _bi += 1
+
+    # 입고 / 출고 (자재센터 + CAN_STOCK)
+    if SHOW_STOCK_BTNS:
+        if _ab[_bi].button("📥 입고", use_container_width=True, key="cv_ab_in"):
+            st.switch_page("pages/02_warehouse.py")
+        _bi += 1
+        if _ab[_bi].button("📤 출고", use_container_width=True, key="cv_ab_out"):
+            st.switch_page("pages/02_warehouse.py")
+        _bi += 1
+
+    # 사용내역 (비자재센터 + admin/manager)
+    if CAN_USAGE_UP:
+        if _ab[_bi].button("📋 사용내역", use_container_width=True, key="cv_ab_usage"):
+            st.switch_page("pages/02_warehouse.py")
+        _bi += 1
+
+    # 자재 요청 (비자재센터 + 권한 있는 역할)
+    if CAN_MAT_REQ:
+        if _ab[_bi % 6].button("📦 자재 요청", use_container_width=True, key="cv_ab_matreq"):
+            st.switch_page("pages/02_warehouse.py")
 
     # ── 이동 신청 패널 ───────────────────────────────────────────────────
     if CAN_TRANSFER_WH and not filtered.empty:
