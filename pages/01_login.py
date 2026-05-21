@@ -3,7 +3,7 @@ import streamlit as st
 import os
 import base64
 from datetime import datetime
-from utils.auth import login, register, reset_password
+from utils.auth import login, register, reset_password, try_restore_session
 from utils.routing import CENTERS
 from utils.ui import apply_global_css
 
@@ -45,7 +45,7 @@ div[data-testid="stTextInput"] input:focus {
 </style>
 """, unsafe_allow_html=True)
 
-if st.session_state.get("user"):
+if try_restore_session():
     st.switch_page("pages/14_terminal_dashboard.py")
 
 if _LOGIN_LOGO:
