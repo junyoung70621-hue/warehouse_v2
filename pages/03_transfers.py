@@ -18,6 +18,17 @@ st.set_page_config(
 apply_global_css()
 require_login()
 
+@st.experimental_dialog("✅ 처리 완료")
+def _done_popup(msg: str):
+    st.markdown(msg)
+    st.write("")
+    if st.button("확인", use_container_width=True, type="primary", key="tr_done_ok"):
+        st.session_state.pop("_transfer_done_msg", None)
+        st.rerun()
+
+if st.session_state.get("_transfer_done_msg"):
+    _done_popup(st.session_state["_transfer_done_msg"])
+
 user      = st.session_state.user
 user_id   = user["id"]
 user_role = user["role"]
@@ -134,7 +145,7 @@ if _st_dialog:
             if approve_transfer(transfer_id, _user,
                                 rack_no=rack_no, shelf=shelf, box_no=box_no):
                 clear_warehouse_cache()
-                st.success("승인 완료!")
+                st.session_state["_transfer_done_msg"] = "✅ 승인 완료!"
                 st.rerun()
         if cb.button("취소", use_container_width=True, key=f"hub_cancel_{transfer_id}"):
             st.rerun()
@@ -195,7 +206,7 @@ def render_transfers(status_filter=None):
                         else:
                             # 자재센터→타 또는 타→타: 바로 승인
                             if approve_transfer(tr["id"], user):
-                                st.success("✅ 승인 완료!")
+                                st.session_state["_transfer_done_msg"] = "✅ 승인 완료!"
                                 clear_transfer_cache()
                                 st.rerun()
                     if st.button("❌ 거절", key=f"reject_{status_filter}_{tr['id']}",

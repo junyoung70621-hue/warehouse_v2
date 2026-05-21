@@ -295,6 +295,15 @@ def validate_upload(up_df):
             )
     return True, ""
 
+@st.experimental_dialog("✅ 처리 완료")
+def _done_popup(msg: str):
+    st.markdown(msg)
+    st.write("")
+    if st.button("확인", use_container_width=True, type="primary", key="wh_done_ok"):
+        st.session_state.pop("_done_popup_msg", None)
+        st.rerun()
+
+
 def process_usage_upload(records: list, center: str, actor: dict):
     """사용내역 처리: 자재명/ERP코드로 매칭 후 수량 차감 + 이력 기록."""
     sb = get_supabase()
@@ -908,12 +917,13 @@ else:
 
 # ── 알림 메시지 ──────────────────────────────────────────────────────────
 if st.session_state.upload_done:
-    st.success(f"🎉 {st.session_state.upload_done}개 자재 업로드 완료!")
+    st.session_state["_done_popup_msg"] = f"🎉 {st.session_state.upload_done}개 자재 업로드 완료!"
     st.session_state.upload_done = None
-
 if st.session_state.usage_upload_done:
-    st.success(st.session_state.usage_upload_done)
+    st.session_state["_done_popup_msg"] = st.session_state.usage_upload_done
     st.session_state.usage_upload_done = None
+if st.session_state.get("_done_popup_msg"):
+    _done_popup(st.session_state["_done_popup_msg"])
 
 # ── 관리자 내보내기 패널 (다운로드 전용) ─────────────────────────────────
 if is_role("admin") and _my_center not in NO_WAREHOUSE_CENTERS and st.session_state.show_export:
