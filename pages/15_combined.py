@@ -31,11 +31,16 @@ st.set_page_config(
 apply_global_css()
 require_login()
 
+if not is_role("admin", "materials"):
+    st.error("🔒 통합 뷰는 관리자 및 자재파트만 접근할 수 있습니다.")
+    st.stop()
+
 # ── 세션 초기화 (cv_ 프리픽스로 기존 페이지와 충돌 방지) ─────────────────────
 _cv_defaults = {
     "cv_large": "전체", "cv_mid": "전체", "cv_small": "전체",
     "cv_page": 1, "cv_page_size": 20, "cv_kpi_filter": None,
     "_cv_detail_item": None,
+    "cv_tr_cat": "전체", "cv_tr_cart": [],
 }
 for k, v in _cv_defaults.items():
     if k not in st.session_state:
@@ -609,9 +614,6 @@ with tab_wh:
                 dst = st.selectbox("도착 센터", _dst_opts, key="cv_tr_dst")
 
                 # ── 버스 / 택시 카테고리 필터 ──────────────────────────
-                if "cv_tr_cat" not in st.session_state:
-                    st.session_state.cv_tr_cat = "전체"
-
                 _cats_in_data = []
                 if "category_large" in filtered.columns:
                     _cats_in_data = sorted(filtered["category_large"].dropna().unique().tolist())
@@ -649,10 +651,6 @@ with tab_wh:
                     _lbl = _tr_label(_row)
                     _label_to_id[_lbl] = int(_row["id"])
                     _label_opts.append(_lbl)
-
-                # ── 카트 초기화 ────────────────────────────────────────
-                if "cv_tr_cart" not in st.session_state:
-                    st.session_state.cv_tr_cart = []
 
                 # ── 항목 추가 행 ───────────────────────────────────────
                 _c1, _c2, _c3 = st.columns([5, 1.5, 1.5])

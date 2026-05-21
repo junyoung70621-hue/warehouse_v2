@@ -387,6 +387,25 @@ def render_sidebar_section(label: str):
     )
 
 
+@st.cache_data(ttl=30)
+def _get_pending_counts(role: str) -> dict:
+    """상단바 대기 건수 조회 — 30초 캐시."""
+    try:
+        from utils.db import get_supabase
+        sb = get_supabase()
+        tr_cnt = (sb.table("transfers").select("id", count="exact")
+                    .eq("status", "pending").execute().count or 0)
+        mr_cnt = (sb.table("material_requests").select("id", count="exact")
+                    .eq("status", "pending").execute().count or 0)
+        pr_cnt = 0
+        if role in ("admin", "materials"):
+            pr_cnt = (sb.table("purchase_requests").select("id", count="exact")
+                        .eq("status", "pending").execute().count or 0)
+        return {"tr": tr_cnt, "mr": mr_cnt, "pr": pr_cnt}
+    except Exception:
+        return {"tr": 0, "mr": 0, "pr": 0}
+
+
 def render_top_bar(title: str, user: dict):
     """공통 고정 상단바: ATEC 로고 | 페이지 제목 | 유저 정보/날짜."""
     from datetime import datetime, timezone, timedelta
@@ -409,9 +428,34 @@ def render_top_bar(title: str, user: dict):
     _session_color = "#D3004F" if _session_warn else "#0284C7"
     _rl_map = {"admin":"관리자","materials":"자재파트",
                "manager":"센터장","user":"일반","guest":"게스트"}
-    _rl = _rl_map.get(user.get("role",""), user.get("role",""))
-    _uc = user.get("assigned_center") or user.get("center","")
-    _nm = user.get("name","")
+    _role = user.get("role", "guest")
+    _rl   = _rl_map.get(_role, _role)
+    _uc   = user.get("assigned_center") or user.get("center","")
+    _nm   = user.get("name","")
+
+    # 대기 건수 뱃지
+    _badge_html = ""
+    if _role != "guest":
+        _cnt = _get_pending_counts(_role)
+        def _pill(label, n, color="#D3004F"):
+            _bg = f"{color}15"
+            return (
+                f"<span style='display:inline-flex;align-items:center;gap:4px;"
+                f"background:{_bg};border:1px solid {color}44;border-radius:4px;"
+                f"padding:2px 7px;white-space:nowrap;'>"
+                f"<span style='font-size:10px;color:#64748B;'>{label}</span>"
+                f"<span style='font-size:12px;font-weight:700;color:{color};'>{n}</span>"
+                f"</span>"
+            )
+        _pills = _pill("이동신청", _cnt["tr"]) + _pill("자재요청", _cnt["mr"])
+        if _role in ("admin", "materials"):
+            _pills += _pill("구매요청", _cnt["pr"])
+        _badge_html = (
+            f"<div style='display:flex;align-items:center;gap:6px;'>"
+            f"<span style='font-size:10px;color:#94A3B8;white-space:nowrap;'>처리대기건수 :</span>"
+            f"{_pills}</div>"
+            f"<div style='width:1px;height:20px;background:rgba(0,0,0,0.1);'></div>"
+        )
     _logo = (
         f'<img src="data:image/png;base64,{_LOGO_B64}" '
         f'style="max-width:192px;width:100%;height:auto;display:block;">'
@@ -474,7 +518,8 @@ def render_top_bar(title: str, user: dict):
                          font-weight:700;color:#1E293B;user-select:none;letter-spacing:0.01em;">
                 {title}
             </span>
-            <div style="display:flex;align-items:center;gap:18px;">
+            <div style="display:flex;align-items:center;gap:12px;">
+                {_badge_html}
                 <div style="display:flex;align-items:center;gap:6px;" id="wms-session-block">
                     <div id="wms-session-dot" style="width:6px;height:6px;border-radius:50%;
                                 background:{_session_color};animation:wms-pulse 2s ease-in-out infinite;
