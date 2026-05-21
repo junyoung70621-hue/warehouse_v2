@@ -6,7 +6,7 @@ import re
 from utils.auth import require_login, is_role, logout
 from utils.db import (
     fetch_warehouse, fetch_categories, fetch_transfers,
-    approve_transfer, create_transfer,
+    approve_transfer, create_transfer, stock_in, stock_out,
     clear_warehouse_cache, clear_transfer_cache, clear_history_cache,
     get_supabase, fetch_item_history, update_item,
 )
@@ -46,6 +46,7 @@ _cv_defaults = {
     "cv_page": 1, "cv_page_size": 20, "cv_kpi_filter": None,
     "_cv_detail_item": None,
     "cv_tr_cat": "전체", "cv_tr_cart": [],
+    "cv_in_cart": [], "cv_out_cart": [],
 }
 for k, v in _cv_defaults.items():
     if k not in st.session_state:
@@ -215,6 +216,140 @@ if _st_dialog:
                     st.rerun()
             except Exception as e:
                 st.error(f"파일 처리 오류: {e}")
+
+    @_st_dialog("📥 입고", width="large")
+    def _cv_stock_in_dialog(center: str, usr: dict, all_rows: list):
+        if "cv_in_cart" not in st.session_state:
+            st.session_state.cv_in_cart = []
+
+        def _lbl(row):
+            qty_v = int(row.get("quantity", 0) or 0)
+            rack  = str(row.get("rack_no", "") or "").strip()
+            box_v = str(row.get("box_no",  "") or "").strip()
+            parts = [f"현재 {qty_v}개"]
+            if rack:  parts.append(f"렉 {rack}")
+            if box_v: parts.append(f"박스 {box_v}")
+            return f"{row['item_name']}  |  {' · '.join(parts)}"
+
+        _id_map = {_lbl(r): int(r["id"]) for r in all_rows if r.get("item_name")}
+        _opts   = list(_id_map.keys())
+
+        _c1, _c2, _c3 = st.columns([5, 1.5, 1.5])
+        _pick = _c1.selectbox("자재 선택", [""] + _opts,
+                               label_visibility="collapsed", key="cv_in_pick")
+        _qty  = _c2.number_input("수량", min_value=1, value=1,
+                                  label_visibility="collapsed", key="cv_in_qty")
+        if _c3.button("➕ 추가", use_container_width=True,
+                      key="cv_in_add", disabled=not _pick):
+            _iid = _id_map.get(_pick)
+            if _iid and _iid not in [x["item_id"] for x in st.session_state.cv_in_cart]:
+                st.session_state.cv_in_cart.append({"label": _pick, "item_id": _iid, "qty": int(_qty)})
+            elif _iid:
+                st.warning("이미 추가된 항목입니다.")
+
+        if st.session_state.cv_in_cart:
+            st.markdown("**입고 목록**")
+            for _ci, _it in enumerate(st.session_state.cv_in_cart):
+                _lc1, _lc2, _lc3 = st.columns([5, 1.5, 1])
+                _lc1.markdown(f"<span style='font-size:12px;'>{_it['label']}</span>",
+                              unsafe_allow_html=True)
+                _nq = _lc2.number_input("수량", min_value=1, value=_it["qty"],
+                                         label_visibility="collapsed",
+                                         key=f"cv_in_cart_qty_{_ci}")
+                if _nq != _it["qty"]:
+                    st.session_state.cv_in_cart[_ci]["qty"] = int(_nq)
+                if _lc3.button("✕", key=f"cv_in_cart_rm_{_ci}", use_container_width=True):
+                    st.session_state.cv_in_cart.pop(_ci)
+                    st.rerun()
+
+        st.divider()
+        _reason = st.text_input("입고 사유 *", placeholder="예: 신규 입고, 반납, 재고 조정",
+                                 key="cv_in_reason")
+        _sa, _sb2 = st.columns(2)
+        if _sa.button("✅ 입고 확정", type="primary", use_container_width=True,
+                      key="cv_in_confirm",
+                      disabled=not st.session_state.cv_in_cart):
+            if not _reason.strip():
+                st.error("입고 사유를 입력해 주세요.")
+            else:
+                _ok = 0
+                for _it in st.session_state.cv_in_cart:
+                    if stock_in(_it["item_id"], _it["qty"], usr, _reason.strip()):
+                        _ok += 1
+                if _ok:
+                    st.session_state.cv_in_cart = []
+                    st.session_state["_cv_done_msg"] = f"✅ {_ok}개 항목 입고 완료"
+                    st.rerun()
+        if _sb2.button("❌ 취소", use_container_width=True, key="cv_in_cancel"):
+            st.session_state.cv_in_cart = []
+            st.rerun()
+
+    @_st_dialog("📤 출고", width="large")
+    def _cv_stock_out_dialog(center: str, usr: dict, all_rows: list):
+        if "cv_out_cart" not in st.session_state:
+            st.session_state.cv_out_cart = []
+
+        def _lbl(row):
+            qty_v = int(row.get("quantity", 0) or 0)
+            rack  = str(row.get("rack_no", "") or "").strip()
+            box_v = str(row.get("box_no",  "") or "").strip()
+            parts = [f"현재 {qty_v}개"]
+            if rack:  parts.append(f"렉 {rack}")
+            if box_v: parts.append(f"박스 {box_v}")
+            return f"{row['item_name']}  |  {' · '.join(parts)}"
+
+        _id_map = {_lbl(r): int(r["id"]) for r in all_rows if r.get("item_name")}
+        _opts   = list(_id_map.keys())
+
+        _c1, _c2, _c3 = st.columns([5, 1.5, 1.5])
+        _pick = _c1.selectbox("자재 선택", [""] + _opts,
+                               label_visibility="collapsed", key="cv_out_pick")
+        _qty  = _c2.number_input("수량", min_value=1, value=1,
+                                  label_visibility="collapsed", key="cv_out_qty")
+        if _c3.button("➕ 추가", use_container_width=True,
+                      key="cv_out_add", disabled=not _pick):
+            _iid = _id_map.get(_pick)
+            if _iid and _iid not in [x["item_id"] for x in st.session_state.cv_out_cart]:
+                st.session_state.cv_out_cart.append({"label": _pick, "item_id": _iid, "qty": int(_qty)})
+            elif _iid:
+                st.warning("이미 추가된 항목입니다.")
+
+        if st.session_state.cv_out_cart:
+            st.markdown("**출고 목록**")
+            for _ci, _it in enumerate(st.session_state.cv_out_cart):
+                _lc1, _lc2, _lc3 = st.columns([5, 1.5, 1])
+                _lc1.markdown(f"<span style='font-size:12px;'>{_it['label']}</span>",
+                              unsafe_allow_html=True)
+                _nq = _lc2.number_input("수량", min_value=1, value=_it["qty"],
+                                         label_visibility="collapsed",
+                                         key=f"cv_out_cart_qty_{_ci}")
+                if _nq != _it["qty"]:
+                    st.session_state.cv_out_cart[_ci]["qty"] = int(_nq)
+                if _lc3.button("✕", key=f"cv_out_cart_rm_{_ci}", use_container_width=True):
+                    st.session_state.cv_out_cart.pop(_ci)
+                    st.rerun()
+
+        st.divider()
+        _reason = st.text_input("출고 사유 *", placeholder="예: 현장 출고, 이동, 폐기",
+                                 key="cv_out_reason")
+        _sa, _sb2 = st.columns(2)
+        if _sa.button("✅ 출고 확정", type="primary", use_container_width=True,
+                      key="cv_out_confirm",
+                      disabled=not st.session_state.cv_out_cart):
+            if not _reason.strip():
+                st.error("출고 사유를 입력해 주세요.")
+            else:
+                _ok = 0
+                for _it in st.session_state.cv_out_cart:
+                    if stock_out(_it["item_id"], _it["qty"], usr, _reason.strip()):
+                        _ok += 1
+                if _ok:
+                    st.session_state.cv_out_cart = []
+                    st.session_state["_cv_done_msg"] = f"✅ {_ok}개 항목 출고 완료"
+                    st.rerun()
+        if _sb2.button("❌ 취소", use_container_width=True, key="cv_out_cancel"):
+            st.session_state.cv_out_cart = []
+            st.rerun()
 
     @_st_dialog("자재센터 입고 위치 지정", width="large")
     def _cv_hub_dialog(transfer_id, item_name, from_center, qty):
@@ -723,12 +858,12 @@ with tab_wh:
         _bi += 1
 
     # 입고 / 출고 (자재센터 + CAN_STOCK)
-    if SHOW_STOCK_BTNS:
+    if SHOW_STOCK_BTNS and _st_dialog:
         if _ab[_bi].button("📥 입고", use_container_width=True, key="cv_ab_in"):
-            st.switch_page("pages/02_warehouse.py")
+            _cv_stock_in_dialog(selected_center, user, raw_data)
         _bi += 1
         if _ab[_bi].button("📤 출고", use_container_width=True, key="cv_ab_out"):
-            st.switch_page("pages/02_warehouse.py")
+            _cv_stock_out_dialog(selected_center, user, raw_data)
         _bi += 1
 
     # 사용내역 (비자재센터 + admin/manager)
