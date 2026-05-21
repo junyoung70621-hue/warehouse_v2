@@ -8,7 +8,7 @@ from utils.db import (
     fetch_warehouse, fetch_categories, fetch_transfers,
     approve_transfer, create_transfer, stock_in, stock_out,
     clear_warehouse_cache, clear_transfer_cache, clear_history_cache,
-    get_supabase, fetch_item_history, update_item,
+    get_supabase, fetch_item_history, update_item, submit_material_request,
 )
 from utils.routing import get_allowed_destinations, NO_WAREHOUSE_CENTERS, CATEGORY_DESTINATIONS, CENTERS as _ALL_CENTERS_ROUTING
 from utils.rack_map import RACK_COORD
@@ -45,6 +45,7 @@ _cv_defaults = {
     "cv_tr_cat": "전체", "cv_tr_cart": [],
     "cv_in_cart": [], "cv_out_cart": [],
     "cv_in_reason_mode": "통합", "cv_out_reason_mode": "통합",
+    "cv_mat_req_cart": [],
 }
 for k, v in _cv_defaults.items():
     if k not in st.session_state:
@@ -346,6 +347,126 @@ if _st_dialog:
             action_label="출고", confirm_key="cv_out_confirm", cancel_key="cv_out_cancel",
             fn_stock=stock_out, done_msg_prefix="출고", all_rows=all_rows,
         )
+
+    @_st_dialog("📦 자재 요청", width="large")
+    def _cv_mat_req_dialog(center: str, usr_id: str, usr_name: str, usr_email: str):
+        from utils.mail import send_material_request as _send_req
+
+        _CENTER_CATEGORY_RESTRICT = {
+            "강서센터": "버스", "강북센터": "버스",
+            "강동센터": "버스", "강남센터": "버스",
+            "고속/시외": "버스", "택시지원파트": "택시", "AFC지원파트": "철도",
+        }
+        _restrict = _CENTER_CATEGORY_RESTRICT.get(center)
+
+        hub_items = fetch_warehouse("자재센터")
+        if not hub_items:
+            st.warning("자재센터에 등록된 자재가 없습니다.")
+            return
+
+        hub_df = pd.DataFrame(hub_items)
+        if _restrict and "category_large" in hub_df.columns:
+            hub_df = hub_df[hub_df["category_large"] == _restrict]
+            st.info(f"ℹ️ **{center}** 는 **{_restrict} 자재**만 요청 가능합니다.")
+
+        # 자재명 기준 수량 합산
+        _agg = {"quantity": "sum"}
+        for _c in ["category_large", "category_mid", "category_small", "erp_code", "erp_name"]:
+            if _c in hub_df.columns:
+                _agg[_c] = "first"
+        hub_agg = hub_df.groupby("item_name", as_index=False).agg(_agg)
+
+        # 검색
+        _ph = (f"{_restrict} 자재명 / 중분류 / ERP코드 검색..."
+               if _restrict else "자재명 / 대분류 / 중분류 / ERP코드...")
+        _qs = st.text_input("검색", placeholder=_ph,
+                            label_visibility="collapsed", key="cv_mr_search")
+        _fhub = hub_agg.copy()
+        if _qs.strip():
+            _cols = (["item_name", "category_mid", "erp_code"] if _restrict
+                     else ["item_name", "category_large", "category_mid", "erp_code"])
+            _mask = pd.Series([False] * len(_fhub), index=_fhub.index)
+            for _c in _cols:
+                if _c in _fhub.columns:
+                    _mask |= _fhub[_c].fillna("").str.contains(_qs, case=False, na=False)
+            _fhub = _fhub[_mask]
+
+        if _fhub.empty:
+            st.info("검색 결과가 없습니다.")
+        else:
+            _opts = {f"{r['item_name']}  (재고: {int(r['quantity'])}개)": r.to_dict()
+                     for _, r in _fhub.iterrows()}
+            _sel_lbl = st.selectbox("자재 선택", list(_opts.keys()),
+                                    label_visibility="collapsed", key="cv_mr_sel")
+            _sel_item = _opts[_sel_lbl]
+            _rc1, _rc2 = st.columns([1, 3])
+            _req_qty = _rc1.number_input("요청수량", min_value=1, step=1,
+                                          value=1, key="cv_mr_qty")
+            if _rc2.button("🛒 목록에 추가", use_container_width=True, key="cv_mr_add"):
+                _cart = st.session_state.cv_mat_req_cart
+                _idx  = next((i for i, x in enumerate(_cart)
+                               if x["item_name"] == _sel_item["item_name"]), None)
+                if _idx is not None:
+                    _cart[_idx]["requested_qty"] = _req_qty
+                else:
+                    _cart.append({
+                        "item_name":     _sel_item["item_name"],
+                        "erp_code":      _sel_item.get("erp_code") or "",
+                        "current_qty":   int(_sel_item["quantity"]),
+                        "requested_qty": _req_qty,
+                    })
+                st.session_state.cv_mat_req_cart = _cart
+                st.rerun()
+
+        # 요청 목록
+        _cart = st.session_state.cv_mat_req_cart
+        if _cart:
+            st.divider()
+            st.markdown("**요청 목록**")
+            _rows = [{"자재명": x["item_name"], "현재재고": x["current_qty"],
+                      "요청수량": x["requested_qty"],
+                      "재고상태": "⚠️ 재고부족" if x["current_qty"] < x["requested_qty"] else "✅ 충분"}
+                     for x in _cart]
+            st.dataframe(pd.DataFrame(_rows), use_container_width=True, hide_index=True)
+
+            _notes = st.text_area("비고 (선택)", placeholder="담당자에게 전달할 내용을 입력하세요.",
+                                  height=72, key="cv_mr_notes")
+
+            _b1, _b2, _b3 = st.columns([2, 1, 1])
+            if _b1.button("📨 요청 발송", type="primary",
+                          use_container_width=True, key="cv_mr_send"):
+                _sb = get_supabase()
+                _mat_emails = list({
+                    u["email"]
+                    for _res in (
+                        _sb.table("users").select("email,assigned_center").eq("role","materials").eq("is_approved",True).execute(),
+                        _sb.table("users").select("email,assigned_center").eq("role","admin").eq("is_approved",True).execute(),
+                    )
+                    for u in (_res.data or [])
+                    if u.get("email") and u.get("assigned_center") != "고객지원사업부"
+                })
+                if not _mat_emails:
+                    st.error("자재파트 담당자 이메일을 찾을 수 없습니다.")
+                else:
+                    try:
+                        submit_material_request(
+                            requester_id=usr_id, requester_name=usr_name,
+                            requester_email=usr_email, from_center=center,
+                            items=_cart, notes=_notes,
+                        )
+                        _send_req(_mat_emails, center, usr_name, _cart, notes=_notes)
+                        st.session_state.cv_mat_req_cart = []
+                        st.session_state["_cv_done_msg"] = "📨 자재 요청이 발송되었습니다."
+                        st.rerun()
+                    except Exception as _e:
+                        st.error(f"발송 오류: {_e}")
+
+            if _b2.button("🗑️ 초기화", use_container_width=True, key="cv_mr_clear"):
+                st.session_state.cv_mat_req_cart = []
+                st.rerun()
+            if _b3.button("✖️ 닫기", use_container_width=True, key="cv_mr_close"):
+                st.session_state.cv_mat_req_cart = []
+                st.rerun()
 
     @_st_dialog("자재센터 입고 위치 지정", width="large")
     def _cv_hub_dialog(transfer_id, item_name, from_center, qty):
@@ -869,9 +990,12 @@ with tab_wh:
         _bi += 1
 
     # 자재 요청 (비자재센터 + 권한 있는 역할)
-    if CAN_MAT_REQ:
+    if CAN_MAT_REQ and _st_dialog:
         if _ab[_bi % 6].button("📦 자재 요청", use_container_width=True, key="cv_ab_matreq"):
-            st.switch_page("pages/02_warehouse.py")
+            _cv_mat_req_dialog(
+                selected_center, user_id, user_name,
+                user.get("email", ""),
+            )
 
     # ── 이동 신청 패널 ───────────────────────────────────────────────────
     if CAN_TRANSFER_WH and not filtered.empty:
