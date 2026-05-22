@@ -46,7 +46,6 @@ _cv_defaults = {
     "cv_in_cart": [], "cv_out_cart": [],
     "cv_in_reason_mode": "통합", "cv_out_reason_mode": "통합",
     "cv_mat_req_cart": [],
-    "cv_sort_col": "item_name", "cv_sort_dir": "asc",
 }
 for k, v in _cv_defaults.items():
     if k not in st.session_state:
@@ -1132,12 +1131,6 @@ with tab_wh:
     if filtered.empty:
         st.info("📭 해당 조건의 재고가 없습니다.")
     else:
-        # 정렬 적용
-        _sc  = st.session_state.cv_sort_col
-        _asc = st.session_state.cv_sort_dir == "asc"
-        if _sc in filtered.columns:
-            filtered = filtered.sort_values(_sc, ascending=_asc, na_position="last")
-
         PAGE_SIZE = st.session_state.cv_page_size
         page_num  = st.session_state.cv_page
         total_pages = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
@@ -1147,29 +1140,6 @@ with tab_wh:
         start = (page_num - 1) * PAGE_SIZE
         end   = start + PAGE_SIZE
         page_df = filtered.iloc[start:end]
-
-        # 정렬 버튼 행
-        _sortable = [
-            ("item_name", "자재명"), ("quantity", "수량"),
-            ("category_large", "대분류"), ("category_mid", "중분류"), ("category_small", "소분류"),
-        ]
-        _sort_cols = st.columns(len(_sortable) + 1)
-        _sort_cols[0].caption("정렬:")
-        for _si, (_col_key, _col_lbl) in enumerate(_sortable):
-            _is_active = (_sc == _col_key)
-            _arrow = (" ▲" if _asc else " ▼") if _is_active else ""
-            if _sort_cols[_si + 1].button(
-                f"{_col_lbl}{_arrow}", key=f"cv_sort_{_col_key}",
-                use_container_width=True,
-                type="primary" if _is_active else "secondary",
-            ):
-                if _sc == _col_key:
-                    st.session_state.cv_sort_dir = "desc" if _asc else "asc"
-                else:
-                    st.session_state.cv_sort_col = _col_key
-                    st.session_state.cv_sort_dir = "asc"
-                st.session_state.cv_page = 1
-                st.rerun()
 
         # 표시 컬럼 선택 (자재센터는 렉/단/박스 추가)
         if IS_HUB:
