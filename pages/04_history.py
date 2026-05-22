@@ -38,6 +38,8 @@ with st.sidebar:
         st.switch_page("pages/02_warehouse.py")
     if st.button("🚚 이동 신청 현황", use_container_width=True):
         st.switch_page("pages/03_transfers.py")
+    if st.button("🗂️ 통합 뷰", use_container_width=True):
+        st.switch_page("pages/15_combined.py")
     st.button("📋 입출고 이력", use_container_width=True, type="primary")
     if not is_role("guest"):
         if st.button("📊 사용내역", use_container_width=True):
