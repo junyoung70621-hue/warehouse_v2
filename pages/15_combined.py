@@ -769,6 +769,8 @@ with st.sidebar:
         if st.button("🟢 접속 현황", use_container_width=True):
             st.switch_page("pages/13_online_users.py")
     render_sidebar_section("개인")
+    if st.button("📢 공지사항", use_container_width=True):
+        st.switch_page("pages/16_notices.py")
     if st.button("💬 문의하기", use_container_width=True):
         st.switch_page("pages/12_inquiry.py")
     if st.button("👤 마이페이지", use_container_width=True):

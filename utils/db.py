@@ -768,3 +768,86 @@ def save_reply_message(request_id: int, message: str) -> bool:
     except Exception as e:
         st.error(f"회신 저장 오류: {e}")
         return False
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 공지사항 (notices)
+# ══════════════════════════════════════════════════════════════════════════
+
+@st.cache_data(ttl=60)
+def fetch_notices(active_only: bool = True):
+    def q(sb):
+        query = sb.table("notices").select(
+            "id, title, content, is_active, created_at, "
+            "users!notices_author_id_fkey(name)"
+        ).order("created_at", desc=True)
+        if active_only:
+            query = query.eq("is_active", True)
+        return query.execute().data or []
+    return _query_with_retry(q)
+
+
+def clear_notice_cache():
+    fetch_notices.clear()
+    fetch_unread_notice_count.clear()
+
+
+@st.cache_data(ttl=60)
+def fetch_unread_notice_count(user_id: str) -> int:
+    try:
+        def q(sb):
+            active = sb.table("notices").select("id").eq("is_active", True).execute().data or []
+            if not active:
+                return 0
+            ids = [r["id"] for r in active]
+            read = sb.table("notice_reads").select("notice_id").eq("user_id", user_id).execute().data or []
+            read_ids = {r["notice_id"] for r in read}
+            return sum(1 for i in ids if i not in read_ids)
+        return _query_with_retry(q)
+    except Exception:
+        return 0
+
+
+def mark_notice_read(notice_id: str, user_id: str) -> None:
+    try:
+        get_supabase().table("notice_reads").upsert(
+            {"notice_id": notice_id, "user_id": user_id},
+            on_conflict="notice_id,user_id"
+        ).execute()
+        fetch_unread_notice_count.clear()
+    except Exception:
+        pass
+
+
+def create_notice(title: str, content: str, author_id: str) -> bool:
+    try:
+        get_supabase().table("notices").insert({
+            "title": title, "content": content, "author_id": author_id, "is_active": True
+        }).execute()
+        clear_notice_cache()
+        return True
+    except Exception as e:
+        st.error(f"공지 등록 오류: {e}")
+        return False
+
+
+def update_notice(notice_id: str, title: str, content: str, is_active: bool) -> bool:
+    try:
+        get_supabase().table("notices").update({
+            "title": title, "content": content, "is_active": is_active
+        }).eq("id", notice_id).execute()
+        clear_notice_cache()
+        return True
+    except Exception as e:
+        st.error(f"공지 수정 오류: {e}")
+        return False
+
+
+def delete_notice(notice_id: str) -> bool:
+    try:
+        get_supabase().table("notices").delete().eq("id", notice_id).execute()
+        clear_notice_cache()
+        return True
+    except Exception as e:
+        st.error(f"공지 삭제 오류: {e}")
+        return False

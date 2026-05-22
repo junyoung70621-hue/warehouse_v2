@@ -461,8 +461,29 @@ def render_top_bar(title: str, user: dict):
     _uc   = user.get("assigned_center") or user.get("center","")
     _nm   = user.get("name","")
 
+    # 공지사항 미읽음 수
+    from utils.db import fetch_unread_notice_count as _fn_unread
+    _unread_cnt = _fn_unread(user.get("id", ""))
+    _notice_label = f"📢  공지  {_unread_cnt}" if _unread_cnt > 0 else "📢  공지"
+    _notice_color = "#D3004F" if _unread_cnt > 0 else "#64748B"
+    _notice_html = (
+        f"<div style='display:flex;align-items:center;gap:5px;"
+        f"white-space:nowrap;'>"
+        f"<span style='font-size:11px;font-weight:700;color:{_notice_color};'>"
+        f"📢</span>"
+        f"<span style='font-size:10px;color:{_notice_color};'>공지</span>"
+        + (
+            f"<span style='background:#D3004F;color:#fff;font-size:10px;font-weight:700;"
+            f"border-radius:8px;padding:0px 5px;min-width:16px;text-align:center;'>"
+            f"{_unread_cnt}</span>"
+            if _unread_cnt > 0 else ""
+        ) +
+        f"</div>"
+        f"<div style='width:1px;height:20px;background:rgba(0,0,0,0.1);'></div>"
+    )
+
     # 대기 건수 뱃지 (승인 권한 있는 역할만)
-    _badge_html = ""
+    _badge_html = _notice_html
     if _role in ("admin", "materials", "manager"):
         _cnt = _get_pending_counts(_role, _uc)
         def _pill(label, n, color="#D3004F"):
@@ -481,7 +502,7 @@ def render_top_bar(title: str, user: dict):
         if _role in ("admin", "materials"):
             _pills += _pill("자재요청", _cnt["mr"])
             _pills += _pill("구매요청", _cnt["pr"])
-        _badge_html = (
+        _badge_html += (
             f"<div style='display:flex;align-items:center;gap:6px;'>"
             f"<span style='font-size:10px;color:#94A3B8;white-space:nowrap;'>처리대기건수 :</span>"
             f"{_pills}</div>"
