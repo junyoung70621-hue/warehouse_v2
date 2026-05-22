@@ -1148,13 +1148,13 @@ with tab_wh:
 
         # 페이지네이션 (테이블 위)
         st.divider()
-        pa, pb, pc, pd_, pe = st.columns([2, 2, 3, 2, 2])
+        pa, pb, pc, pd_, pe = st.columns([2, 2, 4, 2, 2])
         pa.caption("이전")
         pb.caption("페이지")
         pc.caption(" ")
         pd_.caption("다음")
         pe.caption("개수")
-        if pa.button("◀◀" if False else "◀", key="cv_prev", disabled=page_num <= 1,
+        if pa.button("◀", key="cv_prev", disabled=page_num <= 1,
                      use_container_width=True):
             st.session_state.cv_page -= 1
             st.rerun()
@@ -1166,7 +1166,7 @@ with tab_wh:
             st.session_state.cv_page = _sel_page
             st.rerun()
         pc.markdown(
-            f"<div style='text-align:center;padding-top:4px;font-size:15px;font-weight:600;'>"
+            f"<div style='text-align:center;padding-top:14px;font-size:15px;font-weight:600;'>"
             f"/ {total_pages} 페이지</div>",
             unsafe_allow_html=True,
         )
