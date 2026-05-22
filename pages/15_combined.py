@@ -9,6 +9,7 @@ from utils.db import (
     approve_transfer, create_transfer, stock_in, stock_out,
     clear_warehouse_cache, clear_transfer_cache, clear_history_cache,
     get_supabase, fetch_item_history, update_item, submit_material_request,
+    get_center_emails,
 )
 from utils.routing import get_allowed_destinations, NO_WAREHOUSE_CENTERS, CATEGORY_DESTINATIONS, CENTERS as _ALL_CENTERS_ROUTING
 from utils.rack_map import RACK_COORD
@@ -499,6 +500,14 @@ if _st_dialog:
             if approve_transfer(transfer_id, _u, rack_no=rack_no, shelf=shelf, box_no=box_no):
                 clear_warehouse_cache()
                 st.session_state["_cv_done_msg"] = "✅ 승인 완료!"
+                try:
+                    from utils.mail import send_transfer_result as _str
+                    _actor_center = _u.get("assigned_center") or _u.get("center","")
+                    _emails = get_center_emails(_actor_center)
+                    _str(_emails, item_name, from_center, "자재센터",
+                         qty, "approved", _u.get("name",""))
+                except Exception:
+                    pass
                 st.rerun()
         if cb.button("취소", use_container_width=True, key=f"cv_hub_cancel_{transfer_id}"):
             st.rerun()
@@ -1288,6 +1297,15 @@ with tab_tr:
                                 if approve_transfer(tr["id"], user):
                                     st.session_state["_cv_done_msg"] = "✅ 승인 완료!"
                                     clear_transfer_cache()
+                                    try:
+                                        from utils.mail import send_transfer_result as _str
+                                        _actor_center = user.get("assigned_center") or user.get("center","")
+                                        _emails = get_center_emails(_actor_center)
+                                        _str(_emails, item_name,
+                                             tr.get("from_center",""), tr.get("to_center",""),
+                                             tr.get("quantity",0), "approved", user.get("name",""))
+                                    except Exception:
+                                        pass
                                     st.rerun()
                         if st.button("❌ 거절", key=f"cv_reject_{status_filter}_{tr['id']}",
                                      use_container_width=True):
@@ -1297,6 +1315,15 @@ with tab_tr:
                                 "approver_id": user_id,
                             }).eq("id", tr["id"]).execute()
                             clear_transfer_cache()
+                            try:
+                                from utils.mail import send_transfer_result as _str
+                                _actor_center = user.get("assigned_center") or user.get("center","")
+                                _emails = get_center_emails(_actor_center)
+                                _str(_emails, item_name,
+                                     tr.get("from_center",""), tr.get("to_center",""),
+                                     tr.get("quantity",0), "rejected", user.get("name",""))
+                            except Exception:
+                                pass
                             st.rerun()
                     elif status == "pending" and tr.get("requester_id") == user_id:
                         if st.button("🚫 취소", key=f"cv_cancel_{status_filter}_{tr['id']}",

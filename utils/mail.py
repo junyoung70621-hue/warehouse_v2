@@ -670,3 +670,30 @@ def send_transfer_request(to_email: str, item_name: str,
     <hr><p style="color:gray;font-size:12px;">에이텍모빌리티 자재관리 자동발송 메일입니다.</p>
     """
     _send_email(to_email, subject, body)
+
+
+def send_transfer_result(emails: list, item_name: str,
+                          from_center: str, to_center: str,
+                          qty: int, action: str, actor_name: str):
+    """이동신청 승인/거절 결과를 처리 센터 전체에 발송."""
+    if not emails:
+        return
+    action_label = "✅ 승인" if action == "approved" else "❌ 거절"
+    subject = f"[에이텍모빌리티 자재관리] 자재 이동 {action_label} 알림"
+    body = f"""
+    <p>자재 이동 신청이 <b>{action_label}</b> 처리되었습니다.</p>
+    <table border="1" cellpadding="6" style="border-collapse:collapse;">
+      <tr><td>자재명</td><td><b>{item_name}</b></td></tr>
+      <tr><td>출발 센터</td><td>{from_center}</td></tr>
+      <tr><td>도착 센터</td><td>{to_center}</td></tr>
+      <tr><td>수량</td><td>{qty}개</td></tr>
+      <tr><td>처리자</td><td>{actor_name}</td></tr>
+      <tr><td>처리 결과</td><td><b>{action_label}</b></td></tr>
+    </table>
+    <hr><p style="color:gray;font-size:12px;">에이텍모빌리티 자재관리 자동발송 메일입니다.</p>
+    """
+    for email in emails:
+        try:
+            _send_email(email, subject, body)
+        except Exception:
+            pass

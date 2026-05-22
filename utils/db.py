@@ -865,3 +865,14 @@ def delete_notice(notice_id: str) -> bool:
     except Exception as e:
         st.error(f"공지 삭제 오류: {e}")
         return False
+
+
+def get_center_emails(center: str) -> list:
+    """특정 센터 소속 승인된 사용자 이메일 목록."""
+    try:
+        rows = get_supabase().table("users").select("email").eq(
+            "assigned_center", center
+        ).eq("is_approved", True).execute().data or []
+        return [r["email"] for r in rows if r.get("email")]
+    except Exception:
+        return []
