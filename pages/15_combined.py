@@ -1216,17 +1216,10 @@ div[data-testid="stHorizontalBlock"]:has(>div[data-testid="column"]:nth-child(5)
             "erp_code":       "ERP코드",
         }
         disp = page_df[show_cols].rename(columns=col_labels)
-        def _stock_dot(qty):
-            q = int(qty) if qty is not None else 0
-            if q == 0:   return "🔴"
-            if q <= 9:   return "🟡"
-            return "🟢"
-        disp.insert(0, " ", page_df["quantity"].apply(_stock_dot))
-        st.caption("💡 행을 클릭하면 자재 상세 정보(이력·수정)를 볼 수 있습니다.  🟢 정상 · 🟡 부족(1~9) · 🔴 없음")
+        st.caption("💡 행을 클릭하면 자재 상세 정보(이력·수정)를 볼 수 있습니다.")
         _tbl_sel = st.dataframe(
             disp, use_container_width=True, hide_index=True, height=500,
             on_select="rerun", selection_mode="single-row",
-            column_config={" ": st.column_config.TextColumn(" ", width=30)},
         )
         if _tbl_sel and _tbl_sel.selection.rows and _st_dialog:
             _sel_idx = _tbl_sel.selection.rows[0]
