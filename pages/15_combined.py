@@ -1147,13 +1147,15 @@ with tab_wh:
         page_df = filtered.iloc[start:end]
 
         # 페이지네이션 (테이블 위)
-        pa, pb, pc, pd_, pe = st.columns([1, 1, 3, 1, 1])
+        st.divider()
+        pa, pb, pc, pd_, pe = st.columns([2, 2, 3, 2, 2])
         pa.caption("이전")
         pb.caption("페이지")
         pc.caption(" ")
         pd_.caption("다음")
         pe.caption("개수")
-        if pa.button("◀", key="cv_prev", disabled=page_num <= 1):
+        if pa.button("◀◀" if False else "◀", key="cv_prev", disabled=page_num <= 1,
+                     use_container_width=True):
             st.session_state.cv_page -= 1
             st.rerun()
         _page_opts = list(range(1, total_pages + 1))
@@ -1163,9 +1165,13 @@ with tab_wh:
         if _sel_page != page_num:
             st.session_state.cv_page = _sel_page
             st.rerun()
-        pc.markdown(f"<div style='text-align:center;padding-top:6px;font-size:12px;'>"
-                    f"/ {total_pages} 페이지</div>", unsafe_allow_html=True)
-        if pd_.button("▶", key="cv_next", disabled=page_num >= total_pages):
+        pc.markdown(
+            f"<div style='text-align:center;padding-top:4px;font-size:15px;font-weight:600;'>"
+            f"/ {total_pages} 페이지</div>",
+            unsafe_allow_html=True,
+        )
+        if pd_.button("▶", key="cv_next", disabled=page_num >= total_pages,
+                      use_container_width=True):
             st.session_state.cv_page += 1
             st.rerun()
         _PAGE_SIZES = [20, 50, 100, 200]
@@ -1174,6 +1180,7 @@ with tab_wh:
                      key="cv_page_size_sel",
                      on_change=lambda: st.session_state.update(
                          cv_page_size=st.session_state.cv_page_size_sel, cv_page=1))
+        st.divider()
 
         # 표시 컬럼 선택 (자재센터는 렉/단/박스 추가)
         if IS_HUB:
