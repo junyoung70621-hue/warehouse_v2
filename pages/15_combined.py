@@ -1147,8 +1147,16 @@ with tab_wh:
         page_df = filtered.iloc[start:end]
 
         # 페이지네이션 (테이블 위)
+        st.markdown("""<style>
+div[data-testid="stHorizontalBlock"]:has(>div[data-testid="column"]:nth-child(5)):not(:has(>div[data-testid="column"]:nth-child(6)))
+  >div[data-testid="column"]:nth-child(1) button,
+div[data-testid="stHorizontalBlock"]:has(>div[data-testid="column"]:nth-child(5)):not(:has(>div[data-testid="column"]:nth-child(6)))
+  >div[data-testid="column"]:nth-child(4) button {
+    min-height: 52px !important; height: 52px !important;
+}
+</style>""", unsafe_allow_html=True)
         st.divider()
-        pa, pb, pc, pd_, pe = st.columns([3, 2, 4, 3, 2])
+        pa, pb, pc, pd_, pe = st.columns([2.5, 2, 4, 2.5, 2])
         pa.caption("이전")
         pb.caption("페이지")
         pc.caption(" ")
