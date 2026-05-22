@@ -778,7 +778,7 @@ def save_reply_message(request_id: int, message: str) -> bool:
 def fetch_notices(active_only: bool = True):
     def q(sb):
         query = sb.table("notices").select(
-            "id, title, content, is_active, created_at, "
+            "id, title, content, is_active, created_at, attachments, "
             "users!notices_author_id_fkey(name)"
         ).order("created_at", desc=True)
         if active_only:
@@ -819,23 +819,37 @@ def mark_notice_read(notice_id: str, user_id: str) -> None:
         pass
 
 
-def create_notice(title: str, content: str, author_id: str) -> bool:
+def upload_notice_file(notice_id: str, filename: str, data: bytes):
+    import uuid as _uuid
     try:
-        get_supabase().table("notices").insert({
-            "title": title, "content": content, "author_id": author_id, "is_active": True
+        safe_name = f"{_uuid.uuid4().hex[:8]}_{filename}"
+        path = f"{notice_id}/{safe_name}"
+        get_supabase().storage.from_("notice-files").upload(path, data)
+        return get_supabase().storage.from_("notice-files").get_public_url(path)
+    except Exception as e:
+        st.error(f"파일 업로드 오류: {e}")
+        return None
+
+
+def create_notice(title: str, content: str, author_id: str, attachments: list = None):
+    try:
+        result = get_supabase().table("notices").insert({
+            "title": title, "content": content, "author_id": author_id,
+            "is_active": True, "attachments": attachments or []
         }).execute()
         clear_notice_cache()
-        return True
+        return result.data[0]["id"] if result.data else None
     except Exception as e:
         st.error(f"공지 등록 오류: {e}")
-        return False
+        return None
 
 
-def update_notice(notice_id: str, title: str, content: str, is_active: bool) -> bool:
+def update_notice(notice_id: str, title: str, content: str, is_active: bool, attachments: list = None) -> bool:
     try:
-        get_supabase().table("notices").update({
-            "title": title, "content": content, "is_active": is_active
-        }).eq("id", notice_id).execute()
+        payload = {"title": title, "content": content, "is_active": is_active}
+        if attachments is not None:
+            payload["attachments"] = attachments
+        get_supabase().table("notices").update(payload).eq("id", notice_id).execute()
         clear_notice_cache()
         return True
     except Exception as e:

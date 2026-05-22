@@ -467,8 +467,7 @@ def render_top_bar(title: str, user: dict):
     _notice_label = f"📢  공지  {_unread_cnt}" if _unread_cnt > 0 else "📢  공지"
     _notice_color = "#D3004F" if _unread_cnt > 0 else "#64748B"
     _notice_html = (
-        f"<div style='display:flex;align-items:center;gap:5px;"
-        f"white-space:nowrap;'>"
+        f"<div style='display:flex;align-items:center;gap:5px;white-space:nowrap;'>"
         f"<span style='font-size:11px;font-weight:700;color:{_notice_color};'>"
         f"📢</span>"
         f"<span style='font-size:10px;color:{_notice_color};'>공지</span>"
@@ -598,6 +597,7 @@ def render_top_bar(title: str, user: dict):
     </div>
     """, unsafe_allow_html=True)
 
+
     import streamlit.components.v1 as _components
     _rem_sec = int(_remaining) if _last_act else -1
     _components.html(f"""
@@ -627,6 +627,38 @@ def render_top_bar(title: str, user: dict):
         }}
         tick();
         setInterval(tick, 1000);
+    }})();
+
+    // 시범운영 배너 닫기 (페이지 이동 시 재표시)
+    (function(){{
+        var win = window.parent;
+        var doc = win.document;
+        var curPath = win.location.pathname;
+        // 경로가 바뀌면 닫기 상태 초기화
+        if(win._wmsBannerPath !== curPath){{
+            win._wmsBannerPath = curPath;
+            win._wmsBannerOff = false;
+        }}
+        function closeBanner(){{
+            var b = doc.getElementById('wms-notice-banner');
+            if(b) b.style.setProperty('display','none','important');
+            doc.body.classList.remove('wms-notice-on');
+            win._wmsBannerOff = true;
+        }}
+        if(win._wmsBannerOff) closeBanner();
+        function attachClose(){{
+            var btn = doc.getElementById('wms-notice-close');
+            if(btn && !btn._wmsAttached){{
+                btn._wmsAttached = true;
+                btn.addEventListener('click', function(e){{
+                    e.stopPropagation(); e.preventDefault();
+                    closeBanner();
+                }});
+            }}
+        }}
+        attachClose();
+        setTimeout(attachClose, 300);
+        setTimeout(attachClose, 800);
     }})();
     </script>
     """, height=0)
@@ -687,38 +719,14 @@ def render_top_bar(title: str, user: dict):
 
     <script>
     (function(){
-        var KEY = 'wms_notice_v2';
-        function lsGet(){ try{ return localStorage.getItem(KEY); }catch(e){ return null; } }
-        function lsSet(){ try{ localStorage.setItem(KEY,'1'); }catch(e){} }
-
-        function hideAll(){
-            document.querySelectorAll('#wms-notice-banner').forEach(function(el){
-                el.style.setProperty('display','none','important');
-            });
-            document.body.classList.remove('wms-notice-on');
-        }
-        function showAll(){
-            document.querySelectorAll('#wms-notice-banner').forEach(function(el){
-                el.style.removeProperty('display');
-            });
-            document.body.classList.add('wms-notice-on');
-        }
+        // 현재 페이지에서 이미 닫은 경우 즉시 숨김
         function apply(){
-            lsGet() === '1' ? hideAll() : showAll();
-        }
-
-        if(!window._wmsNoticeInit){
-            window._wmsNoticeInit = true;
-            document.addEventListener('click', function(e){
-                var t = e.target;
-                if(t.id === 'wms-notice-close' ||
-                   (t.parentElement && t.parentElement.id === 'wms-notice-close')){
-                    e.stopPropagation();
-                    e.preventDefault();
-                    lsSet();
-                    hideAll();
-                }
-            }, true);
+            if(window._wmsBannerOff){
+                document.querySelectorAll('#wms-notice-banner').forEach(function(el){
+                    el.style.setProperty('display','none','important');
+                });
+                document.body.classList.remove('wms-notice-on');
+            }
         }
 
         apply();

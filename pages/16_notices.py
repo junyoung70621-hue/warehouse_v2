@@ -5,7 +5,7 @@ from utils.auth import require_login, is_role, logout
 from utils.db import (
     fetch_notices, fetch_unread_notice_count,
     mark_notice_read, create_notice, update_notice, delete_notice,
-    clear_notice_cache,
+    clear_notice_cache, upload_notice_file,
 )
 from utils.ui import (
     apply_global_css, render_sidebar_header,
@@ -81,6 +81,10 @@ render_top_bar("공지사항", user)
 # ── 세션 초기화 ───────────────────────────────────────────────────────────
 if "notice_edit_id" not in st.session_state:
     st.session_state.notice_edit_id = None
+if "notice_edit_attachments" not in st.session_state:
+    st.session_state.notice_edit_attachments = []
+if "notice_attach_for" not in st.session_state:
+    st.session_state.notice_attach_for = None
 
 # ── 관리자 작성 폼 ────────────────────────────────────────────────────────
 if is_role("admin"):
@@ -91,6 +95,11 @@ if is_role("admin"):
             target = next((n for n in notices_all if n["id"] == editing), None)
         else:
             target = None
+
+        # 첨부파일 목록 초기화 (편집 대상 변경 시)
+        if editing != st.session_state.get("notice_attach_for"):
+            st.session_state.notice_edit_attachments = (target.get("attachments") or []) if target else []
+            st.session_state.notice_attach_for = editing
 
         col1, col2 = st.columns([4, 1])
         with col1:
@@ -103,21 +112,55 @@ if is_role("admin"):
         content_val = target["content"] if target else ""
         new_content = st.text_area("내용", value=content_val, height=120, key="notice_content_input")
 
+        # 기존 첨부파일 (편집 모드)
+        if editing and st.session_state.notice_edit_attachments:
+            st.caption("기존 첨부파일")
+            _to_remove = None
+            for _i, _att in enumerate(st.session_state.notice_edit_attachments):
+                _c1, _c2 = st.columns([9, 1])
+                _c1.markdown(f"📎 {_att['name']}")
+                if _c2.button("❌", key=f"notice_rm_att_{_i}", use_container_width=True):
+                    _to_remove = _i
+            if _to_remove is not None:
+                st.session_state.notice_edit_attachments = [
+                    a for j, a in enumerate(st.session_state.notice_edit_attachments) if j != _to_remove
+                ]
+                st.rerun()
+
+        new_files = st.file_uploader("📎 첨부파일 추가", accept_multiple_files=True, key="notice_file_uploader")
+
         ba, bb = st.columns(2)
         if ba.button("💾 저장", type="primary", use_container_width=True, key="notice_save"):
             if not new_title.strip():
                 st.warning("제목을 입력해 주세요.")
-            elif editing:
-                if update_notice(editing, new_title.strip(), new_content.strip(), new_active):
-                    st.session_state.notice_edit_id = None
-                    st.success("수정됐습니다.")
-                    st.rerun()
             else:
-                if create_notice(new_title.strip(), new_content.strip(), user_id):
-                    st.success("공지가 등록됐습니다.")
-                    st.rerun()
+                _final_atts = list(st.session_state.get("notice_edit_attachments", []))
+                if editing:
+                    for _f in (new_files or []):
+                        _url = upload_notice_file(editing, _f.name, _f.read())
+                        if _url:
+                            _final_atts.append({"name": _f.name, "url": _url})
+                    if update_notice(editing, new_title.strip(), new_content.strip(), new_active, _final_atts):
+                        st.session_state.notice_edit_id = None
+                        st.session_state.notice_edit_attachments = []
+                        st.session_state.notice_attach_for = None
+                        st.success("수정됐습니다.")
+                        st.rerun()
+                else:
+                    _nid = create_notice(new_title.strip(), new_content.strip(), user_id)
+                    if _nid:
+                        for _f in (new_files or []):
+                            _url = upload_notice_file(_nid, _f.name, _f.read())
+                            if _url:
+                                _final_atts.append({"name": _f.name, "url": _url})
+                        if _final_atts:
+                            update_notice(_nid, new_title.strip(), new_content.strip(), True, _final_atts)
+                        st.success("공지가 등록됐습니다.")
+                        st.rerun()
         if bb.button("취소", use_container_width=True, key="notice_cancel"):
             st.session_state.notice_edit_id = None
+            st.session_state.notice_edit_attachments = []
+            st.session_state.notice_attach_for = None
             st.rerun()
 
 st.divider()
@@ -153,6 +196,13 @@ for n in notices:
             f"{n['content'] or ''}</div>",
             unsafe_allow_html=True,
         )
+
+        # 첨부파일 다운로드
+        _atts = n.get("attachments") or []
+        if _atts:
+            st.markdown("**📎 첨부파일**")
+            for _att in _atts:
+                st.markdown(f"[📥 {_att['name']}]({_att['url']})")
 
         # 읽음 처리
         if not is_read:
