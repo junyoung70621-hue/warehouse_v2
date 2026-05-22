@@ -867,9 +867,11 @@ with tab_wh:
     })
 
     fc = st.columns([2.5, 1, 1, 1, 0.9])
+    fc[0].caption("자재 검색")
     search = fc[0].text_input("검색", placeholder="자재명 / ERP코드 / 분류명 검색...",
                               label_visibility="collapsed", key="cv_search")
 
+    fc[1].caption("대분류")
     new_lg = fc[1].selectbox("대분류", large_cats,
                               index=large_cats.index(_sl) if _sl in large_cats else 0,
                               label_visibility="collapsed", key="cv_filter_lg")
@@ -880,6 +882,7 @@ with tab_wh:
         st.session_state.cv_page  = 1
         st.rerun()
 
+    fc[2].caption("중분류")
     _cur_mid = _sm if _sm in mid_cats else "전체"
     new_md   = fc[2].selectbox("중분류", mid_cats, index=mid_cats.index(_cur_mid),
                                 label_visibility="collapsed", key="cv_filter_md")
@@ -889,6 +892,7 @@ with tab_wh:
         st.session_state.cv_page  = 1
         st.rerun()
 
+    fc[3].caption("소분류")
     _cur_sm = st.session_state.get("cv_small", "전체")
     _cur_sm = _cur_sm if _cur_sm in small_cats else "전체"
     new_sm  = fc[3].selectbox("소분류", small_cats, index=small_cats.index(_cur_sm),
