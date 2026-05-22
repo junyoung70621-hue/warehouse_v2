@@ -107,7 +107,7 @@ with st.sidebar:
         if st.button("🟢 접속 현황", use_container_width=True):
             st.switch_page("pages/13_online_users.py")
 
-    st.divider()
+    render_sidebar_section("개인")
     st.button("💬 문의하기", use_container_width=True, type="primary")
     if st.button("👤 마이페이지", use_container_width=True):
         st.switch_page("pages/06_mypage.py")
