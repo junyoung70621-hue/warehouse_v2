@@ -1152,7 +1152,7 @@ div[data-testid="stHorizontalBlock"]:has(>div[data-testid="column"]:nth-child(5)
   >div[data-testid="column"]:nth-child(1) button,
 div[data-testid="stHorizontalBlock"]:has(>div[data-testid="column"]:nth-child(5)):not(:has(>div[data-testid="column"]:nth-child(6)))
   >div[data-testid="column"]:nth-child(4) button {
-    min-height: 52px !important; height: 52px !important;
+    min-height: 42px !important; height: 42px !important;
 }
 </style>""", unsafe_allow_html=True)
         st.divider()
