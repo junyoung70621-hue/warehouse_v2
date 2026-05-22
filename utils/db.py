@@ -820,9 +820,10 @@ def mark_notice_read(notice_id: str, user_id: str) -> None:
 
 
 def upload_notice_file(notice_id: str, filename: str, data: bytes):
-    import uuid as _uuid
+    import uuid as _uuid, re as _re
     try:
-        safe_name = f"{_uuid.uuid4().hex[:8]}_{filename}"
+        clean = _re.sub(r'[^\w.\-]', '_', filename)
+        safe_name = f"{_uuid.uuid4().hex[:8]}_{clean}"
         path = f"{notice_id}/{safe_name}"
         get_supabase().storage.from_("notice-files").upload(path, data)
         return get_supabase().storage.from_("notice-files").get_public_url(path)
