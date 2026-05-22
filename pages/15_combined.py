@@ -1165,14 +1165,12 @@ div[data-testid="stHorizontalBlock"]:has(>div[data-testid="column"]:nth-child(5)
         if pa.button("◀", key="cv_prev", disabled=page_num <= 1,
                      use_container_width=True):
             st.session_state.cv_page -= 1
-            st.rerun()
         _page_opts = list(range(1, total_pages + 1))
         _cur_idx   = page_num - 1
         _sel_page  = pb.selectbox("페이지", _page_opts, index=_cur_idx,
                                    label_visibility="collapsed", key="cv_page_sel")
         if _sel_page != page_num:
             st.session_state.cv_page = _sel_page
-            st.rerun()
         pc.markdown(
             f"<div style='text-align:center;padding-top:20px;font-size:15px;font-weight:600;'>"
             f"/ {total_pages} 페이지</div>",
@@ -1181,7 +1179,6 @@ div[data-testid="stHorizontalBlock"]:has(>div[data-testid="column"]:nth-child(5)
         if pd_.button("▶", key="cv_next", disabled=page_num >= total_pages,
                       use_container_width=True):
             st.session_state.cv_page += 1
-            st.rerun()
         _PAGE_SIZES = [20, 50, 100, 200]
         pe.selectbox("페이지 크기", _PAGE_SIZES, label_visibility="collapsed",
                      index=_PAGE_SIZES.index(PAGE_SIZE) if PAGE_SIZE in _PAGE_SIZES else 0,
