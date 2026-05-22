@@ -46,6 +46,7 @@ _cv_defaults = {
     "cv_in_cart": [], "cv_out_cart": [],
     "cv_in_reason_mode": "통합", "cv_out_reason_mode": "통합",
     "cv_mat_req_cart": [],
+    "cv_sort_col": "item_name", "cv_sort_dir": "asc",
 }
 for k, v in _cv_defaults.items():
     if k not in st.session_state:
@@ -813,16 +814,17 @@ with tab_wh:
         _kv_all  = len(df_all)
         _kv_low  = int(_q_s.between(1, 9).sum())
         _kv_zero = int((_q_s == 0).sum())
-        _tr_pending_cnt = sum(
-            1 for t in fetch_transfers("pending")
-            if t.get("from_center") == selected_center
-            or t.get("to_center")   == selected_center
-        )
+        _tr_pending   = fetch_transfers("pending")
+        _tr_center    = [t for t in _tr_pending
+                         if t.get("from_center") == selected_center
+                         or t.get("to_center")   == selected_center]
+        _tr_pending_cnt = len(_tr_center)
+        _tr_item_ids  = {t["item_id"] for t in _tr_center if t.get("item_id")}
         _kpi_specs = [
-            (None,   "📦 전체 품목",      _kv_all,          "#4A9EFF"),
-            ("low",  "⚠️ 재고 부족 (1~9)", _kv_low,           "#FFAA00"),
-            ("zero", "🚨 재고 없음",       _kv_zero,          "#FF4444"),
-            ("_transit", "🚚 이동 중 (대기)", _tr_pending_cnt, "#6C757D"),
+            (None,      "📦 전체 품목",       _kv_all,         "#4A9EFF"),
+            ("low",     "⚠️ 재고 부족 (1~9)", _kv_low,          "#FFAA00"),
+            ("zero",    "🚨 재고 없음",        _kv_zero,         "#FF4444"),
+            ("transit", "🚚 이동 중 (대기)",   _tr_pending_cnt,  "#6C757D"),
         ]
         _kf_now = st.session_state.get("cv_kpi_filter")
         _kms    = st.columns(4)
@@ -838,7 +840,7 @@ with tab_wh:
                 f"</div>",
                 unsafe_allow_html=True,
             )
-            if _fv is not None and _fv != "_transit":
+            if _fv is not None:
                 if _kms[_ki].button(
                     "필터 해제" if _active else "필터",
                     key=f"cv_kpi_btn_{_fv}",
@@ -847,8 +849,9 @@ with tab_wh:
                     st.session_state.cv_kpi_filter = None if _active else _fv
                     st.session_state.cv_page = 1
                     st.rerun()
-        if _kf_now in ("low", "zero"):
-            st.caption(f"📌 KPI 필터 적용 중 — {'재고 부족 (1~9)' if _kf_now == 'low' else '재고 없음'}")
+        _kpi_labels = {"low": "재고 부족 (1~9)", "zero": "재고 없음", "transit": "이동 중 (대기)"}
+        if _kf_now in _kpi_labels:
+            st.caption(f"📌 KPI 필터 적용 중 — {_kpi_labels[_kf_now]}")
         st.divider()
 
     # ── 필터 바 ─────────────────────────────────────────────────────────
@@ -928,6 +931,8 @@ with tab_wh:
             filtered = filtered[filtered["quantity"].fillna(0).astype(int).between(1, 9)]
         elif _kf_active == "zero":
             filtered = filtered[filtered["quantity"].fillna(0).astype(int) == 0]
+        elif _kf_active == "transit":
+            filtered = filtered[filtered["id"].isin(_tr_item_ids)]
     else:
         filtered = pd.DataFrame()
 
@@ -1127,6 +1132,12 @@ with tab_wh:
     if filtered.empty:
         st.info("📭 해당 조건의 재고가 없습니다.")
     else:
+        # 정렬 적용
+        _sc  = st.session_state.cv_sort_col
+        _asc = st.session_state.cv_sort_dir == "asc"
+        if _sc in filtered.columns:
+            filtered = filtered.sort_values(_sc, ascending=_asc, na_position="last")
+
         PAGE_SIZE = st.session_state.cv_page_size
         page_num  = st.session_state.cv_page
         total_pages = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
@@ -1137,10 +1148,38 @@ with tab_wh:
         end   = start + PAGE_SIZE
         page_df = filtered.iloc[start:end]
 
-        # 표시 컬럼 선택
-        show_cols = [c for c in ["item_name", "quantity", "category_large",
-                                  "category_mid", "category_small",
-                                  "rack_no", "erp_code"] if c in page_df.columns]
+        # 정렬 버튼 행
+        _sortable = [
+            ("item_name", "자재명"), ("quantity", "수량"),
+            ("category_large", "대분류"), ("category_mid", "중분류"), ("category_small", "소분류"),
+        ]
+        _sort_cols = st.columns(len(_sortable) + 1)
+        _sort_cols[0].caption("정렬:")
+        for _si, (_col_key, _col_lbl) in enumerate(_sortable):
+            _is_active = (_sc == _col_key)
+            _arrow = (" ▲" if _asc else " ▼") if _is_active else ""
+            if _sort_cols[_si + 1].button(
+                f"{_col_lbl}{_arrow}", key=f"cv_sort_{_col_key}",
+                use_container_width=True,
+                type="primary" if _is_active else "secondary",
+            ):
+                if _sc == _col_key:
+                    st.session_state.cv_sort_dir = "desc" if _asc else "asc"
+                else:
+                    st.session_state.cv_sort_col = _col_key
+                    st.session_state.cv_sort_dir = "asc"
+                st.session_state.cv_page = 1
+                st.rerun()
+
+        # 표시 컬럼 선택 (자재센터는 렉/단/박스 추가)
+        if IS_HUB:
+            _base_cols = ["item_name", "quantity", "category_large", "category_mid",
+                          "category_small", "rack_no", "shelf", "box_no",
+                          "item_location", "erp_name", "erp_code"]
+        else:
+            _base_cols = ["item_name", "quantity", "category_large",
+                          "category_mid", "category_small", "rack_no", "erp_code"]
+        show_cols = [c for c in _base_cols if c in page_df.columns]
         col_labels = {
             "item_name":      "자재명",
             "quantity":       "수량",
@@ -1148,6 +1187,10 @@ with tab_wh:
             "category_mid":   "중분류",
             "category_small": "소분류",
             "rack_no":        "렉번호",
+            "shelf":          "단",
+            "box_no":         "박스",
+            "item_location":  "지역",
+            "erp_name":       "ERP품명",
             "erp_code":       "ERP코드",
         }
         disp = page_df[show_cols].rename(columns=col_labels)
@@ -1166,20 +1209,28 @@ with tab_wh:
             )
 
         # 페이지네이션
-        pa, pb, pc, pd_ = st.columns([1, 3, 1, 1])
+        pa, pb, pc, pd_, pe = st.columns([1, 1, 3, 1, 1])
         if pa.button("◀", key="cv_prev", disabled=page_num <= 1):
             st.session_state.cv_page -= 1
             st.rerun()
-        pb.markdown(f"<div style='text-align:center;padding-top:6px;font-size:12px;'>"
-                    f"{page_num} / {total_pages} 페이지</div>", unsafe_allow_html=True)
-        if pc.button("▶", key="cv_next", disabled=page_num >= total_pages):
+        _page_opts = list(range(1, total_pages + 1))
+        _cur_idx   = page_num - 1
+        _sel_page  = pb.selectbox("페이지", _page_opts, index=_cur_idx,
+                                   label_visibility="collapsed", key="cv_page_sel")
+        if _sel_page != page_num:
+            st.session_state.cv_page = _sel_page
+            st.rerun()
+        pc.markdown(f"<div style='text-align:center;padding-top:6px;font-size:12px;'>"
+                    f"/ {total_pages} 페이지</div>", unsafe_allow_html=True)
+        if pd_.button("▶", key="cv_next", disabled=page_num >= total_pages):
             st.session_state.cv_page += 1
             st.rerun()
-        pd_.selectbox("페이지 크기", [20, 50, 100], label_visibility="collapsed",
-                      index=[20, 50, 100].index(PAGE_SIZE) if PAGE_SIZE in [20, 50, 100] else 0,
-                      key="cv_page_size_sel",
-                      on_change=lambda: st.session_state.update(
-                          cv_page_size=st.session_state.cv_page_size_sel, cv_page=1))
+        _PAGE_SIZES = [20, 50, 100, 200]
+        pe.selectbox("페이지 크기", _PAGE_SIZES, label_visibility="collapsed",
+                     index=_PAGE_SIZES.index(PAGE_SIZE) if PAGE_SIZE in _PAGE_SIZES else 0,
+                     key="cv_page_size_sel",
+                     on_change=lambda: st.session_state.update(
+                         cv_page_size=st.session_state.cv_page_size_sel, cv_page=1))
 
 
 # ══ 탭 2: 이동 신청 현황 ══════════════════════════════════════════════════
