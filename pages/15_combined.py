@@ -1144,10 +1144,20 @@ with tab_wh:
 
         # 페이지네이션 (테이블 위)
         st.markdown("""<style>
+/* 페이지네이션 화살표 버튼 (5칸 블록 1·4번째) */
 div[data-testid="stHorizontalBlock"]:has(>div[data-testid="column"]:nth-child(5)):not(:has(>div[data-testid="column"]:nth-child(6)))
   >div[data-testid="column"]:nth-child(1) button,
 div[data-testid="stHorizontalBlock"]:has(>div[data-testid="column"]:nth-child(5)):not(:has(>div[data-testid="column"]:nth-child(6)))
   >div[data-testid="column"]:nth-child(4) button {
+    min-height: 42px !important; height: 42px !important;
+}
+/* 필터 바 — 검색창·초기화 버튼 세로 크기 드롭다운과 동일 */
+div[data-testid="stHorizontalBlock"]:has(>div[data-testid="column"]:nth-child(5)):not(:has(>div[data-testid="column"]:nth-child(6)))
+  >div[data-testid="column"]:nth-child(1) input[type="text"] {
+    min-height: 42px !important; height: 42px !important;
+}
+div[data-testid="stHorizontalBlock"]:has(>div[data-testid="column"]:nth-child(5)):not(:has(>div[data-testid="column"]:nth-child(6)))
+  >div[data-testid="column"]:nth-child(5) button {
     min-height: 42px !important; height: 42px !important;
 }
 </style>""", unsafe_allow_html=True)
