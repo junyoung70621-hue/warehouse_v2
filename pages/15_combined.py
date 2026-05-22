@@ -1166,7 +1166,7 @@ div[data-testid="stHorizontalBlock"]:has(>div[data-testid="column"]:nth-child(5)
                      use_container_width=True):
             st.session_state.cv_page -= 1
         _page_opts = list(range(1, total_pages + 1))
-        _cur_idx   = page_num - 1
+        _cur_idx   = max(0, min(page_num - 1, total_pages - 1))
         _sel_page  = pb.selectbox("페이지", _page_opts, index=_cur_idx,
                                    label_visibility="collapsed", key="cv_page_sel")
         if _sel_page != page_num:
