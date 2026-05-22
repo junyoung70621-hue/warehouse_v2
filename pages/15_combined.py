@@ -46,6 +46,7 @@ _cv_defaults = {
     "cv_in_cart": [], "cv_out_cart": [],
     "cv_in_reason_mode": "통합", "cv_out_reason_mode": "통합",
     "cv_mat_req_cart": [],
+    "cv_last_sel_row": None,
 }
 for k, v in _cv_defaults.items():
     if k not in st.session_state:
@@ -1216,19 +1217,28 @@ div[data-testid="stHorizontalBlock"]:has(>div[data-testid="column"]:nth-child(5)
             "erp_code":       "ERP코드",
         }
         disp = page_df[show_cols].rename(columns=col_labels)
-        st.caption("💡 행을 클릭하면 자재 상세 정보(이력·수정)를 볼 수 있습니다.")
+        st.caption("💡 같은 행을 두 번 클릭하면 자재 상세 정보(이력·수정)를 볼 수 있습니다.")
         _tbl_sel = st.dataframe(
             disp, use_container_width=True, hide_index=True, height=500,
             on_select="rerun", selection_mode="single-row",
         )
         if _tbl_sel and _tbl_sel.selection.rows and _st_dialog:
             _sel_idx = _tbl_sel.selection.rows[0]
-            _sel_row = page_df.iloc[_sel_idx]
-            _cv_item_detail_modal(
-                int(_sel_row["id"]),
-                str(_sel_row.get("item_name", "")),
-                str(_sel_row.get("location", selected_center)),
-            )
+            _just_opened = st.session_state.pop("cv_modal_opened", False)
+            if not _just_opened and st.session_state.cv_last_sel_row == _sel_idx:
+                _sel_row = page_df.iloc[_sel_idx]
+                st.session_state.cv_last_sel_row = None
+                st.session_state.cv_modal_opened = True
+                _cv_item_detail_modal(
+                    int(_sel_row["id"]),
+                    str(_sel_row.get("item_name", "")),
+                    str(_sel_row.get("location", selected_center)),
+                )
+            elif not _just_opened:
+                st.session_state.cv_last_sel_row = _sel_idx
+        else:
+            if not st.session_state.pop("cv_modal_opened", False):
+                st.session_state.cv_last_sel_row = None
 
 
 # ══ 탭 2: 이동 신청 현황 ══════════════════════════════════════════════════
