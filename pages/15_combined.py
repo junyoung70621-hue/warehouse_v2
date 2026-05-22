@@ -1146,6 +1146,30 @@ with tab_wh:
         end   = start + PAGE_SIZE
         page_df = filtered.iloc[start:end]
 
+        # 페이지네이션 (테이블 위)
+        pa, pb, pc, pd_, pe = st.columns([1, 1, 3, 1, 1])
+        if pa.button("◀", key="cv_prev", disabled=page_num <= 1):
+            st.session_state.cv_page -= 1
+            st.rerun()
+        _page_opts = list(range(1, total_pages + 1))
+        _cur_idx   = page_num - 1
+        _sel_page  = pb.selectbox("페이지", _page_opts, index=_cur_idx,
+                                   label_visibility="collapsed", key="cv_page_sel")
+        if _sel_page != page_num:
+            st.session_state.cv_page = _sel_page
+            st.rerun()
+        pc.markdown(f"<div style='text-align:center;padding-top:6px;font-size:12px;'>"
+                    f"/ {total_pages} 페이지</div>", unsafe_allow_html=True)
+        if pd_.button("▶", key="cv_next", disabled=page_num >= total_pages):
+            st.session_state.cv_page += 1
+            st.rerun()
+        _PAGE_SIZES = [20, 50, 100, 200]
+        pe.selectbox("페이지 크기", _PAGE_SIZES, label_visibility="collapsed",
+                     index=_PAGE_SIZES.index(PAGE_SIZE) if PAGE_SIZE in _PAGE_SIZES else 0,
+                     key="cv_page_size_sel",
+                     on_change=lambda: st.session_state.update(
+                         cv_page_size=st.session_state.cv_page_size_sel, cv_page=1))
+
         # 표시 컬럼 선택 (자재센터는 렉/단/박스 추가)
         if IS_HUB:
             _base_cols = ["item_name", "quantity", "category_large", "category_mid",
@@ -1182,30 +1206,6 @@ with tab_wh:
                 str(_sel_row.get("item_name", "")),
                 str(_sel_row.get("location", selected_center)),
             )
-
-        # 페이지네이션
-        pa, pb, pc, pd_, pe = st.columns([1, 1, 3, 1, 1])
-        if pa.button("◀", key="cv_prev", disabled=page_num <= 1):
-            st.session_state.cv_page -= 1
-            st.rerun()
-        _page_opts = list(range(1, total_pages + 1))
-        _cur_idx   = page_num - 1
-        _sel_page  = pb.selectbox("페이지", _page_opts, index=_cur_idx,
-                                   label_visibility="collapsed", key="cv_page_sel")
-        if _sel_page != page_num:
-            st.session_state.cv_page = _sel_page
-            st.rerun()
-        pc.markdown(f"<div style='text-align:center;padding-top:6px;font-size:12px;'>"
-                    f"/ {total_pages} 페이지</div>", unsafe_allow_html=True)
-        if pd_.button("▶", key="cv_next", disabled=page_num >= total_pages):
-            st.session_state.cv_page += 1
-            st.rerun()
-        _PAGE_SIZES = [20, 50, 100, 200]
-        pe.selectbox("페이지 크기", _PAGE_SIZES, label_visibility="collapsed",
-                     index=_PAGE_SIZES.index(PAGE_SIZE) if PAGE_SIZE in _PAGE_SIZES else 0,
-                     key="cv_page_size_sel",
-                     on_change=lambda: st.session_state.update(
-                         cv_page_size=st.session_state.cv_page_size_sel, cv_page=1))
 
 
 # ══ 탭 2: 이동 신청 현황 ══════════════════════════════════════════════════
