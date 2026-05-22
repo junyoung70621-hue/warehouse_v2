@@ -41,7 +41,6 @@ require_login()
 _cv_defaults = {
     "cv_large": "전체", "cv_mid": "전체", "cv_small": "전체",
     "cv_page": 1, "cv_page_size": 20, "cv_kpi_filter": None,
-    "_cv_detail_item": None,
     "cv_tr_cat": "전체", "cv_tr_cart": [],
     "cv_in_cart": [], "cv_out_cart": [],
     "cv_in_reason_mode": "통합", "cv_out_reason_mode": "통합",
@@ -82,7 +81,6 @@ if _st_dialog:
                                     label_visibility="collapsed", key="cv_dlg_upload_file")
         if uploaded:
             try:
-                from utils.routing import CENTERS as _CENTERS_UP
                 up_df = pd.read_excel(uploaded)
                 col_map = {v: k for k, v in EXCEL_COL_MAP.items()}
                 col_map["수리담당자명"] = "repair_manager"
@@ -92,7 +90,7 @@ if _st_dialog:
                     up_df["quantity"] = pd.to_numeric(up_df["quantity"], errors="coerce").fillna(0).astype(int)
                 if "location" not in up_df.columns:
                     up_df["location"] = center
-                passed, err_msg = validate_upload(up_df, usr_role, usr, _CENTERS_UP)
+                passed, err_msg = validate_upload(up_df, usr_role, usr, _ALL_CENTERS_ROUTING)
                 if not passed:
                     st.error(err_msg)
                     return
