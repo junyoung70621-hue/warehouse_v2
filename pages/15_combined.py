@@ -1148,6 +1148,11 @@ with tab_wh:
 
         # 페이지네이션 (테이블 위)
         pa, pb, pc, pd_, pe = st.columns([1, 1, 3, 1, 1])
+        pa.caption("이전")
+        pb.caption("페이지")
+        pc.caption(" ")
+        pd_.caption("다음")
+        pe.caption("개수")
         if pa.button("◀", key="cv_prev", disabled=page_num <= 1):
             st.session_state.cv_page -= 1
             st.rerun()
