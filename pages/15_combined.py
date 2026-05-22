@@ -847,6 +847,22 @@ with tab_wh:
             st.caption(f"📌 KPI 필터 적용 중 — {_kpi_labels[_kf_now]}")
         st.divider()
 
+    # ── 필터 콜백 (on_change → 자연 rerun 1회만 발생) ───────────────────
+    def _on_lg():
+        st.session_state.cv_large = st.session_state.cv_filter_lg
+        st.session_state.cv_mid   = "전체"
+        st.session_state.cv_small = "전체"
+        st.session_state.cv_page  = 1
+
+    def _on_md():
+        st.session_state.cv_mid   = st.session_state.cv_filter_md
+        st.session_state.cv_small = "전체"
+        st.session_state.cv_page  = 1
+
+    def _on_sm():
+        st.session_state.cv_small = st.session_state.cv_filter_sm
+        st.session_state.cv_page  = 1
+
     # ── 필터 바 ─────────────────────────────────────────────────────────
     large_cats = ["전체"] + sorted(categories.keys())
     _sl = st.session_state.cv_large
@@ -866,35 +882,23 @@ with tab_wh:
                               label_visibility="collapsed", key="cv_search")
 
     fc[1].caption("대분류")
-    new_lg = fc[1].selectbox("대분류", large_cats,
-                              index=large_cats.index(_sl) if _sl in large_cats else 0,
-                              label_visibility="collapsed", key="cv_filter_lg")
-    if new_lg != _sl:
-        st.session_state.cv_large = new_lg
-        st.session_state.cv_mid   = "전체"
-        st.session_state.cv_small = "전체"
-        st.session_state.cv_page  = 1
-        st.rerun()
+    fc[1].selectbox("대분류", large_cats,
+                    index=large_cats.index(_sl) if _sl in large_cats else 0,
+                    label_visibility="collapsed", key="cv_filter_lg",
+                    on_change=_on_lg)
 
     fc[2].caption("중분류")
     _cur_mid = _sm if _sm in mid_cats else "전체"
-    new_md   = fc[2].selectbox("중분류", mid_cats, index=mid_cats.index(_cur_mid),
-                                label_visibility="collapsed", key="cv_filter_md")
-    if new_md != _sm:
-        st.session_state.cv_mid   = new_md
-        st.session_state.cv_small = "전체"
-        st.session_state.cv_page  = 1
-        st.rerun()
+    fc[2].selectbox("중분류", mid_cats, index=mid_cats.index(_cur_mid),
+                    label_visibility="collapsed", key="cv_filter_md",
+                    on_change=_on_md)
 
     fc[3].caption("소분류")
     _cur_sm = st.session_state.get("cv_small", "전체")
     _cur_sm = _cur_sm if _cur_sm in small_cats else "전체"
-    new_sm  = fc[3].selectbox("소분류", small_cats, index=small_cats.index(_cur_sm),
-                               label_visibility="collapsed", key="cv_filter_sm")
-    if new_sm != _cur_sm:
-        st.session_state.cv_small = new_sm
-        st.session_state.cv_page  = 1
-        st.rerun()
+    fc[3].selectbox("소분류", small_cats, index=small_cats.index(_cur_sm),
+                    label_visibility="collapsed", key="cv_filter_sm",
+                    on_change=_on_sm)
 
     fc[4].markdown('<div style="height:2.2rem"></div>', unsafe_allow_html=True)
     if fc[4].button("초기화", use_container_width=True, key="cv_reset"):
@@ -902,7 +906,6 @@ with tab_wh:
             st.session_state[k] = "전체"
         st.session_state.cv_page = 1
         clear_warehouse_cache()
-        st.rerun()
 
     # ── 데이터 필터링 ────────────────────────────────────────────────────
     if not df_all.empty:
