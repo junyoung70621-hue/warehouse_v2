@@ -902,6 +902,7 @@ with tab_wh:
         st.session_state.cv_page  = 1
         st.rerun()
 
+    fc[4].caption(" ")
     if fc[4].button("초기화", use_container_width=True, key="cv_reset"):
         for k in ("cv_large", "cv_mid", "cv_small"):
             st.session_state[k] = "전체"
