@@ -107,6 +107,7 @@ if is_role("admin"):
             new_title = st.text_input("제목", value=title_val, key="notice_title_input")
         with col2:
             active_val = target["is_active"] if target else True
+            st.markdown('<div style="height:28px"></div>', unsafe_allow_html=True)
             new_active = st.checkbox("활성", value=active_val, key="notice_active_input")
 
         content_val = target["content"] if target else ""
