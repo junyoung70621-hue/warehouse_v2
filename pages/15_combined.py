@@ -1099,14 +1099,12 @@ with tab_wh:
                         if _lc3.button("✕", key=f"cv_cart_rm_{_ci}",
                                        use_container_width=True):
                             st.session_state.cv_tr_cart.pop(_ci)
-                            st.rerun()
 
                     st.divider()
                     _sa, _sb = st.columns(2)
                     if _sb.button("🗑️ 전체 삭제", use_container_width=True,
                                   key="cv_cart_clear"):
                         st.session_state.cv_tr_cart = []
-                        st.rerun()
                     if _sa.button("✅ 이동 신청", type="primary",
                                   use_container_width=True, key="cv_tr_submit"):
                         _ok = 0
