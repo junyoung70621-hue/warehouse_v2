@@ -749,7 +749,7 @@ with st.sidebar:
     selected_center = st.selectbox("센터", viewable, label_visibility="collapsed", key="sidebar_center")
 
     render_sidebar_section("재고 관리")
-    st.button("🗂️ 통합 뷰", use_container_width=True, type="primary")
+    st.button("📦 재고 현황", use_container_width=True, type="primary")
     if st.button("📋 입출고 이력", use_container_width=True):
         st.switch_page("pages/04_history.py")
     if not is_role("guest"):
@@ -779,7 +779,7 @@ with st.sidebar:
         logout()
     render_sidebar_user(user)
 
-render_top_bar("통합 뷰", user)
+render_top_bar("재고 현황", user)
 
 # ══════════════════════════════════════════════════════════════════════════
 # 메인 탭
