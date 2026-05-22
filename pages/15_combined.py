@@ -1,4 +1,4 @@
-# pages/15_combined.py  — 재고 현황 + 이동 신청 통합 뷰
+﻿# pages/15_combined.py  — 재고 현황 + 이동 신청 통합 뷰
 import streamlit as st
 import pandas as pd
 import io
@@ -750,9 +750,9 @@ with st.sidebar:
 
     render_sidebar_section("재고 관리")
     if st.button("📦 재고 현황", use_container_width=True):
-        st.switch_page("pages/02_warehouse.py")
+        st.switch_page("pages/15_combined.py")
     if st.button("🚚 이동 신청 현황", use_container_width=True):
-        st.switch_page("pages/03_transfers.py")
+        st.switch_page("pages/15_combined.py")
     st.button("🗂️ 통합 뷰", use_container_width=True, type="primary")
     if st.button("📋 입출고 이력", use_container_width=True):
         st.switch_page("pages/04_history.py")
