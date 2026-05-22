@@ -1216,7 +1216,7 @@ div[data-testid="stHorizontalBlock"]:has(>div[data-testid="column"]:nth-child(5)
             "erp_code":       "ERP코드",
         }
         disp = page_df[show_cols].rename(columns=col_labels)
-        st.caption("💡 행을 클릭하면 자재 상세 정보(이력·수정)를 볼 수 있습니다.")
+        st.caption("💡 자재 옆 체크박스 클릭 시 상세 정보를 볼 수 있습니다.")
         _tbl_sel = st.dataframe(
             disp, use_container_width=True, hide_index=True, height=500,
             on_select="rerun", selection_mode="single-row",
