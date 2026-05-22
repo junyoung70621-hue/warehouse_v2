@@ -820,13 +820,20 @@ def mark_notice_read(notice_id: str, user_id: str) -> None:
 
 
 def upload_notice_file(notice_id: str, filename: str, data: bytes):
-    import uuid as _uuid, re as _re
+    import uuid as _uuid, re as _re, mimetypes as _mt
     try:
         clean = _re.sub(r'[^a-zA-Z0-9._-]', '_', filename)
         safe_name = f"{_uuid.uuid4().hex[:8]}_{clean}"
         path = f"{notice_id}/{safe_name}"
-        get_supabase().storage.from_("notice-files").upload(path, data)
-        return get_supabase().storage.from_("notice-files").get_public_url(path)
+        content_type = _mt.guess_type(filename)[0] or "application/octet-stream"
+        get_supabase().storage.from_("notice-files").upload(
+            path, data, {"content-type": content_type}
+        )
+        url = get_supabase().storage.from_("notice-files").get_public_url(path)
+        # supabase-py 버전에 따라 반환 형식이 다름
+        if isinstance(url, dict):
+            url = url.get("publicURL") or url.get("publicUrl", "")
+        return str(url) if url else None
     except Exception as e:
         st.error(f"파일 업로드 오류: {e}")
         return None
