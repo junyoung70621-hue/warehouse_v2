@@ -525,26 +525,33 @@ with tab_monthly:
             st.info("데이터 없음")
     st.divider()
 
-    # 엑셀 다운로드
-    _xbuf_m = io.BytesIO()
-    with pd.ExcelWriter(_xbuf_m, engine="openpyxl") as _xw:
-        if not _day_df.empty:
-            _day_df.to_excel(_xw, index=False, sheet_name="일별추이")
-        if not _d_out.empty:
-            _d_out.to_excel(_xw, index=False, sheet_name="기종별_양품출고")
-        if not _c_out.empty:
-            _c_out.to_excel(_xw, index=False, sheet_name="대리점별_양품출고")
-        if not _d_in.empty:
-            _d_in.to_excel(_xw, index=False, sheet_name="기종별_불량입고")
-        if not _c_in.empty:
-            _c_in.to_excel(_xw, index=False, sheet_name="대리점별_불량입고")
-    st.download_button(
-        "📥 월간 통계 Excel 다운로드",
-        data=_xbuf_m.getvalue(),
-        file_name=f"택시단말기월간_{_m_year}{_m_month:02d}.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        key="taxi_monthly_dl",
-    )
+    # 엑셀 다운로드 (데이터가 있을 때만)
+    _has_monthly_data = any(not df.empty for df in [_day_df, _d_out, _c_out, _d_in, _c_in])
+    if _has_monthly_data:
+        _xbuf_m = io.BytesIO()
+        with pd.ExcelWriter(_xbuf_m, engine="openpyxl") as _xw:
+            if not _day_df.empty:
+                _day_df.to_excel(_xw, index=False, sheet_name="일별추이")
+            if not _d_out.empty:
+                _d_out.to_excel(_xw, index=False, sheet_name="기종별_양품출고")
+            if not _c_out.empty:
+                _c_out.to_excel(_xw, index=False, sheet_name="대리점별_양품출고")
+            if not _d_in.empty:
+                _d_in.to_excel(_xw, index=False, sheet_name="기종별_불량입고")
+            if not _c_in.empty:
+                _c_in.to_excel(_xw, index=False, sheet_name="대리점별_불량입고")
+        _xbuf_m_val = _xbuf_m.getvalue()
+    else:
+        _xbuf_m_val = None
+
+    if _xbuf_m_val:
+        st.download_button(
+            "📥 월간 통계 Excel 다운로드",
+            data=_xbuf_m_val,
+            file_name=f"택시단말기월간_{_m_year}{_m_month:02d}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            key="taxi_monthly_dl",
+        )
 
 
 # ══ Tab 3: 이력 조회 ══════════════════════════════════════════════════════════
