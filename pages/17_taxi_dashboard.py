@@ -68,6 +68,12 @@ CREATE INDEX IF NOT EXISTS idx_taxi_direction   ON taxi_movements(direction);
 CREATE INDEX IF NOT EXISTS idx_taxi_trcn_id     ON taxi_movements(trcn_id);
 """
 
+# 기존 테이블에 dealer_name 컬럼이 남아있을 경우 실행
+_SQL_MIGRATE = """\
+-- 기존 테이블에서 dealer_name 컬럼 제거 (1회만 실행)
+ALTER TABLE taxi_movements DROP COLUMN IF EXISTS dealer_name;
+"""
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # 분류·집계·DB 함수
@@ -109,6 +115,15 @@ def device_summary(rows: list) -> pd.DataFrame:
 def _table_exists() -> bool:
     try:
         get_supabase().table(TABLE).select("id").limit(1).execute()
+        return True
+    except Exception:
+        return False
+
+
+def _has_dealer_column() -> bool:
+    """기존 버전의 dealer_name 컬럼이 남아있는지 확인."""
+    try:
+        get_supabase().table(TABLE).select("dealer_name").limit(1).execute()
         return True
     except Exception:
         return False
@@ -335,6 +350,11 @@ st.divider()
 if not _table_exists():
     st.error("⚠️ Supabase 테이블 `taxi_movements` 가 없습니다. 아래 SQL을 실행하세요.")
     st.code(_SQL_SETUP, language="sql")
+    st.stop()
+
+if _has_dealer_column():
+    st.warning("⚠️ 테이블에 구버전 `dealer_name` 컬럼이 남아있습니다. Supabase SQL Editor에서 아래를 실행하세요.")
+    st.code(_SQL_MIGRATE, language="sql")
     st.stop()
 
 _tab_labels = ["📊 오늘의 현황", "📈 월간 현황", "📋 이력 조회"]
