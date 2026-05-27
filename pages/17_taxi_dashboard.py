@@ -71,6 +71,27 @@ CREATE INDEX IF NOT EXISTS idx_taxi_direction   ON taxi_movements(direction);
 CREATE INDEX IF NOT EXISTS idx_taxi_trcn_id     ON taxi_movements(trcn_id);
 """
 
+DELIVERY_TABLE = "taxi_deliveries"
+
+_SQL_DELIVERIES = """\
+-- Supabase SQL Editor에서 실행하세요 (최초 1회)
+CREATE TABLE IF NOT EXISTS taxi_deliveries (
+    id            uuid        DEFAULT gen_random_uuid() PRIMARY KEY,
+    delivery_id   uuid        NOT NULL,
+    trcn_id       text        NOT NULL,
+    device_type   text        NOT NULL,
+    driver_name   text        NOT NULL,
+    dealer_name   text,
+    delivery_date date        NOT NULL,
+    delivered_by  uuid        REFERENCES users(id) ON DELETE SET NULL,
+    delivered_at  timestamptz DEFAULT now(),
+    notes         text
+);
+CREATE INDEX IF NOT EXISTS idx_taxi_del_date   ON taxi_deliveries(delivery_date);
+CREATE INDEX IF NOT EXISTS idx_taxi_del_driver ON taxi_deliveries(driver_name);
+CREATE INDEX IF NOT EXISTS idx_taxi_del_trcn   ON taxi_deliveries(trcn_id);
+"""
+
 # 마이그레이션 SQL (기존 테이블 보유 시 실행)
 _SQL_MIGRATE = """\
 -- 기존 테이블 마이그레이션 (1회만 실행)
@@ -237,6 +258,39 @@ def update_taxi_records(changes: list[dict]) -> tuple[int, int]:
         except Exception:
             fail += 1
     return ok, fail
+
+
+def _delivery_table_exists() -> bool:
+    try:
+        get_supabase().table(DELIVERY_TABLE).select("id").limit(1).execute()
+        return True
+    except Exception:
+        return False
+
+
+def fetch_deliveries(date_from=None, date_to=None, driver_name=None, limit=10000) -> list:
+    try:
+        q = (
+            get_supabase().table(DELIVERY_TABLE)
+            .select("id,delivery_id,trcn_id,device_type,driver_name,"
+                    "dealer_name,delivery_date,delivered_at,notes")
+            .order("delivered_at", desc=True)
+        )
+        if date_from is not None:   q = q.gte("delivery_date", date_from.isoformat())
+        if date_to is not None:     q = q.lte("delivery_date", date_to.isoformat())
+        if driver_name is not None: q = q.eq("driver_name", driver_name)
+        return q.limit(limit).execute().data or []
+    except Exception:
+        return []
+
+
+def save_deliveries(records: list) -> bool:
+    try:
+        get_supabase().table(DELIVERY_TABLE).insert(records).execute()
+        return True
+    except Exception as e:
+        st.error(f"저장 실패: {e}")
+        return False
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -429,6 +483,56 @@ def _repair_done_dialog(repair_rows: list, out_ids: set):
             st.rerun()
 
 
+@st.experimental_dialog("🚚 배송완료 처리", width="large")
+def _delivery_dialog(driver_name: str, stock_rows: list):
+    st.markdown(f"**{driver_name}** 재고에서 배송완료 처리할 단말기를 선택하세요.")
+    if not stock_rows:
+        st.info("배송 가능한 단말기가 없습니다.")
+        return
+
+    delivery_date = st.date_input("배송 날짜", value=_today_kst(), key="dlg_dlv_date")
+    dealer_name   = st.text_input("대리점명 (선택)", key="dlg_dlv_dealer")
+    dlv_notes     = st.text_area("비고 (선택)", height=60, key="dlg_dlv_notes")
+
+    edit_df = pd.DataFrame([
+        {"선택": False, "단말기번호": r["trcn_id"], "기종": r["device_type"]}
+        for r in stock_rows
+    ])
+    sel_all = st.checkbox(f"전체 선택 ({len(edit_df)}대)", key="dlg_dlv_all")
+    if sel_all:
+        edit_df["선택"] = True
+    edited = st.data_editor(
+        edit_df, use_container_width=True, hide_index=True,
+        column_config={"선택": st.column_config.CheckboxColumn("선택", default=False)},
+        disabled=["단말기번호", "기종"],
+        key="dlg_dlv_editor",
+    )
+    sel = edited[edited["선택"].astype(bool)]
+    st.caption(f"선택: **{len(sel)}대** / 전체 {len(edit_df)}대")
+    _sa, _ca = st.columns(2)
+    if _ca.button("취소", key="dlg_dlv_cancel"):
+        st.rerun()
+    if _sa.button(f"✅ 배송완료 ({len(sel)}대)", type="primary",
+                  key="dlg_dlv_save", disabled=len(sel) == 0):
+        did = str(uuid.uuid4())
+        records = [
+            {
+                "delivery_id":   did,
+                "trcn_id":       row["단말기번호"],
+                "device_type":   row["기종"],
+                "driver_name":   driver_name,
+                "dealer_name":   dealer_name.strip() or None,
+                "delivery_date": delivery_date.isoformat(),
+                "delivered_by":  user["id"],
+                "notes":         dlv_notes.strip() or None,
+            }
+            for _, row in sel.iterrows()
+        ]
+        if save_deliveries(records):
+            st.session_state["_delivery_done_msg"] = f"✅ {len(records)}대 배송완료 처리했습니다."
+            st.rerun()
+
+
 @st.experimental_dialog("✏️ 업로드 수정", width="large")
 def _edit_records_dialog(rows: list, direction: str):
     """오늘의 현황 데이터 수정 다이얼로그."""
@@ -570,6 +674,11 @@ if _needs_migration():
     st.code(_SQL_MIGRATE, language="sql")
     st.stop()
 
+_delivery_ready = _delivery_table_exists()
+if not _delivery_ready:
+    st.warning("⚠️ `taxi_deliveries` 테이블이 없습니다. 배송완료 기능을 사용하려면 아래 SQL을 실행하세요.")
+    st.code(_SQL_DELIVERIES, language="sql")
+
 _tab_labels = ["📊 오늘의 현황", "📈 월간 현황", "📋 이력 조회"]
 if _is_admin:
     _tab_labels.append("⚙️ 관리")
@@ -619,18 +728,24 @@ with tab_dash:
     _stored_ids = {r["trcn_id"] for r in _stored_rows}
     _term_cnt   = sum(1 for r in _all_in_rows if r.get("is_terminated"))
 
-    # 기사별 재고: 양품출고 후 아직 재입고 안 된 단말기 수
-    _driver_stock: dict = {}
+    # 기사별 재고: 양품출고 후 아직 배송 안 된 단말기
+    _all_deliveries = fetch_deliveries(limit=50000) if _delivery_ready else []
+    _delivered_ids  = {r["trcn_id"] for r in _all_deliveries}
+
+    _driver_stock: dict      = {}
+    _driver_stock_rows: dict = {}
     for _tid, _out_rec in _latest_out.items():
         _in_rec2 = _latest_in.get(_tid)
         _in_at2  = (_in_rec2["uploaded_at"] or "") if _in_rec2 else ""
         _out_at2 = _out_rec["uploaded_at"] or ""
         if not _in_at2 or _out_at2 >= _in_at2:
-            _drv = _out_rec.get("driver_name") or "미배정"
-            _driver_stock[_drv] = _driver_stock.get(_drv, 0) + 1
+            if _tid not in _delivered_ids:
+                _drv = _out_rec.get("driver_name") or "미배정"
+                _driver_stock[_drv] = _driver_stock.get(_drv, 0) + 1
+                _driver_stock_rows.setdefault(_drv, []).append(_out_rec)
 
     # 알림 처리
-    for _msg_key in ("_taxi_upload_done", "_repair_done_msg", "_edit_done_msg"):
+    for _msg_key in ("_taxi_upload_done", "_repair_done_msg", "_edit_done_msg", "_delivery_done_msg"):
         if st.session_state.get(_msg_key):
             st.success(st.session_state.pop(_msg_key))
     _pending_upload = st.session_state.pop("_show_taxi_upload", None)
@@ -641,6 +756,9 @@ with tab_dash:
     _pending_edit = st.session_state.pop("_show_edit_dlg", None)
     if _pending_edit:
         _edit_records_dialog(_pending_edit["rows"], _pending_edit["direction"])
+    _pending_dlv = st.session_state.pop("_show_delivery_dlg", None)
+    if _pending_dlv:
+        _delivery_dialog(_pending_dlv["driver"], _pending_dlv["rows"])
 
     # ── 메트릭: 수리중 | 자재센터 보관 | 양품출고 합계 | 불량입고 합계 ──────────
     km1, km2, km3, km4 = st.columns(4)
@@ -653,10 +771,22 @@ with tab_dash:
     # ── 물류기사 재고현황 ──────────────────────────────────────────────────────
     st.markdown("<p style='font-size:14px;font-weight:700;margin:0 0 6px'>🚗 물류기사 재고현황</p>",
                 unsafe_allow_html=True)
-    _drv_cols = st.columns(max(len(_driver_stock), 2) if _driver_stock else 2)
-    if _driver_stock:
-        for _ci, (_drv, _cnt) in enumerate(sorted(_driver_stock.items())):
-            _drv_cols[_ci % len(_drv_cols)].metric(_drv, f"{_cnt:,}대", help="양품출고 후 미반납 단말기")
+    _drv_list = sorted(_driver_stock.keys()) if _driver_stock else []
+    _n_drv = max(len(_drv_list), 2)
+    _drv_cols = st.columns(_n_drv)
+    if _drv_list:
+        for _ci, _drv in enumerate(_drv_list):
+            _cnt = _driver_stock[_drv]
+            _dc  = _drv_cols[_ci]
+            _dc.metric(_drv, f"{_cnt:,}대", help="배송 전 보유 단말기")
+            if _can_write and _delivery_ready:
+                if _dc.button("🚚 배송완료", key=f"taxi_dlv_btn_{_drv}",
+                               use_container_width=True):
+                    st.session_state["_show_delivery_dlg"] = {
+                        "driver": _drv,
+                        "rows":   _driver_stock_rows.get(_drv, []),
+                    }
+                    st.rerun()
     else:
         _drv_cols[0].info("기사 배정 데이터 없음")
     st.divider()
@@ -898,6 +1028,53 @@ with tab_hist:
         )
     else:
         st.info("📭 조건에 맞는 데이터가 없습니다.")
+
+    # ── 배송 이력 ──────────────────────────────────────────────────────────────
+    st.divider()
+    st.markdown("#### 🚚 배송 이력")
+    if not _delivery_ready:
+        st.info("taxi_deliveries 테이블 생성 후 사용할 수 있습니다.")
+    else:
+        _dh1, _dh2, _dh3 = st.columns(3)
+        _d_from  = _dh1.date_input("시작일", value=_today3 - timedelta(days=30), key="taxi_dh_from")
+        _d_to    = _dh2.date_input("종료일", value=_today3, key="taxi_dh_to")
+        _d_drv   = _dh3.selectbox("기사", ["전체", "조기사", "김기사", "미배정"], key="taxi_dh_drv")
+        _dhs1, _dhs2 = st.columns([3, 1])
+        _d_search = _dhs1.text_input("단말기번호 검색", placeholder="번호 일부 입력", key="taxi_dh_search")
+        _d_dtype  = _dhs2.selectbox("기종", ["전체"] + TAXI_DEVICE_ORDER, key="taxi_dh_dtype")
+
+        _d_drv_val = None if _d_drv == "전체" else _d_drv
+        _d_rows = fetch_deliveries(date_from=_d_from, date_to=_d_to, driver_name=_d_drv_val)
+        _d_df = pd.DataFrame(_d_rows)[
+            ["delivery_date", "driver_name", "dealer_name", "device_type",
+             "trcn_id", "notes"]
+        ] if _d_rows else pd.DataFrame()
+
+        if not _d_df.empty:
+            if _d_search.strip():
+                _d_df = _d_df[_d_df["trcn_id"].str.contains(_d_search.strip(), na=False)]
+            if _d_dtype != "전체":
+                _d_df = _d_df[_d_df["device_type"] == _d_dtype]
+            _d_df = _d_df.rename(columns={
+                "delivery_date": "배송일", "driver_name": "기사",
+                "dealer_name": "대리점", "device_type": "기종",
+                "trcn_id": "단말기번호", "notes": "비고",
+            })
+            st.caption(f"총 **{len(_d_df):,}건**")
+            st.dataframe(_d_df, use_container_width=True, hide_index=True)
+
+            _xbuf_d = io.BytesIO()
+            with pd.ExcelWriter(_xbuf_d, engine="openpyxl") as _xw:
+                _d_df.to_excel(_xw, index=False, sheet_name="배송이력")
+            st.download_button(
+                "📥 배송 이력 Excel 다운로드",
+                data=_xbuf_d.getvalue(),
+                file_name=f"택시배송이력_{_d_from}_{_d_to}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key="taxi_dlv_hist_dl",
+            )
+        else:
+            st.info("📭 조건에 맞는 배송 이력이 없습니다.")
 
 
 # ══ Tab 4: 관리 (admin 전용) ══════════════════════════════════════════════════
