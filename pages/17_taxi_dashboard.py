@@ -683,7 +683,10 @@ with tab_hist:
                 "device_type": "기종", "trcn_id": "단말기번호",
                 "is_terminated": "해지", "file_name": "파일명", "notes": "비고",
             })
-            st.caption(f"총 **{len(h_edit):,}건** — 삭제할 행을 체크 후 아래 버튼을 누르세요.")
+            _hist_all = st.checkbox(f"전체 선택 ({len(h_edit)}건)", key="taxi_hist_all")
+            if _hist_all:
+                h_edit["삭제"] = True
+            st.caption("삭제할 행을 체크 후 아래 버튼을 누르세요.")
             edited = st.data_editor(
                 h_edit.drop(columns=["id"]),
                 use_container_width=True, hide_index=True,
