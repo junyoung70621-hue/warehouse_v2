@@ -362,7 +362,11 @@ def _repair_done_dialog(repair_rows: list, out_ids: set):
     if edit_df.empty:
         st.info("수리 중인 단말기가 없습니다.")
         return
-    st.caption(f"수리 완료된 단말기를 선택하세요. (총 {len(edit_df)}대)")
+
+    select_all = st.checkbox(f"전체 선택 ({len(edit_df)}대)", key="dlg_repair_done_all")
+    if select_all:
+        edit_df["선택"] = True
+
     edited = st.data_editor(
         edit_df, use_container_width=True, hide_index=True,
         column_config={"선택": st.column_config.CheckboxColumn("선택", default=False)},
@@ -370,6 +374,7 @@ def _repair_done_dialog(repair_rows: list, out_ids: set):
         key="dlg_repair_done_editor",
     )
     sel = edited[edited["선택"].astype(bool)]
+    st.caption(f"선택: **{len(sel)}대** / 전체 {len(edit_df)}대")
     _sa, _ca = st.columns(2)
     if _ca.button("취소", key="dlg_repair_done_cancel"):
         st.rerun()
