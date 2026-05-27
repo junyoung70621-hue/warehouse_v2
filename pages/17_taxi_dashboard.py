@@ -779,7 +779,7 @@ with tab_dash:
             _cnt = _driver_stock[_drv]
             _dc  = _drv_cols[_ci]
             _dc.metric(_drv, f"{_cnt:,}대", help="배송 전 보유 단말기")
-            if _can_write and _delivery_ready:
+            if _can_write and _delivery_ready and _drv != "미배정":
                 if _dc.button("🚚 배송완료", key=f"taxi_dlv_btn_{_drv}",
                                use_container_width=True):
                     st.session_state["_show_delivery_dlg"] = {
