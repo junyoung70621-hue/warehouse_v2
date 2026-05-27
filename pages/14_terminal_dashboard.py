@@ -503,63 +503,15 @@ def _extra_upload_dialog(sel_date):
             st.rerun()
 
 
-@st.experimental_dialog("📥 추가 입고 업로드")
+@st.experimental_dialog("📥 추가 입고 업로드", width="large")
 def _extra_in_upload_dialog(sel_date):
     from_c  = st.selectbox("출발 센터", NON_HUB_CENTERS, key="dlg_xin_from")
     mv_date = st.date_input("이동 날짜", value=sel_date, key="dlg_xin_date")
     notes   = st.text_area("비고 (선택)", placeholder="인수인계증에 표시될 메모를 입력하세요.",
                            key="dlg_xin_notes", height=68)
-    uploaded = st.file_uploader(
-        "엑셀 파일 (.xls / .xlsx)",
-        type=["xls", "xlsx"],
-        key="dlg_xin_file",
-        help="단말기 이동신청서 양식. 1·2번 행은 제목으로 간주해 자동 건너뜁니다.",
-    )
-    if not uploaded:
-        return
 
-    df = parse_terminal_excel(uploaded)
-    if df is None or df.empty:
-        st.warning("데이터를 읽지 못했습니다.")
-        return
-
-    auto_col    = find_trcn_col(df)
-    all_cols    = df.columns.tolist()
-    default_idx = all_cols.index(auto_col) if auto_col in all_cols else 0
-    trcn_col    = st.selectbox("단말기ID 컬럼 선택", all_cols,
-                               index=default_idx, key="dlg_xin_col")
-
-    df["_trcn"] = df[trcn_col].astype(str).str.strip()
-    cls = _apply_classifications(df["_trcn"])
-    df  = pd.concat([df, cls], axis=1)
-
-    valid = df[df["_dtype"] != "미분류"].copy()
-    inv   = df[df["_dtype"] == "미분류"]
-
-    c1, c2 = st.columns(2)
-    c1.metric("✅ 분류 성공", f"{len(valid)}")
-    c2.metric("⚠️ 미분류",   f"{len(inv)}")
-    if not inv.empty:
-        st.warning(f"⚠️ 미분류 {len(inv)}건 — 저장 제외")
-    if valid.empty:
-        st.warning("분류 가능한 단말기가 없습니다.")
-        return
-
-    dups   = check_dups(valid["_trcn"].tolist(), mv_date, "in")
-    new_df = valid[~valid["_trcn"].isin(dups)]
-    if dups:
-        st.warning(f"⚠️ 중복 {len(dups)}건 제외됨")
-    if new_df.empty:
-        st.error("저장할 데이터가 없습니다 (전부 중복).")
-        return
-
-    st.info(f"저장 예정: **{len(new_df)}건** / {from_c} → 자재센터 / {mv_date}")
-    _sa, _ca = st.columns(2)
-    if _ca.button("취소", use_container_width=True, key="dlg_xin_cancel"):
-        st.session_state.pop("_show_extra_in_upload", None)
-        st.rerun()
-    if _sa.button("✅ 추가 저장", type="primary", use_container_width=True, key="dlg_xin_save"):
-        uid     = str(uuid.uuid4())
+    def _do_save(new_df, file_name):
+        uid = str(uuid.uuid4())
         records = [
             {
                 "upload_id":   uid,
@@ -571,7 +523,7 @@ def _extra_in_upload_dialog(sel_date):
                 "direction":   "in",
                 "uploaded_by": user["id"],
                 "upload_date": mv_date.isoformat(),
-                "file_name":   uploaded.name,
+                "file_name":   file_name,
                 "notes":       notes.strip() or None,
             }
             for _, row in new_df.iterrows()
@@ -580,6 +532,110 @@ def _extra_in_upload_dialog(sel_date):
             st.session_state["_extra_in_upload_done"] = f"✅ {len(records)}건 추가 저장 완료!"
             st.session_state.pop("_show_extra_in_upload", None)
             st.rerun()
+
+    def _cancel():
+        st.session_state.pop("_show_extra_in_upload", None)
+        st.rerun()
+
+    tab_xl, tab_ih = st.tabs(["📁 엑셀 업로드", "⌨️ IH 직접 입력"])
+
+    # ── 엑셀 업로드 ────────────────────────────────────────────────────────
+    with tab_xl:
+        uploaded = st.file_uploader(
+            "엑셀 파일 (.xls / .xlsx)",
+            type=["xls", "xlsx"],
+            key="dlg_xin_file",
+            help="단말기 이동신청서 양식. 1·2번 행은 제목으로 간주해 자동 건너뜁니다.",
+        )
+        if uploaded:
+            df = parse_terminal_excel(uploaded)
+            if df is None or df.empty:
+                st.warning("데이터를 읽지 못했습니다.")
+            else:
+                auto_col    = find_trcn_col(df)
+                all_cols    = df.columns.tolist()
+                default_idx = all_cols.index(auto_col) if auto_col in all_cols else 0
+                trcn_col    = st.selectbox("단말기ID 컬럼 선택", all_cols,
+                                           index=default_idx, key="dlg_xin_col")
+                df["_trcn"] = df[trcn_col].astype(str).str.strip()
+                cls = _apply_classifications(df["_trcn"])
+                df  = pd.concat([df, cls], axis=1)
+                valid = df[df["_dtype"] != "미분류"].copy()
+                inv   = df[df["_dtype"] == "미분류"]
+                c1, c2 = st.columns(2)
+                c1.metric("✅ 분류 성공", f"{len(valid)}")
+                c2.metric("⚠️ 미분류",   f"{len(inv)}")
+                if not inv.empty:
+                    st.warning(f"⚠️ 미분류 {len(inv)}건 — 저장 제외")
+                if valid.empty:
+                    st.warning("분류 가능한 단말기가 없습니다.")
+                else:
+                    dups   = check_dups(valid["_trcn"].tolist(), mv_date, "in")
+                    new_df = valid[~valid["_trcn"].isin(dups)]
+                    if dups:
+                        st.warning(f"⚠️ 중복 {len(dups)}건 제외됨")
+                    if new_df.empty:
+                        st.error("저장할 데이터가 없습니다 (전부 중복).")
+                    else:
+                        st.info(f"저장 예정: **{len(new_df)}건** / {from_c} → 자재센터 / {mv_date}")
+                        _sa, _ca = st.columns(2)
+                        if _ca.button("취소", use_container_width=True, key="dlg_xin_xl_cancel"):
+                            _cancel()
+                        if _sa.button("✅ 추가 저장", type="primary",
+                                      use_container_width=True, key="dlg_xin_xl_save"):
+                            _do_save(new_df, uploaded.name)
+
+    # ── IH 직접 입력 ───────────────────────────────────────────────────────
+    with tab_ih:
+        st.caption("단말기 ID를 줄바꿈 또는 쉼표로 구분해 붙여넣으세요.")
+        raw_text = st.text_area(
+            "단말기 ID",
+            placeholder="예시)\n100123\n100456, 100789",
+            key="dlg_xin_ih_text",
+            height=160,
+            label_visibility="collapsed",
+        )
+        if raw_text.strip():
+            ids = [x.strip() for x in re.split(r"[\n,\s]+", raw_text) if x.strip()]
+            if ids:
+                s      = pd.Series(ids)
+                cls    = _apply_classifications(s)
+                df_ih  = pd.concat(
+                    [pd.DataFrame({"_trcn": ids}).reset_index(drop=True),
+                     cls.reset_index(drop=True)], axis=1
+                )
+                valid_ih = df_ih[df_ih["_dtype"] != "미분류"].copy()
+                inv_ih   = df_ih[df_ih["_dtype"] == "미분류"]
+                c1, c2 = st.columns(2)
+                c1.metric("✅ 분류 성공", f"{len(valid_ih)}")
+                c2.metric("⚠️ 미분류",   f"{len(inv_ih)}")
+                if not inv_ih.empty:
+                    st.warning(f"⚠️ 미분류 {len(inv_ih)}건 — 저장 제외")
+                    with st.expander("미분류 목록"):
+                        st.dataframe(inv_ih[["_trcn"]], use_container_width=True, hide_index=True)
+                if valid_ih.empty:
+                    st.warning("분류 가능한 단말기가 없습니다.")
+                else:
+                    dups_ih = check_dups(valid_ih["_trcn"].tolist(), mv_date, "in")
+                    new_ih  = valid_ih[~valid_ih["_trcn"].isin(dups_ih)]
+                    if dups_ih:
+                        st.warning(f"⚠️ 중복 {len(dups_ih)}건 제외됨")
+                    if new_ih.empty:
+                        st.error("저장할 데이터가 없습니다 (전부 중복).")
+                    else:
+                        st.info(f"저장 예정: **{len(new_ih)}건** / {from_c} → 자재센터 / {mv_date}")
+                        st.dataframe(
+                            new_ih[["_trcn", "_dtype", "_stype"]].rename(
+                                columns={"_trcn": "단말기ID", "_dtype": "기종", "_stype": "유형"}
+                            ),
+                            use_container_width=True, hide_index=True,
+                        )
+                        _sa2, _ca2 = st.columns(2)
+                        if _ca2.button("취소", use_container_width=True, key="dlg_xin_ih_cancel"):
+                            _cancel()
+                        if _sa2.button("✅ 추가 저장", type="primary",
+                                       use_container_width=True, key="dlg_xin_ih_save"):
+                            _do_save(new_ih, "직접입력")
 
 
 def save_terminal(records: list) -> bool:
