@@ -503,6 +503,85 @@ def _extra_upload_dialog(sel_date):
             st.rerun()
 
 
+@st.experimental_dialog("📥 추가 입고 업로드")
+def _extra_in_upload_dialog(sel_date):
+    from_c  = st.selectbox("출발 센터", NON_HUB_CENTERS, key="dlg_xin_from")
+    mv_date = st.date_input("이동 날짜", value=sel_date, key="dlg_xin_date")
+    notes   = st.text_area("비고 (선택)", placeholder="인수인계증에 표시될 메모를 입력하세요.",
+                           key="dlg_xin_notes", height=68)
+    uploaded = st.file_uploader(
+        "엑셀 파일 (.xls / .xlsx)",
+        type=["xls", "xlsx"],
+        key="dlg_xin_file",
+        help="단말기 이동신청서 양식. 1·2번 행은 제목으로 간주해 자동 건너뜁니다.",
+    )
+    if not uploaded:
+        return
+
+    df = parse_terminal_excel(uploaded)
+    if df is None or df.empty:
+        st.warning("데이터를 읽지 못했습니다.")
+        return
+
+    auto_col    = find_trcn_col(df)
+    all_cols    = df.columns.tolist()
+    default_idx = all_cols.index(auto_col) if auto_col in all_cols else 0
+    trcn_col    = st.selectbox("단말기ID 컬럼 선택", all_cols,
+                               index=default_idx, key="dlg_xin_col")
+
+    df["_trcn"] = df[trcn_col].astype(str).str.strip()
+    cls = _apply_classifications(df["_trcn"])
+    df  = pd.concat([df, cls], axis=1)
+
+    valid = df[df["_dtype"] != "미분류"].copy()
+    inv   = df[df["_dtype"] == "미분류"]
+
+    c1, c2 = st.columns(2)
+    c1.metric("✅ 분류 성공", f"{len(valid)}")
+    c2.metric("⚠️ 미분류",   f"{len(inv)}")
+    if not inv.empty:
+        st.warning(f"⚠️ 미분류 {len(inv)}건 — 저장 제외")
+    if valid.empty:
+        st.warning("분류 가능한 단말기가 없습니다.")
+        return
+
+    dups   = check_dups(valid["_trcn"].tolist(), mv_date, "in")
+    new_df = valid[~valid["_trcn"].isin(dups)]
+    if dups:
+        st.warning(f"⚠️ 중복 {len(dups)}건 제외됨")
+    if new_df.empty:
+        st.error("저장할 데이터가 없습니다 (전부 중복).")
+        return
+
+    st.info(f"저장 예정: **{len(new_df)}건** / {from_c} → 자재센터 / {mv_date}")
+    _sa, _ca = st.columns(2)
+    if _ca.button("취소", use_container_width=True, key="dlg_xin_cancel"):
+        st.session_state.pop("_show_extra_in_upload", None)
+        st.rerun()
+    if _sa.button("✅ 추가 저장", type="primary", use_container_width=True, key="dlg_xin_save"):
+        uid     = str(uuid.uuid4())
+        records = [
+            {
+                "upload_id":   uid,
+                "trcn_id":     row["_trcn"],
+                "device_type": row["_dtype"],
+                "sub_type":    row["_stype"],
+                "from_center": from_c,
+                "to_center":   "자재센터",
+                "direction":   "in",
+                "uploaded_by": user["id"],
+                "upload_date": mv_date.isoformat(),
+                "file_name":   uploaded.name,
+                "notes":       notes.strip() or None,
+            }
+            for _, row in new_df.iterrows()
+        ]
+        if save_terminal(records):
+            st.session_state["_extra_in_upload_done"] = f"✅ {len(records)}건 추가 저장 완료!"
+            st.session_state.pop("_show_extra_in_upload", None)
+            st.rerun()
+
+
 def save_terminal(records: list) -> bool:
     try:
         get_supabase().table(TABLE).insert(records).execute()
@@ -1081,11 +1160,15 @@ with tab_dash:
     k4.metric("👤 소속", user_center)
     st.divider()
 
-    # 추가출고 완료 팝업
+    # 추가출고/입고 완료 팝업
     if st.session_state.get("_extra_upload_done"):
         st.success(st.session_state.pop("_extra_upload_done"))
+    if st.session_state.get("_extra_in_upload_done"):
+        st.success(st.session_state.pop("_extra_in_upload_done"))
     if st.session_state.get("_show_extra_upload"):
         _extra_upload_dialog(st.session_state["_show_extra_upload"])
+    if st.session_state.get("_show_extra_in_upload"):
+        _extra_in_upload_dialog(st.session_state["_show_extra_in_upload"])
 
     # ── 단말기종류 × 센터 크로스표 (출고 | 입고) ─────────────────────────────
     _tbl_out, _tbl_in = st.columns(2)
@@ -1110,8 +1193,32 @@ with tab_dash:
         else:
             st.info("📭 해당 날짜 출고 데이터가 없습니다.")
     with _tbl_in:
-        st.markdown("#### 📥 센터별 입고 현황")
+        _in_hdr, _in_add_btn, _in_cert_btn = st.columns([4, 1, 1])
+        _in_hdr.markdown("#### 📥 센터별 입고 현황")
+        if _is_admin or _is_jjae:
+            if _in_add_btn.button("➕ 추가입고", key="extra_in_upload_btn",
+                                  use_container_width=True, help="입고 데이터 추가 업로드"):
+                st.session_state["_show_extra_in_upload"] = sel_date
+                st.rerun()
         _cp_in = build_center_pivot(in_rows, direction="in")
+        if in_rows:
+            if _is_admin or _is_jjae:
+                _cert_from = "타센터"
+                _cert_rows = in_rows
+            else:
+                _cert_from = user_center
+                _cert_rows = [r for r in in_rows if r.get("from_center") == user_center]
+            if _cert_rows:
+                _in_xlsx = gen_handover_xlsx(_cert_rows, _cert_from, "자재센터", sel_date)
+                _in_cert_btn.download_button(
+                    "📄 인수인계증",
+                    data=_in_xlsx,
+                    file_name=f"인수인계증_{sel_date}_{_cert_from}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key="in_quick_cert_dl",
+                    use_container_width=True,
+                    help="입고 인수인계증 다운로드",
+                )
         if _cp_in is not None:
             render_center_table(_cp_in, sel_date)
         else:
