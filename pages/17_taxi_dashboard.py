@@ -134,13 +134,15 @@ def render_device_table(rows: list, tbl_key: str) -> None:
     sel = event.selection.rows if event and event.selection else []
     if sel:
         dtype = summary.iloc[sel[0]]["기종"]
-        if dtype != "합계":
+        if dtype == "합계":
+            ih_list = [r["trcn_id"] for r in rows]
+        else:
             ih_list = [r["trcn_id"] for r in rows if r["device_type"] == dtype]
-            st.caption(f"**{dtype}** 단말기 번호 ({len(ih_list)}대)")
-            st.dataframe(
-                pd.DataFrame({"단말기번호": ih_list}),
-                use_container_width=True, hide_index=True,
-            )
+        st.caption(f"**{dtype}** 단말기 번호 ({len(ih_list)}대)")
+        st.dataframe(
+            pd.DataFrame({"단말기번호": ih_list}),
+            use_container_width=True, hide_index=True,
+        )
 
 
 def _table_exists() -> bool:
