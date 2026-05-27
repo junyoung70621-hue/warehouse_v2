@@ -38,13 +38,13 @@ user        = st.session_state.user
 user_role   = user["role"]
 user_center = _get_center(user)
 
-_is_admin   = user_role == "admin"
-_is_taxi    = user_center == "택시지원파트"   # 불량입고 담당
-_is_repair  = user_center == "리페어팀"       # 양품출고 담당
+_is_admin     = user_role == "admin"
+_is_materials = user_center == "자재센터"
 
-# 업로드 권한 분리
-_can_up_in  = _is_admin or (_is_taxi   and user_role != "guest")
-_can_up_out = _is_admin or (_is_repair and user_role != "guest")
+# 자재센터 인원·admin만 쓰기 권한
+_can_write  = _is_admin or (_is_materials and user_role != "guest")
+_can_up_in  = _can_write
+_can_up_out = _can_write
 
 TABLE = "taxi_movements"
 TAXI_DEVICE_ORDER = ["T600", "T600(지방)", "T300", "미분류"]
@@ -626,7 +626,7 @@ with tab_dash:
     with col_repair:
         _rh, _rb = st.columns([3, 1])
         _rh.markdown("<p style='font-size:15px;font-weight:700;margin:0'>🔧 수리중</p>", unsafe_allow_html=True)
-        _can_mark = _is_admin or (_is_repair and user_role != "guest")
+        _can_mark = _can_write
         if _can_mark:
             if _rb.button("완료", key="taxi_repair_done_btn", use_container_width=True,
                           help="수리완료 처리 →자재센터 보관"):
