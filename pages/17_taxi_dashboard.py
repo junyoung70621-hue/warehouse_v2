@@ -189,6 +189,19 @@ def save_taxi(records: list) -> bool:
         return False
 
 
+def update_taxi_records(rows: list[dict]) -> tuple[int, int]:
+    """변경된 레코드 일괄 업데이트. (성공건수, 실패건수) 반환."""
+    ok = fail = 0
+    for row in rows:
+        rid = row.pop("id")
+        try:
+            get_supabase().table(TABLE).update(row).eq("id", rid).execute()
+            ok += 1
+        except Exception:
+            fail += 1
+    return ok, fail
+
+
 def mark_repair_done(trcn_ids: list[str]) -> bool:
     """수리 완료 처리 — 해당 trcn_id의 불량입고 레코드에 is_repair_done=true 설정."""
     try:
@@ -663,6 +676,15 @@ with tab_hist:
     h_to   = _hc2.date_input("종료일", value=_today3, key="taxi_h_to")
     h_dir  = _hc3.selectbox("방향", ["전체", "양품출고", "불량입고"], key="taxi_h_dir")
 
+    # 모드 선택 (수정·삭제 권한자에게만 표시)
+    _can_edit = _is_admin or _can_up_in or _can_up_out
+    _mode_opts = ["조회"]
+    if _can_edit:
+        _mode_opts.append("✏️ 수정")
+    if _is_admin:
+        _mode_opts.append("🗑 삭제")
+    _hist_mode = st.radio("모드", _mode_opts, horizontal=True, key="taxi_hist_mode")
+
     _h_dir_val = None if h_dir == "전체" else ("out" if "양품출고" in h_dir else "in")
     h_rows = fetch_taxi(direction=_h_dir_val, date_from=h_from, date_to=h_to, limit=5000)
 
@@ -673,9 +695,69 @@ with tab_hist:
         ]
         h_df["direction"]     = h_df["direction"].map({"out": "양품출고", "in": "불량입고"})
         h_df["is_terminated"] = h_df["is_terminated"].fillna(False)
+        h_df["upload_date"]   = pd.to_datetime(h_df["upload_date"]).dt.date
 
-        if _is_admin:
-            # 체크박스 열 추가해서 선택 삭제
+        st.caption(f"총 **{len(h_df):,}건**")
+
+        if "수정" in _hist_mode and _can_edit:
+            # ── 수정 모드 ──────────────────────────────────────────────────────
+            st.caption("셀을 직접 클릭해 수정한 뒤 💾 저장 버튼을 누르세요.")
+            _orig = h_df.copy()
+            _edit_show = h_df.rename(columns={
+                "upload_date": "날짜", "direction": "방향",
+                "device_type": "기종", "trcn_id": "단말기번호",
+                "is_terminated": "해지", "file_name": "파일명", "notes": "비고",
+            })
+            _edited = st.data_editor(
+                _edit_show.drop(columns=["id"]),
+                use_container_width=True, hide_index=True,
+                column_config={
+                    "날짜":     st.column_config.DateColumn("날짜"),
+                    "기종":     st.column_config.SelectboxColumn(
+                                    "기종", options=TAXI_DEVICE_ORDER),
+                    "단말기번호": st.column_config.TextColumn("단말기번호"),
+                    "해지":     st.column_config.CheckboxColumn("해지"),
+                    "비고":     st.column_config.TextColumn("비고"),
+                    "방향":     st.column_config.TextColumn("방향", disabled=True),
+                    "파일명":   st.column_config.TextColumn("파일명", disabled=True),
+                },
+                disabled=["방향", "파일명"],
+                key="taxi_hist_edit_editor",
+            )
+            if st.button("💾 변경사항 저장", type="primary", key="taxi_hist_save_btn"):
+                # 변경된 행만 추출
+                _changes = []
+                for i, (orig_row, edit_row) in enumerate(
+                    zip(_orig.itertuples(index=False), _edited.itertuples(index=False))
+                ):
+                    diff = {}
+                    if str(orig_row.upload_date) != str(edit_row.날짜):
+                        diff["upload_date"] = str(edit_row.날짜)
+                    if orig_row.device_type != edit_row.기종:
+                        diff["device_type"] = edit_row.기종
+                    if orig_row.trcn_id != edit_row.단말기번호:
+                        diff["trcn_id"] = edit_row.단말기번호
+                    if bool(orig_row.is_terminated) != bool(edit_row.해지):
+                        diff["is_terminated"] = bool(edit_row.해지)
+                    _orig_note = orig_row.notes or ""
+                    _edit_note = edit_row.비고 or ""
+                    if _orig_note != _edit_note:
+                        diff["notes"] = _edit_note or None
+                    if diff:
+                        diff["id"] = orig_row.id
+                        _changes.append(diff)
+                if not _changes:
+                    st.info("변경된 내용이 없습니다.")
+                else:
+                    ok, fail = update_taxi_records(_changes)
+                    if fail == 0:
+                        st.success(f"✅ {ok}건 수정 완료")
+                        st.rerun()
+                    else:
+                        st.error(f"{ok}건 성공 / {fail}건 실패")
+
+        elif "삭제" in _hist_mode and _is_admin:
+            # ── 삭제 모드 ──────────────────────────────────────────────────────
             h_edit = h_df.copy()
             h_edit.insert(0, "삭제", False)
             h_edit = h_edit.rename(columns={
@@ -696,11 +778,8 @@ with tab_hist:
             )
             _sel_mask  = edited["삭제"].astype(bool)
             _sel_count = _sel_mask.sum()
-            _del_col, _dl_col = st.columns([2, 3])
-            if _del_col.button(
-                f"🗑 선택 {_sel_count}건 삭제", type="primary",
-                disabled=_sel_count == 0, key="taxi_hist_del_btn",
-            ):
+            if st.button(f"🗑 선택 {_sel_count}건 삭제", type="primary",
+                         disabled=_sel_count == 0, key="taxi_hist_del_btn"):
                 _del_ids = h_df.loc[_sel_mask.values, "id"].tolist()
                 try:
                     get_supabase().table(TABLE).delete().in_("id", _del_ids).execute()
@@ -708,15 +787,17 @@ with tab_hist:
                     st.rerun()
                 except Exception as e:
                     st.error(f"삭제 실패: {e}")
+
         else:
+            # ── 조회 모드 (읽기 전용) ──────────────────────────────────────────
             h_show = h_df.drop(columns=["id"]).rename(columns={
                 "upload_date": "날짜", "direction": "방향",
                 "device_type": "기종", "trcn_id": "단말기번호",
                 "is_terminated": "해지", "file_name": "파일명", "notes": "비고",
             })
-            st.caption(f"총 **{len(h_show):,}건**")
             st.dataframe(h_show, use_container_width=True, hide_index=True)
 
+        # Excel 다운로드는 모드 관계없이 항상 표시
         _xbuf_h = io.BytesIO()
         with pd.ExcelWriter(_xbuf_h, engine="openpyxl") as _xw:
             h_df.drop(columns=["id"]).rename(columns={
