@@ -679,12 +679,12 @@ if not _delivery_ready:
     st.warning("⚠️ `taxi_deliveries` 테이블이 없습니다. 배송완료 기능을 사용하려면 아래 SQL을 실행하세요.")
     st.code(_SQL_DELIVERIES, language="sql")
 
-_tab_labels = ["📊 오늘의 현황", "📈 월간 현황", "📋 이력 조회"]
+_tab_labels = ["📊 오늘의 현황", "📈 월간 현황", "📋 이력 조회", "🚚 배송 이력"]
 if _is_admin:
     _tab_labels.append("⚙️ 관리")
-_tabs      = st.tabs(_tab_labels)
-tab_dash, tab_monthly, tab_hist = _tabs[0], _tabs[1], _tabs[2]
-tab_admin  = _tabs[3] if _is_admin else None
+_tabs = st.tabs(_tab_labels)
+tab_dash, tab_monthly, tab_hist, tab_delivery = _tabs[0], _tabs[1], _tabs[2], _tabs[3]
+tab_admin = _tabs[4] if _is_admin else None
 
 
 # ══ Tab 1: 오늘의 현황 ════════════════════════════════════════════════════════
@@ -1029,15 +1029,18 @@ with tab_hist:
     else:
         st.info("📭 조건에 맞는 데이터가 없습니다.")
 
-    # ── 배송 이력 ──────────────────────────────────────────────────────────────
-    st.divider()
+
+
+# ══ Tab 4: 배송 이력 ══════════════════════════════════════════════════════════
+with tab_delivery:
     st.markdown("#### 🚚 배송 이력")
     if not _delivery_ready:
         st.info("taxi_deliveries 테이블 생성 후 사용할 수 있습니다.")
     else:
         _dh1, _dh2, _dh3 = st.columns(3)
-        _d_from  = _dh1.date_input("시작일", value=_today3 - timedelta(days=30), key="taxi_dh_from")
-        _d_to    = _dh2.date_input("종료일", value=_today3, key="taxi_dh_to")
+        _d_today = _today_kst()
+        _d_from  = _dh1.date_input("시작일", value=_d_today - timedelta(days=30), key="taxi_dh_from")
+        _d_to    = _dh2.date_input("종료일", value=_d_today, key="taxi_dh_to")
         _d_drv   = _dh3.selectbox("기사", ["전체", "조기사", "김기사", "미배정"], key="taxi_dh_drv")
         _dhs1, _dhs2 = st.columns([3, 1])
         _d_search = _dhs1.text_input("단말기번호 검색", placeholder="번호 일부 입력", key="taxi_dh_search")
@@ -1116,7 +1119,7 @@ with tab_hist:
             st.info("📭 조건에 맞는 배송 이력이 없습니다.")
 
 
-# ══ Tab 4: 관리 (admin 전용) ══════════════════════════════════════════════════
+# ══ Tab 5: 관리 (admin 전용) ══════════════════════════════════════════════════
 if _is_admin and tab_admin is not None:
     with tab_admin:
         st.markdown("#### ⚙️ 배치 삭제")
