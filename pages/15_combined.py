@@ -1127,8 +1127,8 @@ with tab_wh:
                         _ok = 0
                         for _ci in st.session_state.cv_tr_cart:
                             try:
-                                create_transfer(_ci["item_id"], selected_center,
-                                                dst, _ci["qty"], user_id)
+                                create_transfer(user_id, selected_center,
+                                                dst, _ci["item_id"], _ci["qty"])
                                 _ok += 1
                             except Exception:
                                 pass
