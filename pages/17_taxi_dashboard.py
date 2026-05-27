@@ -398,6 +398,20 @@ def _upload_dialog(sel_date: date, direction: str):
     tab_xl, tab_ih = st.tabs(["📁 엑셀 업로드", "⌨️ IH 직접 입력"])
 
     with tab_xl:
+        _tmpl_buf = io.BytesIO()
+        _tmpl_df  = pd.DataFrame({"단말기번호": ["182100001", "182100002", "180700001"]})
+        with pd.ExcelWriter(_tmpl_buf, engine="openpyxl") as _tw:
+            _tmpl_df.to_excel(_tw, index=False, sheet_name="양식")
+        st.download_button(
+            "📋 업로드 양식 다운로드",
+            data=_tmpl_buf.getvalue(),
+            file_name=f"택시단말기_{dir_label}_양식.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True,
+            key="dlg_taxi_tmpl_dl",
+        )
+        st.caption("단말기번호 열 한 개만 채워서 올리면 됩니다. (T600: 1821로 시작 9자리 / T300: 1807로 시작 9자리)")
+        st.divider()
         uploaded = st.file_uploader("엑셀 파일 선택 (.xlsx/.xls)", type=["xlsx", "xls"],
                                     key="dlg_taxi_xl_file")
         if uploaded:
