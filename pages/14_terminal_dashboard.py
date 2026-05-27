@@ -540,6 +540,37 @@ def _extra_in_upload_dialog(sel_date):
 
     tab_xl, tab_ih = st.tabs(["📁 엑셀 업로드", "⌨️ IH 직접 입력"])
 
+    def _show_dup_and_save(valid_df, file_name, key_sfx):
+        """중복 확인 → 표시 → 강제저장 체크박스 → 저장 버튼 공통 로직."""
+        valid_df = valid_df.drop_duplicates(subset="_trcn")   # 배치 내 중복 제거
+        try:
+            dup_ids = check_dups(valid_df["_trcn"].tolist(), mv_date, "in")
+        except Exception as e:
+            st.error(f"중복 확인 오류: {e}")
+            dup_ids = set()
+        dup_df  = valid_df[valid_df["_trcn"].isin(dup_ids)]
+        new_df  = valid_df[~valid_df["_trcn"].isin(dup_ids)]
+        if not dup_df.empty:
+            st.warning(f"⚠️ {len(dup_df)}건이 같은 날짜·방향으로 이미 DB에 존재합니다.")
+            st.dataframe(
+                dup_df[["_trcn", "_dtype", "_stype"]].rename(
+                    columns={"_trcn": "TRCN_ID", "_dtype": "기종", "_stype": "유형"}
+                ),
+                use_container_width=True, hide_index=True,
+            )
+            if st.checkbox("중복 무시하고 강제 저장", key=f"dlg_xin_{key_sfx}_force"):
+                new_df = valid_df.copy()
+        if new_df.empty:
+            st.error("저장할 데이터가 없습니다 (전부 중복).")
+            return
+        st.info(f"저장 예정: **{len(new_df)}건** / {from_c} → 자재센터 / {mv_date}")
+        _sa, _ca = st.columns(2)
+        if _ca.button("취소", use_container_width=True, key=f"dlg_xin_{key_sfx}_cancel"):
+            _cancel()
+        if _sa.button("✅ 추가 저장", type="primary",
+                      use_container_width=True, key=f"dlg_xin_{key_sfx}_save"):
+            _do_save(new_df, file_name)
+
     # ── 엑셀 업로드 ────────────────────────────────────────────────────────
     with tab_xl:
         uploaded = st.file_uploader(
@@ -571,20 +602,7 @@ def _extra_in_upload_dialog(sel_date):
                 if valid.empty:
                     st.warning("분류 가능한 단말기가 없습니다.")
                 else:
-                    dups   = check_dups(valid["_trcn"].tolist(), mv_date, "in")
-                    new_df = valid[~valid["_trcn"].isin(dups)]
-                    if dups:
-                        st.warning(f"⚠️ 중복 {len(dups)}건 제외됨")
-                    if new_df.empty:
-                        st.error("저장할 데이터가 없습니다 (전부 중복).")
-                    else:
-                        st.info(f"저장 예정: **{len(new_df)}건** / {from_c} → 자재센터 / {mv_date}")
-                        _sa, _ca = st.columns(2)
-                        if _ca.button("취소", use_container_width=True, key="dlg_xin_xl_cancel"):
-                            _cancel()
-                        if _sa.button("✅ 추가 저장", type="primary",
-                                      use_container_width=True, key="dlg_xin_xl_save"):
-                            _do_save(new_df, uploaded.name)
+                    _show_dup_and_save(valid, uploaded.name, "xl")
 
     # ── IH 직접 입력 ───────────────────────────────────────────────────────
     with tab_ih:
@@ -617,26 +635,7 @@ def _extra_in_upload_dialog(sel_date):
                 if valid_ih.empty:
                     st.warning("분류 가능한 단말기가 없습니다.")
                 else:
-                    dups_ih = check_dups(valid_ih["_trcn"].tolist(), mv_date, "in")
-                    new_ih  = valid_ih[~valid_ih["_trcn"].isin(dups_ih)]
-                    if dups_ih:
-                        st.warning(f"⚠️ 중복 {len(dups_ih)}건 제외됨")
-                    if new_ih.empty:
-                        st.error("저장할 데이터가 없습니다 (전부 중복).")
-                    else:
-                        st.info(f"저장 예정: **{len(new_ih)}건** / {from_c} → 자재센터 / {mv_date}")
-                        st.dataframe(
-                            new_ih[["_trcn", "_dtype", "_stype"]].rename(
-                                columns={"_trcn": "단말기ID", "_dtype": "기종", "_stype": "유형"}
-                            ),
-                            use_container_width=True, hide_index=True,
-                        )
-                        _sa2, _ca2 = st.columns(2)
-                        if _ca2.button("취소", use_container_width=True, key="dlg_xin_ih_cancel"):
-                            _cancel()
-                        if _sa2.button("✅ 추가 저장", type="primary",
-                                       use_container_width=True, key="dlg_xin_ih_save"):
-                            _do_save(new_ih, "직접입력")
+                    _show_dup_and_save(valid_ih, "직접입력", "ih")
 
 
 def save_terminal(records: list) -> bool:
