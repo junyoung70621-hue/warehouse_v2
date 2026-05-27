@@ -1136,6 +1136,8 @@ with st.sidebar:
         st.switch_page("pages/10_dashboard.py")
     if st.button("버스단말기 현황", use_container_width=True, type="primary"):
         st.session_state.pop("_show_extra_upload", None)
+    if st.button("택시단말기 현황", use_container_width=True):
+        st.switch_page("pages/17_taxi_dashboard.py")
     st.divider()
 
     render_sidebar_section("재고 관리")
