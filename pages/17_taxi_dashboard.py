@@ -614,7 +614,7 @@ with tab_dash:
 
     with col_repair:
         _rh, _rb = st.columns([3, 1])
-        _rh.markdown("<p style='font-size:13px;font-weight:700;margin:0'>🔧 수리중</p>", unsafe_allow_html=True)
+        _rh.markdown("<p style='font-size:15px;font-weight:700;margin:0'>🔧 수리중</p>", unsafe_allow_html=True)
         _can_mark = _is_admin or (_is_repair and user_role != "guest")
         if _can_mark:
             if _rb.button("완료", key="taxi_repair_done_btn", use_container_width=True,
@@ -628,7 +628,7 @@ with tab_dash:
             st.info("수리 중 없음")
 
     with col_stored:
-        st.markdown("<p style='font-size:13px;font-weight:700;margin:0'>📦 자재센터 보관</p>", unsafe_allow_html=True)
+        st.markdown("<p style='font-size:15px;font-weight:700;margin:0'>📦 자재센터 보관</p>", unsafe_allow_html=True)
         if _stored_rows:
             render_device_table(_stored_rows, "tbl_stored")
             st.caption(f"출고 대기 **{len(_stored_ids):,}대**")
@@ -637,7 +637,7 @@ with tab_dash:
 
     with col_out:
         _oh, _ob, _oe = st.columns([3, 1, 1])
-        _oh.markdown("<p style='font-size:13px;font-weight:700;margin:0'>📤 양품출고</p>", unsafe_allow_html=True)
+        _oh.markdown("<p style='font-size:15px;font-weight:700;margin:0'>📤 양품출고</p>", unsafe_allow_html=True)
         if _can_up_out:
             if _ob.button("업로드", key="taxi_out_upload_btn", use_container_width=True):
                 st.session_state["_show_taxi_upload"] = {"date": sel_date, "direction": "out"}
@@ -653,7 +653,7 @@ with tab_dash:
 
     with col_in:
         _ih, _ib, _ie = st.columns([3, 1, 1])
-        _ih.markdown("<p style='font-size:13px;font-weight:700;margin:0'>📥 불량입고</p>", unsafe_allow_html=True)
+        _ih.markdown("<p style='font-size:15px;font-weight:700;margin:0'>📥 불량입고</p>", unsafe_allow_html=True)
         if _can_up_in:
             if _ib.button("업로드", key="taxi_in_upload_btn", use_container_width=True):
                 st.session_state["_show_taxi_upload"] = {"date": sel_date, "direction": "in"}
