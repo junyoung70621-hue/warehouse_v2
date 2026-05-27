@@ -775,9 +775,12 @@ with tab_hist:
     st.markdown("#### 📋 이력 조회")
     _today3 = _today_kst()
     _hc1, _hc2, _hc3 = st.columns(3)
-    h_from = _hc1.date_input("시작일", value=_today3 - timedelta(days=30), key="taxi_h_from")
-    h_to   = _hc2.date_input("종료일", value=_today3, key="taxi_h_to")
-    h_dir  = _hc3.selectbox("방향", ["전체", "양품출고", "불량입고"], key="taxi_h_dir")
+    h_from  = _hc1.date_input("시작일", value=_today3 - timedelta(days=30), key="taxi_h_from")
+    h_to    = _hc2.date_input("종료일", value=_today3, key="taxi_h_to")
+    h_dir   = _hc3.selectbox("방향", ["전체", "양품출고", "불량입고"], key="taxi_h_dir")
+    _hs1, _hs2 = st.columns([3, 1])
+    h_search = _hs1.text_input("단말기번호 검색", placeholder="번호 일부 입력", key="taxi_h_search")
+    h_dtype  = _hs2.selectbox("기종", ["전체"] + TAXI_DEVICE_ORDER, key="taxi_h_dtype")
 
     _h_dir_val = None if h_dir == "전체" else ("out" if "양품출고" in h_dir else "in")
     h_rows = fetch_taxi(direction=_h_dir_val, date_from=h_from, date_to=h_to, limit=5000)
@@ -789,6 +792,11 @@ with tab_hist:
         ]
         h_df["direction"]     = h_df["direction"].map({"out": "양품출고", "in": "불량입고"})
         h_df["is_terminated"] = h_df["is_terminated"].fillna(False)
+
+        if h_search.strip():
+            h_df = h_df[h_df["trcn_id"].str.contains(h_search.strip(), na=False)]
+        if h_dtype != "전체":
+            h_df = h_df[h_df["device_type"] == h_dtype]
 
         if _is_admin:
             # 체크박스 열 추가해서 선택 삭제
