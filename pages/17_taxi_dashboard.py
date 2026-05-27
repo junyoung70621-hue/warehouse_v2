@@ -200,6 +200,19 @@ def mark_repair_done(trcn_ids: list[str]) -> bool:
         return False
 
 
+def update_taxi_records(changes: list[dict]) -> tuple[int, int]:
+    """변경된 레코드 업데이트. (성공, 실패) 건수 반환."""
+    ok = fail = 0
+    for row in changes:
+        rid = row.pop("id")
+        try:
+            get_supabase().table(TABLE).update(row).eq("id", rid).execute()
+            ok += 1
+        except Exception:
+            fail += 1
+    return ok, fail
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # 업로드 다이얼로그
 # ══════════════════════════════════════════════════════════════════════════════
@@ -385,6 +398,67 @@ def _repair_done_dialog(repair_rows: list, out_ids: set):
             st.rerun()
 
 
+@st.experimental_dialog("✏️ 업로드 수정", width="large")
+def _edit_records_dialog(rows: list, direction: str):
+    """오늘의 현황 데이터 수정 다이얼로그."""
+    dir_label = "양품출고" if direction == "out" else "불량입고"
+    st.markdown(f"**{dir_label}** 데이터를 수정합니다. 셀을 클릭해 변경 후 저장하세요.")
+
+    orig_df = pd.DataFrame(rows)[
+        ["id", "trcn_id", "device_type", "upload_date", "is_terminated", "notes"]
+    ]
+    orig_df["upload_date"]   = pd.to_datetime(orig_df["upload_date"]).dt.date
+    orig_df["is_terminated"] = orig_df["is_terminated"].fillna(False)
+
+    display_df = orig_df.drop(columns=["id"]).rename(columns={
+        "trcn_id": "단말기번호", "device_type": "기종",
+        "upload_date": "날짜", "is_terminated": "해지", "notes": "비고",
+    })
+
+    edited = st.data_editor(
+        display_df,
+        use_container_width=True, hide_index=True,
+        column_config={
+            "날짜":     st.column_config.DateColumn("날짜"),
+            "기종":     st.column_config.SelectboxColumn("기종", options=TAXI_DEVICE_ORDER),
+            "단말기번호": st.column_config.TextColumn("단말기번호"),
+            "해지":     st.column_config.CheckboxColumn("해지") if direction == "in"
+                        else st.column_config.CheckboxColumn("해지", disabled=True),
+            "비고":     st.column_config.TextColumn("비고"),
+        },
+        key="dlg_edit_records_editor",
+    )
+
+    _sa, _ca = st.columns(2)
+    if _ca.button("취소", key="dlg_edit_cancel"):
+        st.rerun()
+    if _sa.button("💾 저장", type="primary", key="dlg_edit_save"):
+        changes = []
+        for i, (orig_row, edit_row) in enumerate(
+            zip(orig_df.itertuples(index=False), edited.itertuples(index=False))
+        ):
+            diff = {}
+            if str(orig_row.trcn_id)    != str(edit_row.단말기번호):  diff["trcn_id"]       = str(edit_row.단말기번호)
+            if orig_row.device_type     != edit_row.기종:             diff["device_type"]   = edit_row.기종
+            if str(orig_row.upload_date) != str(edit_row.날짜):       diff["upload_date"]   = str(edit_row.날짜)
+            if bool(orig_row.is_terminated) != bool(edit_row.해지):   diff["is_terminated"] = bool(edit_row.해지)
+            _on = orig_row.notes or ""
+            _en = edit_row.비고 or ""
+            if _on != _en:                                             diff["notes"]         = _en or None
+            if diff:
+                diff["id"] = orig_row.id
+                changes.append(diff)
+        if not changes:
+            st.info("변경된 내용이 없습니다.")
+        else:
+            ok, fail = update_taxi_records(changes)
+            if fail == 0:
+                st.session_state["_edit_done_msg"] = f"✅ {ok}건 수정 완료"
+                st.rerun()
+            else:
+                st.error(f"{ok}건 성공 / {fail}건 실패")
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # 사이드바
 # ══════════════════════════════════════════════════════════════════════════════
@@ -490,16 +564,18 @@ with tab_dash:
 
     _term_cnt = sum(1 for r in _all_in_rows if r.get("is_terminated"))
 
-    # 업로드 완료 / 수리완료 처리 알림
-    if st.session_state.get("_taxi_upload_done"):
-        st.success(st.session_state.pop("_taxi_upload_done"))
-    if st.session_state.get("_repair_done_msg"):
-        st.success(st.session_state.pop("_repair_done_msg"))
+    # 알림 처리
+    for _msg_key in ("_taxi_upload_done", "_repair_done_msg", "_edit_done_msg"):
+        if st.session_state.get(_msg_key):
+            st.success(st.session_state.pop(_msg_key))
     _pending_upload = st.session_state.pop("_show_taxi_upload", None)
     if _pending_upload:
         _upload_dialog(_pending_upload["date"], _pending_upload["direction"])
     if st.session_state.pop("_show_repair_done_dlg", False):
         _repair_done_dialog(_all_in_rows, _all_out_ids)
+    _pending_edit = st.session_state.pop("_show_edit_dlg", None)
+    if _pending_edit:
+        _edit_records_dialog(_pending_edit["rows"], _pending_edit["direction"])
 
     # ── 메트릭: 수리중 | 자재센터 보관 | 양품출고 합계 | 불량입고 합계 ──────────
     km1, km2, km3, km4 = st.columns(4)
@@ -536,11 +612,14 @@ with tab_dash:
             st.info("보관 중 없음")
 
     with col_out:
-        _oh, _ob = st.columns([3, 1])
+        _oh, _ob, _oe = st.columns([3, 1, 1])
         _oh.markdown("#### 📤 양품출고")
         if _can_up_out:
             if _ob.button("업로드", key="taxi_out_upload_btn", use_container_width=True):
                 st.session_state["_show_taxi_upload"] = {"date": sel_date, "direction": "out"}
+                st.rerun()
+            if out_rows and _oe.button("수정", key="taxi_out_edit_btn", use_container_width=True):
+                st.session_state["_show_edit_dlg"] = {"rows": out_rows, "direction": "out"}
                 st.rerun()
         if out_rows:
             st.dataframe(device_summary(out_rows), use_container_width=True, hide_index=True)
@@ -549,15 +628,17 @@ with tab_dash:
             st.info("📭 오늘 출고 없음")
 
     with col_in:
-        _ih, _ib = st.columns([3, 1])
+        _ih, _ib, _ie = st.columns([3, 1, 1])
         _ih.markdown("#### 📥 불량입고")
         if _can_up_in:
             if _ib.button("업로드", key="taxi_in_upload_btn", use_container_width=True):
                 st.session_state["_show_taxi_upload"] = {"date": sel_date, "direction": "in"}
                 st.rerun()
+            if in_rows and _ie.button("수정", key="taxi_in_edit_btn", use_container_width=True):
+                st.session_state["_show_edit_dlg"] = {"rows": in_rows, "direction": "in"}
+                st.rerun()
         if in_rows:
-            _in_normal = [r for r in in_rows if not r.get("is_terminated")]
-            _in_term   = [r for r in in_rows if r.get("is_terminated")]
+            _in_term = [r for r in in_rows if r.get("is_terminated")]
             st.dataframe(device_summary(in_rows), use_container_width=True, hide_index=True)
             _cap = f"오늘 **{len(in_rows):,}대**"
             if _in_term:
