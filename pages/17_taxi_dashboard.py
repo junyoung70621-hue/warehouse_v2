@@ -571,22 +571,33 @@ with tab_dash:
     out_rows = fetch_taxi(direction="out", upload_date=sel_date)
     in_rows  = fetch_taxi(direction="in",  upload_date=sel_date)
 
-    # 누적 데이터 계산
+    # 누적 데이터 계산 — trcn_id별 최신 이벤트 비교로 현재 상태 결정
     _all_in_rows  = fetch_taxi(direction="in",  limit=50000)
     _all_out_rows = fetch_taxi(direction="out", limit=50000)
-    _all_out_ids  = {r["trcn_id"] for r in _all_out_rows}
 
-    # 수리중: 불량입고 중 수리완료 안 됐고 양품출고도 안 된 것
-    _repair_rows = [r for r in _all_in_rows
-                    if not r.get("is_repair_done") and r["trcn_id"] not in _all_out_ids]
-    _repair_ids  = {r["trcn_id"] for r in _repair_rows}
+    # fetch = uploaded_at desc 정렬 → setdefault 로 trcn_id별 최신 레코드만 유지
+    _latest_in: dict = {}
+    for r in _all_in_rows:
+        _latest_in.setdefault(r["trcn_id"], r)
 
-    # 자재센터 보관: 수리완료 됐고 양품출고는 안 된 것
-    _stored_rows = [r for r in _all_in_rows
-                    if r.get("is_repair_done") and r["trcn_id"] not in _all_out_ids]
-    _stored_ids  = {r["trcn_id"] for r in _stored_rows}
+    _latest_out_at: dict = {}
+    for r in _all_out_rows:
+        _latest_out_at.setdefault(r["trcn_id"], r["uploaded_at"] or "")
 
-    _term_cnt = sum(1 for r in _all_in_rows if r.get("is_terminated"))
+    # 마지막 in이 마지막 out 이후인 경우만 현재 재고로 집계
+    _repair_rows = []
+    _stored_rows = []
+    for _tid, _in_rec in _latest_in.items():
+        _out_at = _latest_out_at.get(_tid, "")
+        if not _out_at or (_in_rec["uploaded_at"] or "") >= _out_at:
+            if _in_rec.get("is_repair_done"):
+                _stored_rows.append(_in_rec)
+            else:
+                _repair_rows.append(_in_rec)
+
+    _repair_ids = {r["trcn_id"] for r in _repair_rows}
+    _stored_ids = {r["trcn_id"] for r in _stored_rows}
+    _term_cnt   = sum(1 for r in _all_in_rows if r.get("is_terminated"))
 
     # 알림 처리
     for _msg_key in ("_taxi_upload_done", "_repair_done_msg", "_edit_done_msg"):
@@ -596,7 +607,7 @@ with tab_dash:
     if _pending_upload:
         _upload_dialog(_pending_upload["date"], _pending_upload["direction"])
     if st.session_state.pop("_show_repair_done_dlg", False):
-        _repair_done_dialog(_all_in_rows, _all_out_ids)
+        _repair_done_dialog(_repair_rows, set())
     _pending_edit = st.session_state.pop("_show_edit_dlg", None)
     if _pending_edit:
         _edit_records_dialog(_pending_edit["rows"], _pending_edit["direction"])
