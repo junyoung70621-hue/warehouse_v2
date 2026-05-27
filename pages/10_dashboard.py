@@ -27,6 +27,8 @@ with st.sidebar:
     st.button("자재현황(전체)", use_container_width=True, type="primary")
     if st.button("버스단말기 현황", use_container_width=True):
         st.switch_page("pages/14_terminal_dashboard.py")
+    if st.button("택시단말기 현황", use_container_width=True):
+        st.switch_page("pages/17_taxi_dashboard.py")
     st.divider()
 
     render_sidebar_section("재고 관리")
