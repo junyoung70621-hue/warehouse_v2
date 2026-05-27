@@ -425,7 +425,7 @@ with tab_dash:
     # 수리중 계산: 해지 제외한 누적 불량입고 IDs - 누적 양품출고 IDs
     _all_in_rows  = fetch_taxi(direction="in",  limit=50000)
     _all_out_rows = fetch_taxi(direction="out", limit=50000)
-    _all_in_ids   = {r["trcn_id"] for r in _all_in_rows if not r.get("is_terminated")}
+    _all_in_ids   = {r["trcn_id"] for r in _all_in_rows}
     _all_out_ids  = {r["trcn_id"] for r in _all_out_rows}
     _repair_ids   = _all_in_ids - _all_out_ids
     _term_cnt     = sum(1 for r in _all_in_rows if r.get("is_terminated"))
