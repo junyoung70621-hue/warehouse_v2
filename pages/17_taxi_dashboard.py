@@ -1045,27 +1045,66 @@ with tab_hist:
 
         _d_drv_val = None if _d_drv == "전체" else _d_drv
         _d_rows = fetch_deliveries(date_from=_d_from, date_to=_d_to, driver_name=_d_drv_val)
-        _d_df = pd.DataFrame(_d_rows)[
-            ["delivery_date", "driver_name", "dealer_name", "device_type",
+        _d_df_full = pd.DataFrame(_d_rows)[
+            ["id", "delivery_date", "driver_name", "dealer_name", "device_type",
              "trcn_id", "notes"]
         ] if _d_rows else pd.DataFrame()
 
-        if not _d_df.empty:
+        if not _d_df_full.empty:
             if _d_search.strip():
-                _d_df = _d_df[_d_df["trcn_id"].str.contains(_d_search.strip(), na=False)]
+                _d_df_full = _d_df_full[_d_df_full["trcn_id"].str.contains(_d_search.strip(), na=False)]
             if _d_dtype != "전체":
-                _d_df = _d_df[_d_df["device_type"] == _d_dtype]
-            _d_df = _d_df.rename(columns={
-                "delivery_date": "배송일", "driver_name": "기사",
-                "dealer_name": "대리점", "device_type": "기종",
-                "trcn_id": "단말기번호", "notes": "비고",
-            })
-            st.caption(f"총 **{len(_d_df):,}건**")
-            st.dataframe(_d_df, use_container_width=True, hide_index=True)
+                _d_df_full = _d_df_full[_d_df_full["device_type"] == _d_dtype]
+
+            if _is_admin:
+                _d_edit = _d_df_full.copy()
+                _d_edit.insert(0, "삭제", False)
+                _d_edit = _d_edit.rename(columns={
+                    "delivery_date": "배송일", "driver_name": "기사",
+                    "dealer_name": "대리점", "device_type": "기종",
+                    "trcn_id": "단말기번호", "notes": "비고",
+                })
+                _d_sel_all = st.checkbox(f"전체 선택 ({len(_d_edit)}건)", key="taxi_dlv_all")
+                if _d_sel_all:
+                    _d_edit["삭제"] = True
+                st.caption("삭제할 행을 체크 후 아래 버튼을 누르세요.")
+                _d_edited = st.data_editor(
+                    _d_edit.drop(columns=["id"]),
+                    use_container_width=True, hide_index=True,
+                    column_config={"삭제": st.column_config.CheckboxColumn("삭제", default=False)},
+                    disabled=[c for c in _d_edit.columns if c != "삭제"],
+                    key="taxi_dlv_editor",
+                )
+                _d_sel_mask  = _d_edited["삭제"].astype(bool)
+                _d_sel_count = _d_sel_mask.sum()
+                _d_del_col, _d_dl_col = st.columns([2, 3])
+                if _d_del_col.button(
+                    f"🗑 선택 {_d_sel_count}건 삭제", type="primary",
+                    disabled=_d_sel_count == 0, key="taxi_dlv_del_btn",
+                ):
+                    _d_del_ids = _d_df_full.loc[_d_sel_mask.values, "id"].tolist()
+                    try:
+                        get_supabase().table(DELIVERY_TABLE).delete().in_("id", _d_del_ids).execute()
+                        st.success(f"✅ {len(_d_del_ids)}건 삭제 완료")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"삭제 실패: {e}")
+            else:
+                _d_show = _d_df_full.drop(columns=["id"]).rename(columns={
+                    "delivery_date": "배송일", "driver_name": "기사",
+                    "dealer_name": "대리점", "device_type": "기종",
+                    "trcn_id": "단말기번호", "notes": "비고",
+                })
+                st.caption(f"총 **{len(_d_show):,}건**")
+                st.dataframe(_d_show, use_container_width=True, hide_index=True)
 
             _xbuf_d = io.BytesIO()
             with pd.ExcelWriter(_xbuf_d, engine="openpyxl") as _xw:
-                _d_df.to_excel(_xw, index=False, sheet_name="배송이력")
+                _d_df_full.drop(columns=["id"]).rename(columns={
+                    "delivery_date": "배송일", "driver_name": "기사",
+                    "dealer_name": "대리점", "device_type": "기종",
+                    "trcn_id": "단말기번호", "notes": "비고",
+                }).to_excel(_xw, index=False, sheet_name="배송이력")
             st.download_button(
                 "📥 배송 이력 Excel 다운로드",
                 data=_xbuf_d.getvalue(),
