@@ -38,9 +38,13 @@ user        = st.session_state.user
 user_role   = user["role"]
 user_center = _get_center(user)
 
-_is_admin  = user_role == "admin"
-_is_repair = user_center == "리페어팀"
-_can_upload = _is_admin or (_is_repair and user_role != "guest")
+_is_admin   = user_role == "admin"
+_is_taxi    = user_center == "택시지원파트"   # 불량입고 담당
+_is_repair  = user_center == "리페어팀"       # 양품출고 담당
+
+# 업로드 권한 분리
+_can_up_in  = _is_admin or (_is_taxi   and user_role != "guest")
+_can_up_out = _is_admin or (_is_repair and user_role != "guest")
 
 TABLE = "taxi_movements"
 TAXI_DEVICE_ORDER = ["T600", "T300", "미분류"]
@@ -53,7 +57,6 @@ CREATE TABLE IF NOT EXISTS taxi_movements (
     trcn_id      text        NOT NULL,
     device_type  text        NOT NULL,
     direction    text        NOT NULL CHECK (direction IN ('in','out')),
-    dealer_name  text        NOT NULL,
     uploaded_by  uuid        REFERENCES users(id) ON DELETE SET NULL,
     uploaded_at  timestamptz DEFAULT now(),
     upload_date  date        NOT NULL,
@@ -67,15 +70,14 @@ CREATE INDEX IF NOT EXISTS idx_taxi_trcn_id     ON taxi_movements(trcn_id);
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 분류·피벗·DB 함수
+# 분류·집계·DB 함수
 # ══════════════════════════════════════════════════════════════════════════════
 
 def classify_taxi(raw) -> str:
-    """단말기 번호 → T600 / T300 / 미분류"""
     s = str(raw).strip()
     try:
         s = str(int(float(s)))
-    except (ValueError, OverflowError):
+    except Exception:
         pass
     digits = "".join(c for c in s if c.isdigit())
     if len(digits) == 9:
@@ -86,21 +88,22 @@ def classify_taxi(raw) -> str:
     return "미분류"
 
 
-def build_taxi_pivot(rows: list) -> pd.DataFrame | None:
-    """dealer_name × device_type 피벗"""
+def device_summary(rows: list) -> pd.DataFrame:
+    """기종별 대수 집계표."""
     if not rows:
-        return None
+        return pd.DataFrame(columns=["기종", "대수"])
     df = pd.DataFrame(rows)
-    pivot = df.pivot_table(
-        index="dealer_name", columns="device_type",
-        values="trcn_id", aggfunc="count", fill_value=0,
-    )
-    pivot.columns.name = None
-    cols = [c for c in TAXI_DEVICE_ORDER if c in pivot.columns]
-    cols += [c for c in pivot.columns if c not in TAXI_DEVICE_ORDER]
-    pivot = pivot[cols]
-    pivot["합계"] = pivot.sum(axis=1)
-    return pivot[pivot["합계"] > 0].sort_values("합계", ascending=False)
+    s = df["device_type"].value_counts()
+    result = pd.DataFrame({"기종": s.index, "대수": s.values})
+    order = [d for d in TAXI_DEVICE_ORDER if d in result["기종"].values]
+    rest  = [d for d in result["기종"].values if d not in order]
+    result = pd.concat([
+        result[result["기종"].isin(order)].set_index("기종").reindex(order).reset_index(),
+        result[result["기종"].isin(rest)],
+    ]).fillna(0)
+    result["대수"] = result["대수"].astype(int)
+    total = pd.DataFrame([{"기종": "합계", "대수": result["대수"].sum()}])
+    return pd.concat([result, total], ignore_index=True)
 
 
 def _table_exists() -> bool:
@@ -115,8 +118,7 @@ def fetch_taxi(direction=None, upload_date=None, date_from=None, date_to=None, l
     try:
         q = (
             get_supabase().table(TABLE)
-            .select("id,upload_id,trcn_id,device_type,direction,dealer_name,"
-                    "uploaded_at,upload_date,file_name,notes")
+            .select("id,upload_id,trcn_id,device_type,direction,uploaded_at,upload_date,file_name,notes")
             .order("uploaded_at", desc=True)
         )
         if direction:   q = q.eq("direction",   direction)
@@ -151,40 +153,16 @@ def save_taxi(records: list) -> bool:
         return False
 
 
-def get_known_dealers() -> list[str]:
-    try:
-        res = get_supabase().table(TABLE).select("dealer_name").execute()
-        return sorted({r["dealer_name"] for r in (res.data or []) if r.get("dealer_name")})
-    except Exception:
-        return []
-
-
 # ══════════════════════════════════════════════════════════════════════════════
 # 업로드 다이얼로그
 # ══════════════════════════════════════════════════════════════════════════════
 @st.experimental_dialog("📤 택시단말기 업로드", width="large")
-def _upload_dialog(sel_date: date):
-    direction_label = st.radio(
-        "방향",
-        ["📤 양품출고 (수리 완료 → 대리점)", "📥 불량입고 (대리점 → 수리)"],
-        key="dlg_taxi_dir", horizontal=True,
-    )
-    direction = "out" if "양품출고" in direction_label else "in"
+def _upload_dialog(sel_date: date, direction: str):
     dir_label = "양품출고" if direction == "out" else "불량입고"
-
-    known = get_known_dealers()
-    _sel = st.selectbox("대리점", ["직접 입력"] + known, key="dlg_taxi_dealer_sel")
-    if _sel == "직접 입력":
-        dealer = st.text_input("대리점명 입력", key="dlg_taxi_dealer_txt").strip()
-    else:
-        dealer = _sel
+    st.markdown(f"**{dir_label}** 단말기 번호를 등록합니다.")
 
     mv_date = st.date_input("이동 날짜", value=sel_date, key="dlg_taxi_date")
     notes   = st.text_area("비고 (선택)", key="dlg_taxi_notes", height=60)
-
-    if not dealer:
-        st.warning("대리점명을 입력하거나 선택하세요.")
-        return
 
     def _parse_ids(series: pd.Series) -> pd.DataFrame:
         def _norm(x):
@@ -193,10 +171,11 @@ def _upload_dialog(sel_date: date):
                 return str(int(float(s)))
             except Exception:
                 return s
-        normed = series.map(_norm)
+        normed     = series.map(_norm)
         classified = [classify_taxi(v) for v in normed]
-        df = pd.DataFrame({"_trcn": normed, "_dtype": classified})
-        return df[df["_trcn"].str.len() > 0]
+        return pd.DataFrame({"_trcn": normed, "_dtype": classified})[
+            normed.str.len() > 0
+        ]
 
     def _do_save(new_df: pd.DataFrame, file_name: str):
         uid = str(uuid.uuid4())
@@ -206,7 +185,6 @@ def _upload_dialog(sel_date: date):
                 "trcn_id":     row["_trcn"],
                 "device_type": row["_dtype"],
                 "direction":   direction,
-                "dealer_name": dealer,
                 "uploaded_by": user["id"],
                 "upload_date": mv_date.isoformat(),
                 "file_name":   file_name,
@@ -215,9 +193,7 @@ def _upload_dialog(sel_date: date):
             for _, row in new_df.iterrows()
         ]
         if save_taxi(records):
-            st.session_state["_taxi_upload_done"] = (
-                f"✅ {len(records)}건 {dir_label} 저장 완료! ({dealer})"
-            )
+            st.session_state["_taxi_upload_done"] = f"✅ {len(records)}건 {dir_label} 저장 완료!"
             st.rerun()
 
     def _show_dup_and_save(valid_df: pd.DataFrame, file_name: str, key_sfx: str):
@@ -240,7 +216,8 @@ def _upload_dialog(sel_date: date):
         if new_df.empty:
             st.error("저장할 데이터가 없습니다 (전부 중복).")
             return
-        st.info(f"저장 예정: **{len(new_df)}건** / {dealer} / {mv_date} / {dir_label}")
+        cnt = new_df["_dtype"].value_counts().to_dict()
+        st.info(f"저장 예정: **{len(new_df)}건** ({' / '.join(f'{k} {v}대' for k, v in cnt.items())}) / {mv_date} / {dir_label}")
         _sa, _ca = st.columns(2)
         if _ca.button("취소", key=f"dlg_taxi_{key_sfx}_cancel"):
             st.rerun()
@@ -250,9 +227,8 @@ def _upload_dialog(sel_date: date):
     tab_xl, tab_ih = st.tabs(["📁 엑셀 업로드", "⌨️ IH 직접 입력"])
 
     with tab_xl:
-        uploaded = st.file_uploader(
-            "엑셀 파일 선택 (.xlsx/.xls)", type=["xlsx", "xls"], key="dlg_taxi_xl_file"
-        )
+        uploaded = st.file_uploader("엑셀 파일 선택 (.xlsx/.xls)", type=["xlsx", "xls"],
+                                    key="dlg_taxi_xl_file")
         if uploaded:
             try:
                 xdf = pd.read_excel(uploaded, dtype=str, header=None)
@@ -284,7 +260,7 @@ def _upload_dialog(sel_date: date):
             placeholder="182100001\n182100002\n180700001",
         )
         if raw_text.strip():
-            tokens = [t.strip() for t in re.split(r"[\n,\s]+", raw_text) if t.strip()]
+            tokens   = [t.strip() for t in re.split(r"[\n,\s]+", raw_text) if t.strip()]
             valid_ih = _parse_ids(pd.Series(tokens))
             unknown_ih = valid_ih[valid_ih["_dtype"] == "미분류"]
             valid_ih   = valid_ih[valid_ih["_dtype"] != "미분류"]
@@ -364,9 +340,9 @@ if not _table_exists():
 _tab_labels = ["📊 오늘의 현황", "📈 월간 현황", "📋 이력 조회"]
 if _is_admin:
     _tab_labels.append("⚙️ 관리")
-_tabs = st.tabs(_tab_labels)
+_tabs      = st.tabs(_tab_labels)
 tab_dash, tab_monthly, tab_hist = _tabs[0], _tabs[1], _tabs[2]
-tab_admin = _tabs[3] if _is_admin else None
+tab_admin  = _tabs[3] if _is_admin else None
 
 
 # ══ Tab 1: 오늘의 현황 ════════════════════════════════════════════════════════
@@ -382,62 +358,76 @@ with tab_dash:
     in_rows  = fetch_taxi(direction="in",  upload_date=sel_date)
 
     # 수리중 = 누적 불량입고 - 누적 양품출고
-    all_out_cnt = len(fetch_taxi(direction="out", limit=50000))
-    all_in_cnt  = len(fetch_taxi(direction="in",  limit=50000))
-    _under_repair = max(all_in_cnt - all_out_cnt, 0)
+    _all_in_cnt  = len(fetch_taxi(direction="in",  limit=50000))
+    _all_out_cnt = len(fetch_taxi(direction="out", limit=50000))
+    _under_repair = max(_all_in_cnt - _all_out_cnt, 0)
 
     # 업로드 완료 알림 / 다이얼로그 열기
     if st.session_state.get("_taxi_upload_done"):
         st.success(st.session_state.pop("_taxi_upload_done"))
-    if st.session_state.get("_show_taxi_upload"):
-        _upload_dialog(st.session_state.pop("_show_taxi_upload"))
+    _pending_upload = st.session_state.pop("_show_taxi_upload", None)
+    if _pending_upload:
+        _upload_dialog(_pending_upload["date"], _pending_upload["direction"])
 
-    # ── 메트릭: 수리중 | 양품출고합계 | 양품출고(오늘) | 불량입고(오늘) ──────────
-    km1, km2, km3, km4 = st.columns(4)
-    km1.metric("🔧 수리중",      f"{_under_repair:,}대",   help="누적 불량입고 − 누적 양품출고")
-    km2.metric("📊 양품출고합계", f"{all_out_cnt:,}대",    help="전체 누적 양품출고")
-    km3.metric("📤 양품출고(오늘)", f"{len(out_rows):,}대")
-    km4.metric("📥 불량입고(오늘)", f"{len(in_rows):,}대")
+    # ── 메트릭: 수리중 | 양품출고 합계 | 불량입고 합계 ───────────────────────
+    km1, km2, km3 = st.columns(3)
+    km1.metric("🔧 수리중",       f"{_under_repair:,}대",  help="누적 불량입고 − 누적 양품출고")
+    km2.metric("📤 양품출고 합계", f"{_all_out_cnt:,}대",  help="전체 누적 양품출고")
+    km3.metric("📥 불량입고 합계", f"{_all_in_cnt:,}대",  help="전체 누적 불량입고")
     st.divider()
 
-    # 업로드 버튼
-    if _can_upload:
-        _hdr_c, _btn_c = st.columns([8, 1])
-        if _btn_c.button("📤 업로드", key="taxi_upload_btn", use_container_width=True):
-            st.session_state["_show_taxi_upload"] = sel_date
-            st.rerun()
+    # ── 현황 테이블 3열: 수리중 요약 | 양품출고 현황 | 불량입고 현황 ──────────
+    col_repair, col_out, col_in = st.columns(3)
 
-    # ── 현황 테이블 (양품출고 | 불량입고) ─────────────────────────────────────
-    _tbl_out, _tbl_in = st.columns(2)
-    with _tbl_out:
-        st.markdown("#### 📤 양품출고 현황")
-        _pv_out = build_taxi_pivot(out_rows)
-        if _pv_out is not None:
-            st.dataframe(
-                _pv_out.reset_index().rename(columns={"dealer_name": "대리점"}),
-                use_container_width=True, hide_index=True,
-            )
-            st.caption(f"총 **{len(out_rows):,}대**")
+    with col_repair:
+        st.markdown("#### 🔧 수리중")
+        # 수리중 = 전체 불량입고 목록에서 양품출고된 것 제외
+        _all_in_ids  = {r["trcn_id"] for r in fetch_taxi(direction="in",  limit=50000)}
+        _all_out_ids = {r["trcn_id"] for r in fetch_taxi(direction="out", limit=50000)}
+        _repair_ids  = _all_in_ids - _all_out_ids
+        if _repair_ids:
+            # 기종별 집계
+            _repair_rows = [r for r in fetch_taxi(direction="in", limit=50000)
+                            if r["trcn_id"] in _repair_ids]
+            _repair_df = device_summary(_repair_rows)
+            st.dataframe(_repair_df, use_container_width=True, hide_index=True)
+            st.caption(f"현재 수리 중 **{len(_repair_ids):,}대**")
         else:
-            st.info("📭 해당 날짜 양품출고 데이터가 없습니다.")
+            st.info("수리 중인 단말기 없음")
 
-    with _tbl_in:
-        st.markdown("#### 📥 불량입고 현황")
-        _pv_in = build_taxi_pivot(in_rows)
-        if _pv_in is not None:
-            st.dataframe(
-                _pv_in.reset_index().rename(columns={"dealer_name": "대리점"}),
-                use_container_width=True, hide_index=True,
-            )
-            st.caption(f"총 **{len(in_rows):,}대**")
+    with col_out:
+        _out_hdr, _out_btn = st.columns([3, 1])
+        _out_hdr.markdown("#### 📤 양품출고 현황")
+        if _can_up_out:
+            if _out_btn.button("업로드", key="taxi_out_upload_btn", use_container_width=True):
+                st.session_state["_show_taxi_upload"] = {"date": sel_date, "direction": "out"}
+                st.rerun()
+        _out_summary = device_summary(out_rows)
+        if not _out_summary.empty and out_rows:
+            st.dataframe(_out_summary, use_container_width=True, hide_index=True)
+            st.caption(f"오늘 양품출고 **{len(out_rows):,}대**")
         else:
-            st.info("📭 해당 날짜 불량입고 데이터가 없습니다.")
+            st.info("📭 해당 날짜 양품출고 없음")
+
+    with col_in:
+        _in_hdr, _in_btn = st.columns([3, 1])
+        _in_hdr.markdown("#### 📥 불량입고 현황")
+        if _can_up_in:
+            if _in_btn.button("업로드", key="taxi_in_upload_btn", use_container_width=True):
+                st.session_state["_show_taxi_upload"] = {"date": sel_date, "direction": "in"}
+                st.rerun()
+        _in_summary = device_summary(in_rows)
+        if not _in_summary.empty and in_rows:
+            st.dataframe(_in_summary, use_container_width=True, hide_index=True)
+            st.caption(f"오늘 불량입고 **{len(in_rows):,}대**")
+        else:
+            st.info("📭 해당 날짜 불량입고 없음")
 
 
 # ══ Tab 2: 월간 현황 ══════════════════════════════════════════════════════════
 with tab_monthly:
     st.markdown("#### 📈 월간 현황")
-    _today2 = _today_kst()
+    _today2  = _today_kst()
     _mc1, _mc2 = st.columns(2)
     _m_year  = _mc1.selectbox("연도", list(range(_today2.year, _today2.year - 3, -1)),
                                index=0, key="taxi_m_year")
@@ -454,11 +444,10 @@ with tab_monthly:
         len({r["upload_date"] for r in _m_out}),
         len({r["upload_date"] for r in _m_in}),
     )
-    mm1, mm2, mm3, mm4 = st.columns(4)
+    mm1, mm2, mm3 = st.columns(3)
     mm1.metric("📤 양품출고 합계", f"{len(_m_out):,}대")
     mm2.metric("📥 불량입고 합계", f"{len(_m_in):,}대")
     mm3.metric("📅 운영일수",     f"{_m_days}일")
-    mm4.metric("📆 조회 기간",    f"{_m_year}/{_m_month:02d}")
     st.divider()
 
     # 일별 추이
@@ -486,68 +475,36 @@ with tab_monthly:
     _d_in  = pd.DataFrame()
     with _bv1:
         st.caption("📤 양품출고")
-        if _m_out:
-            _d_out = pd.DataFrame(_m_out)["device_type"].value_counts().reset_index()
-            _d_out.columns = ["기종", "대수"]
+        _d_out = device_summary(_m_out)
+        if not _d_out.empty and _m_out:
             st.dataframe(_d_out, use_container_width=True, hide_index=True)
         else:
             st.info("데이터 없음")
     with _bv2:
         st.caption("📥 불량입고")
-        if _m_in:
-            _d_in = pd.DataFrame(_m_in)["device_type"].value_counts().reset_index()
-            _d_in.columns = ["기종", "대수"]
+        _d_in = device_summary(_m_in)
+        if not _d_in.empty and _m_in:
             st.dataframe(_d_in, use_container_width=True, hide_index=True)
         else:
             st.info("데이터 없음")
     st.divider()
 
-    # 대리점별 집계
-    st.markdown("##### 대리점별 집계")
-    _cv1, _cv2 = st.columns(2)
-    _c_out = pd.DataFrame()
-    _c_in  = pd.DataFrame()
-    with _cv1:
-        st.caption("📤 양품출고")
-        if _m_out:
-            _c_out = pd.DataFrame(_m_out)["dealer_name"].value_counts().reset_index()
-            _c_out.columns = ["대리점", "대수"]
-            st.dataframe(_c_out, use_container_width=True, hide_index=True)
-        else:
-            st.info("데이터 없음")
-    with _cv2:
-        st.caption("📥 불량입고")
-        if _m_in:
-            _c_in = pd.DataFrame(_m_in)["dealer_name"].value_counts().reset_index()
-            _c_in.columns = ["대리점", "대수"]
-            st.dataframe(_c_in, use_container_width=True, hide_index=True)
-        else:
-            st.info("데이터 없음")
-    st.divider()
-
-    # 엑셀 다운로드 (데이터가 있을 때만)
-    _has_monthly_data = any(not df.empty for df in [_day_df, _d_out, _c_out, _d_in, _c_in])
-    if _has_monthly_data:
+    # 엑셀 다운로드
+    _sheets = {
+        "일별추이": _day_df,
+        "기종별_양품출고": _d_out if _m_out else pd.DataFrame(),
+        "기종별_불량입고": _d_in  if _m_in  else pd.DataFrame(),
+    }
+    _has_data = any(not df.empty for df in _sheets.values())
+    if _has_data:
         _xbuf_m = io.BytesIO()
         with pd.ExcelWriter(_xbuf_m, engine="openpyxl") as _xw:
-            if not _day_df.empty:
-                _day_df.to_excel(_xw, index=False, sheet_name="일별추이")
-            if not _d_out.empty:
-                _d_out.to_excel(_xw, index=False, sheet_name="기종별_양품출고")
-            if not _c_out.empty:
-                _c_out.to_excel(_xw, index=False, sheet_name="대리점별_양품출고")
-            if not _d_in.empty:
-                _d_in.to_excel(_xw, index=False, sheet_name="기종별_불량입고")
-            if not _c_in.empty:
-                _c_in.to_excel(_xw, index=False, sheet_name="대리점별_불량입고")
-        _xbuf_m_val = _xbuf_m.getvalue()
-    else:
-        _xbuf_m_val = None
-
-    if _xbuf_m_val:
+            for _sname, _sdf in _sheets.items():
+                if not _sdf.empty:
+                    _sdf.to_excel(_xw, index=False, sheet_name=_sname)
         st.download_button(
             "📥 월간 통계 Excel 다운로드",
-            data=_xbuf_m_val,
+            data=_xbuf_m.getvalue(),
             file_name=f"택시단말기월간_{_m_year}{_m_month:02d}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             key="taxi_monthly_dl",
@@ -558,23 +515,20 @@ with tab_monthly:
 with tab_hist:
     st.markdown("#### 📋 이력 조회")
     _today3 = _today_kst()
-    _hc1, _hc2, _hc3, _hc4 = st.columns(4)
-    h_from  = _hc1.date_input("시작일", value=_today3 - timedelta(days=30), key="taxi_h_from")
-    h_to    = _hc2.date_input("종료일", value=_today3, key="taxi_h_to")
-    h_dir   = _hc3.selectbox("방향", ["전체", "양품출고", "불량입고"], key="taxi_h_dir")
-    h_deal  = _hc4.text_input("대리점 검색", key="taxi_h_dealer")
+    _hc1, _hc2, _hc3 = st.columns(3)
+    h_from = _hc1.date_input("시작일", value=_today3 - timedelta(days=30), key="taxi_h_from")
+    h_to   = _hc2.date_input("종료일", value=_today3, key="taxi_h_to")
+    h_dir  = _hc3.selectbox("방향", ["전체", "양품출고", "불량입고"], key="taxi_h_dir")
 
     _h_dir_val = None if h_dir == "전체" else ("out" if "양품출고" in h_dir else "in")
     h_rows = fetch_taxi(direction=_h_dir_val, date_from=h_from, date_to=h_to, limit=5000)
-    if h_deal.strip():
-        h_rows = [r for r in h_rows if h_deal.strip() in r.get("dealer_name", "")]
 
     if h_rows:
-        h_df = pd.DataFrame(h_rows)[[
-            "upload_date", "direction", "dealer_name", "device_type", "trcn_id", "file_name", "notes"
-        ]]
+        h_df = pd.DataFrame(h_rows)[
+            ["upload_date", "direction", "device_type", "trcn_id", "file_name", "notes"]
+        ]
         h_df["direction"] = h_df["direction"].map({"out": "양품출고", "in": "불량입고"})
-        h_df.columns = ["날짜", "방향", "대리점", "기종", "단말기번호", "파일명", "비고"]
+        h_df.columns = ["날짜", "방향", "기종", "단말기번호", "파일명", "비고"]
         st.caption(f"총 **{len(h_df):,}건**")
         st.dataframe(h_df, use_container_width=True, hide_index=True)
 
@@ -600,7 +554,7 @@ if _is_admin and tab_admin is not None:
         try:
             res = (
                 get_supabase().table(TABLE)
-                .select("upload_id,upload_date,direction,dealer_name,file_name")
+                .select("upload_id,upload_date,direction,file_name")
                 .order("uploaded_at", desc=True)
                 .limit(500)
                 .execute()
@@ -618,7 +572,7 @@ if _is_admin and tab_admin is not None:
         if batch_list:
             for b in batch_list[:50]:
                 _dir_lbl = "양품출고" if b["direction"] == "out" else "불량입고"
-                label = f"{b['upload_date']} | {_dir_lbl} | {b['dealer_name']} | {b.get('file_name','')}"
+                label = f"{b['upload_date']} | {_dir_lbl} | {b.get('file_name', '')}"
                 if st.button(f"🗑 {label}", key=f"taxi_del_{b['upload_id']}"):
                     try:
                         get_supabase().table(TABLE).delete().eq("upload_id", b["upload_id"]).execute()
