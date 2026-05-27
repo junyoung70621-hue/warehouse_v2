@@ -758,21 +758,10 @@ with tab_dash:
                 _driver_stock[_drv] = _driver_stock.get(_drv, 0) + 1
                 _driver_stock_rows.setdefault(_drv, []).append(_out_rec)
 
-    # 알림 처리
+    # 완료 알림
     for _msg_key in ("_taxi_upload_done", "_repair_done_msg", "_edit_done_msg", "_delivery_done_msg"):
         if st.session_state.get(_msg_key):
             st.success(st.session_state.pop(_msg_key))
-    _pending_upload = st.session_state.pop("_show_taxi_upload", None)
-    if _pending_upload:
-        _upload_dialog(_pending_upload["date"], _pending_upload["direction"])
-    if st.session_state.pop("_show_repair_done_dlg", False):
-        _repair_done_dialog(_repair_rows, set())
-    _pending_edit = st.session_state.pop("_show_edit_dlg", None)
-    if _pending_edit:
-        _edit_records_dialog(_pending_edit["rows"], _pending_edit["direction"])
-    _pending_dlv = st.session_state.pop("_show_delivery_dlg", None)
-    if _pending_dlv:
-        _delivery_dialog(_pending_dlv["driver"], _pending_dlv["rows"])
 
     # ── 메트릭: 수리중 | 자재센터 보관 | 양품출고 합계 | 불량입고 합계 ──────────
     km1, km2, km3, km4 = st.columns(4)
@@ -796,11 +785,7 @@ with tab_dash:
             if _can_write and _delivery_ready and _drv != "미배정":
                 if _dc.button("🚚 배송완료", key=f"taxi_dlv_btn_{_drv}",
                                use_container_width=True):
-                    st.session_state["_show_delivery_dlg"] = {
-                        "driver": _drv,
-                        "rows":   _driver_stock_rows.get(_drv, []),
-                    }
-                    st.rerun()
+                    _delivery_dialog(_drv, _driver_stock_rows.get(_drv, []))
     else:
         _drv_cols[0].info("기사 배정 데이터 없음")
     st.divider()
@@ -815,8 +800,7 @@ with tab_dash:
         if _can_mark:
             if _rb.button("완료", key="taxi_repair_done_btn", use_container_width=True,
                           help="수리완료 처리 →자재센터 보관"):
-                st.session_state["_show_repair_done_dlg"] = True
-                st.rerun()
+                _repair_done_dialog(_repair_rows, set())
         if _repair_rows:
             render_device_table(_repair_rows, "tbl_repair")
             st.caption(f"수리 중 **{len(_repair_ids):,}대**")
@@ -836,11 +820,9 @@ with tab_dash:
         _oh.markdown("<p style='font-size:15px;font-weight:700;margin:0'>📤 양품출고</p>", unsafe_allow_html=True)
         if _can_up_out:
             if _ob.button("업로드", key="taxi_out_upload_btn", use_container_width=True):
-                st.session_state["_show_taxi_upload"] = {"date": sel_date, "direction": "out"}
-                st.rerun()
+                _upload_dialog(sel_date, "out")
             if out_rows and _oe.button("수정", key="taxi_out_edit_btn", use_container_width=True):
-                st.session_state["_show_edit_dlg"] = {"rows": out_rows, "direction": "out"}
-                st.rerun()
+                _edit_records_dialog(out_rows, "out")
         if out_rows:
             render_device_table(out_rows, "tbl_out")
             st.caption(f"오늘 **{len(out_rows):,}대**")
@@ -852,11 +834,9 @@ with tab_dash:
         _ih.markdown("<p style='font-size:15px;font-weight:700;margin:0'>📥 불량입고</p>", unsafe_allow_html=True)
         if _can_up_in:
             if _ib.button("업로드", key="taxi_in_upload_btn", use_container_width=True):
-                st.session_state["_show_taxi_upload"] = {"date": sel_date, "direction": "in"}
-                st.rerun()
+                _upload_dialog(sel_date, "in")
             if in_rows and _ie.button("수정", key="taxi_in_edit_btn", use_container_width=True):
-                st.session_state["_show_edit_dlg"] = {"rows": in_rows, "direction": "in"}
-                st.rerun()
+                _edit_records_dialog(in_rows, "in")
         if in_rows:
             _in_term = [r for r in in_rows if r.get("is_terminated")]
             render_device_table(in_rows, "tbl_in")
