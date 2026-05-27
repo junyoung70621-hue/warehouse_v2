@@ -52,17 +52,18 @@ TAXI_DEVICE_ORDER = ["T600", "T600(지방)", "T300", "미분류"]
 _SQL_SETUP = """\
 -- Supabase SQL Editor에서 실행하세요
 CREATE TABLE IF NOT EXISTS taxi_movements (
-    id              uuid        DEFAULT gen_random_uuid() PRIMARY KEY,
-    upload_id       uuid        NOT NULL,
-    trcn_id         text        NOT NULL,
-    device_type     text        NOT NULL,
-    direction       text        NOT NULL CHECK (direction IN ('in','out')),
-    is_terminated   boolean     NOT NULL DEFAULT false,
-    uploaded_by     uuid        REFERENCES users(id) ON DELETE SET NULL,
-    uploaded_at     timestamptz DEFAULT now(),
-    upload_date     date        NOT NULL,
-    file_name       text,
-    notes           text
+    id               uuid        DEFAULT gen_random_uuid() PRIMARY KEY,
+    upload_id        uuid        NOT NULL,
+    trcn_id          text        NOT NULL,
+    device_type      text        NOT NULL,
+    direction        text        NOT NULL CHECK (direction IN ('in','out')),
+    is_terminated    boolean     NOT NULL DEFAULT false,
+    is_repair_done   boolean     NOT NULL DEFAULT false,
+    uploaded_by      uuid        REFERENCES users(id) ON DELETE SET NULL,
+    uploaded_at      timestamptz DEFAULT now(),
+    upload_date      date        NOT NULL,
+    file_name        text,
+    notes            text
 );
 CREATE INDEX IF NOT EXISTS idx_taxi_upload_date ON taxi_movements(upload_date);
 CREATE INDEX IF NOT EXISTS idx_taxi_direction   ON taxi_movements(direction);
@@ -73,7 +74,8 @@ CREATE INDEX IF NOT EXISTS idx_taxi_trcn_id     ON taxi_movements(trcn_id);
 _SQL_MIGRATE = """\
 -- 기존 테이블 마이그레이션 (1회만 실행)
 ALTER TABLE taxi_movements DROP COLUMN IF EXISTS dealer_name;
-ALTER TABLE taxi_movements ADD COLUMN IF NOT EXISTS is_terminated boolean NOT NULL DEFAULT false;
+ALTER TABLE taxi_movements ADD COLUMN IF NOT EXISTS is_terminated  boolean NOT NULL DEFAULT false;
+ALTER TABLE taxi_movements ADD COLUMN IF NOT EXISTS is_repair_done boolean NOT NULL DEFAULT false;
 """
 
 
@@ -136,13 +138,13 @@ def _has_dealer_column() -> bool:
 
 
 def _needs_migration() -> bool:
-    """dealer_name 잔존 또는 is_terminated 미존재 여부 확인."""
-    try:
-        get_supabase().table(TABLE).select("is_terminated").limit(1).execute()
-        has_terminated = True
-    except Exception:
-        has_terminated = False
-    return _has_dealer_column() or not has_terminated
+    """필수 컬럼 누락 또는 구버전 컬럼 잔존 여부 확인."""
+    for col in ("is_terminated", "is_repair_done"):
+        try:
+            get_supabase().table(TABLE).select(col).limit(1).execute()
+        except Exception:
+            return True
+    return _has_dealer_column()
 
 
 def fetch_taxi(direction=None, upload_date=None, date_from=None, date_to=None,
@@ -151,14 +153,14 @@ def fetch_taxi(direction=None, upload_date=None, date_from=None, date_to=None,
         q = (
             get_supabase().table(TABLE)
             .select("id,upload_id,trcn_id,device_type,direction,"
-                    "is_terminated,uploaded_at,upload_date,file_name,notes")
+                    "is_terminated,is_repair_done,uploaded_at,upload_date,file_name,notes")
             .order("uploaded_at", desc=True)
         )
-        if direction is not None:  q = q.eq("direction",      direction)
+        if direction is not None:   q = q.eq("direction",     direction)
         if upload_date is not None: q = q.eq("upload_date",   upload_date.isoformat())
-        if date_from is not None:  q = q.gte("upload_date",   date_from.isoformat())
-        if date_to is not None:    q = q.lte("upload_date",   date_to.isoformat())
-        if terminated is not None: q = q.eq("is_terminated",  terminated)
+        if date_from is not None:   q = q.gte("upload_date",  date_from.isoformat())
+        if date_to is not None:     q = q.lte("upload_date",  date_to.isoformat())
+        if terminated is not None:  q = q.eq("is_terminated", terminated)
         return q.limit(limit).execute().data or []
     except Exception:
         return []
@@ -184,6 +186,17 @@ def save_taxi(records: list) -> bool:
         return True
     except Exception as e:
         st.error(f"저장 실패: {e}")
+        return False
+
+
+def mark_repair_done(trcn_ids: list[str]) -> bool:
+    """수리 완료 처리 — 해당 trcn_id의 불량입고 레코드에 is_repair_done=true 설정."""
+    try:
+        get_supabase().table(TABLE).update({"is_repair_done": True}) \
+            .eq("direction", "in").in_("trcn_id", trcn_ids).execute()
+        return True
+    except Exception as e:
+        st.error(f"수리완료 처리 실패: {e}")
         return False
 
 
@@ -334,6 +347,39 @@ def _upload_dialog(sel_date: date, direction: str):
                 _show_dup_and_save(valid_ih, "직접입력", "ih")
 
 
+@st.experimental_dialog("✅ 수리완료 처리", width="large")
+def _repair_done_dialog(repair_rows: list, out_ids: set):
+    """수리중 단말기 목록에서 완료된 것을 선택해 자재센터 보관으로 이동."""
+    if not repair_rows:
+        st.info("수리 중인 단말기가 없습니다.")
+        return
+    edit_df = pd.DataFrame([
+        {"선택": False, "단말기번호": r["trcn_id"], "기종": r["device_type"],
+         "해지": r.get("is_terminated", False)}
+        for r in repair_rows
+        if r["trcn_id"] not in out_ids and not r.get("is_repair_done")
+    ])
+    if edit_df.empty:
+        st.info("수리 중인 단말기가 없습니다.")
+        return
+    st.caption(f"수리 완료된 단말기를 선택하세요. (총 {len(edit_df)}대)")
+    edited = st.data_editor(
+        edit_df, use_container_width=True, hide_index=True,
+        column_config={"선택": st.column_config.CheckboxColumn("선택", default=False)},
+        disabled=["단말기번호", "기종", "해지"],
+        key="dlg_repair_done_editor",
+    )
+    sel = edited[edited["선택"].astype(bool)]
+    _sa, _ca = st.columns(2)
+    if _ca.button("취소", key="dlg_repair_done_cancel"):
+        st.rerun()
+    if _sa.button(f"✅ 수리완료 처리 ({len(sel)}대)", type="primary",
+                  key="dlg_repair_done_save", disabled=len(sel) == 0):
+        if mark_repair_done(sel["단말기번호"].tolist()):
+            st.session_state["_repair_done_msg"] = f"✅ {len(sel)}대 자재센터 보관으로 이동했습니다."
+            st.rerun()
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # 사이드바
 # ══════════════════════════════════════════════════════════════════════════════
@@ -422,73 +468,98 @@ with tab_dash:
     out_rows = fetch_taxi(direction="out", upload_date=sel_date)
     in_rows  = fetch_taxi(direction="in",  upload_date=sel_date)
 
-    # 수리중 계산: 해지 제외한 누적 불량입고 IDs - 누적 양품출고 IDs
+    # 누적 데이터 계산
     _all_in_rows  = fetch_taxi(direction="in",  limit=50000)
     _all_out_rows = fetch_taxi(direction="out", limit=50000)
-    _all_in_ids   = {r["trcn_id"] for r in _all_in_rows}
     _all_out_ids  = {r["trcn_id"] for r in _all_out_rows}
-    _repair_ids   = _all_in_ids - _all_out_ids
-    _term_cnt     = sum(1 for r in _all_in_rows if r.get("is_terminated"))
 
-    # 업로드 완료 알림 / 다이얼로그 열기
+    # 수리중: 불량입고 중 수리완료 안 됐고 양품출고도 안 된 것
+    _repair_rows = [r for r in _all_in_rows
+                    if not r.get("is_repair_done") and r["trcn_id"] not in _all_out_ids]
+    _repair_ids  = {r["trcn_id"] for r in _repair_rows}
+
+    # 자재센터 보관: 수리완료 됐고 양품출고는 안 된 것
+    _stored_rows = [r for r in _all_in_rows
+                    if r.get("is_repair_done") and r["trcn_id"] not in _all_out_ids]
+    _stored_ids  = {r["trcn_id"] for r in _stored_rows}
+
+    _term_cnt = sum(1 for r in _all_in_rows if r.get("is_terminated"))
+
+    # 업로드 완료 / 수리완료 처리 알림
     if st.session_state.get("_taxi_upload_done"):
         st.success(st.session_state.pop("_taxi_upload_done"))
+    if st.session_state.get("_repair_done_msg"):
+        st.success(st.session_state.pop("_repair_done_msg"))
     _pending_upload = st.session_state.pop("_show_taxi_upload", None)
     if _pending_upload:
         _upload_dialog(_pending_upload["date"], _pending_upload["direction"])
+    if st.session_state.pop("_show_repair_done_dlg", False):
+        _repair_done_dialog(_all_in_rows, _all_out_ids)
 
-    # ── 메트릭: 수리중 | 양품출고 합계 | 불량입고 합계 | 해지 합계 ─────────────
+    # ── 메트릭: 수리중 | 자재센터 보관 | 양품출고 합계 | 불량입고 합계 ──────────
     km1, km2, km3, km4 = st.columns(4)
-    km1.metric("🔧 수리중",        f"{len(_repair_ids):,}대", help="불량입고(해지 제외) − 양품출고")
-    km2.metric("📤 양품출고 합계",  f"{len(_all_out_rows):,}대", help="전체 누적 양품출고")
-    km3.metric("📥 불량입고 합계",  f"{len(_all_in_rows):,}대",  help="전체 누적 불량입고 (해지 포함)")
-    km4.metric("🚫 해지 합계",     f"{_term_cnt:,}대",         help="해지 처리된 누적 단말기")
+    km1.metric("🔧 수리중",        f"{len(_repair_ids):,}대",  help="수리완료 전 단말기")
+    km2.metric("📦 자재센터 보관",  f"{len(_stored_ids):,}대", help="수리완료 후 출고 대기")
+    km3.metric("📤 양품출고 합계",  f"{len(_all_out_rows):,}대")
+    km4.metric("📥 불량입고 합계",  f"{len(_all_in_rows):,}대", help=f"해지 포함 (해지 {_term_cnt}대)")
     st.divider()
 
-    # ── 현황 테이블 3열: 수리중 | 양품출고 현황 | 불량입고 현황 ─────────────────
-    col_repair, col_out, col_in = st.columns(3)
+    # ── 현황 테이블 4열 ────────────────────────────────────────────────────────
+    col_repair, col_stored, col_out, col_in = st.columns(4)
 
     with col_repair:
-        st.markdown("#### 🔧 수리중")
-        _repair_rows = [r for r in _all_in_rows if r["trcn_id"] in _repair_ids]
+        _rh, _rb = st.columns([3, 1])
+        _rh.markdown("#### 🔧 수리중")
+        _can_mark = _is_admin or (_is_repair and user_role != "guest")
+        if _can_mark:
+            if _rb.button("완료", key="taxi_repair_done_btn", use_container_width=True,
+                          help="수리완료 처리 →자재센터 보관"):
+                st.session_state["_show_repair_done_dlg"] = True
+                st.rerun()
         if _repair_rows:
             st.dataframe(device_summary(_repair_rows), use_container_width=True, hide_index=True)
-            st.caption(f"현재 수리 중 **{len(_repair_ids):,}대**")
+            st.caption(f"수리 중 **{len(_repair_ids):,}대**")
         else:
-            st.info("수리 중인 단말기 없음")
-        if _term_cnt:
-            st.caption(f"🚫 해지 누계 **{_term_cnt:,}대**")
+            st.info("수리 중 없음")
+
+    with col_stored:
+        st.markdown("#### 📦 자재센터 보관")
+        if _stored_rows:
+            st.dataframe(device_summary(_stored_rows), use_container_width=True, hide_index=True)
+            st.caption(f"출고 대기 **{len(_stored_ids):,}대**")
+        else:
+            st.info("보관 중 없음")
 
     with col_out:
-        _out_hdr, _out_btn = st.columns([3, 1])
-        _out_hdr.markdown("#### 📤 양품출고 현황")
+        _oh, _ob = st.columns([3, 1])
+        _oh.markdown("#### 📤 양품출고")
         if _can_up_out:
-            if _out_btn.button("업로드", key="taxi_out_upload_btn", use_container_width=True):
+            if _ob.button("업로드", key="taxi_out_upload_btn", use_container_width=True):
                 st.session_state["_show_taxi_upload"] = {"date": sel_date, "direction": "out"}
                 st.rerun()
         if out_rows:
             st.dataframe(device_summary(out_rows), use_container_width=True, hide_index=True)
-            st.caption(f"오늘 양품출고 **{len(out_rows):,}대**")
+            st.caption(f"오늘 **{len(out_rows):,}대**")
         else:
-            st.info("📭 해당 날짜 양품출고 없음")
+            st.info("📭 오늘 출고 없음")
 
     with col_in:
-        _in_hdr, _in_btn = st.columns([3, 1])
-        _in_hdr.markdown("#### 📥 불량입고 현황")
+        _ih, _ib = st.columns([3, 1])
+        _ih.markdown("#### 📥 불량입고")
         if _can_up_in:
-            if _in_btn.button("업로드", key="taxi_in_upload_btn", use_container_width=True):
+            if _ib.button("업로드", key="taxi_in_upload_btn", use_container_width=True):
                 st.session_state["_show_taxi_upload"] = {"date": sel_date, "direction": "in"}
                 st.rerun()
         if in_rows:
             _in_normal = [r for r in in_rows if not r.get("is_terminated")]
             _in_term   = [r for r in in_rows if r.get("is_terminated")]
-            st.dataframe(device_summary(_in_normal), use_container_width=True, hide_index=True)
-            _cap = f"오늘 불량입고 **{len(_in_normal):,}대**"
+            st.dataframe(device_summary(in_rows), use_container_width=True, hide_index=True)
+            _cap = f"오늘 **{len(in_rows):,}대**"
             if _in_term:
-                _cap += f" | 해지 **{len(_in_term):,}대**"
+                _cap += f" (해지 {len(_in_term)}대)"
             st.caption(_cap)
         else:
-            st.info("📭 해당 날짜 불량입고 없음")
+            st.info("📭 오늘 입고 없음")
 
 
 # ══ Tab 2: 월간 현황 ══════════════════════════════════════════════════════════
