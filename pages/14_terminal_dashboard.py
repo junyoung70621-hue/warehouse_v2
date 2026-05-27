@@ -1,5 +1,6 @@
 ﻿# pages/14_terminal_dashboard.py
 import io
+import re
 import uuid
 from datetime import date, datetime, timedelta, timezone
 
