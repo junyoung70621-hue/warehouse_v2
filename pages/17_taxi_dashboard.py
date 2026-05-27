@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS taxi_movements (
     direction        text        NOT NULL CHECK (direction IN ('in','out')),
     is_terminated    boolean     NOT NULL DEFAULT false,
     is_repair_done   boolean     NOT NULL DEFAULT false,
+    driver_name      text,
     uploaded_by      uuid        REFERENCES users(id) ON DELETE SET NULL,
     uploaded_at      timestamptz DEFAULT now(),
     upload_date      date        NOT NULL,
@@ -76,6 +77,7 @@ _SQL_MIGRATE = """\
 ALTER TABLE taxi_movements DROP COLUMN IF EXISTS dealer_name;
 ALTER TABLE taxi_movements ADD COLUMN IF NOT EXISTS is_terminated  boolean NOT NULL DEFAULT false;
 ALTER TABLE taxi_movements ADD COLUMN IF NOT EXISTS is_repair_done boolean NOT NULL DEFAULT false;
+ALTER TABLE taxi_movements ADD COLUMN IF NOT EXISTS driver_name    text;
 """
 
 
@@ -163,7 +165,7 @@ def _has_dealer_column() -> bool:
 
 def _needs_migration() -> bool:
     """필수 컬럼 누락 또는 구버전 컬럼 잔존 여부 확인."""
-    for col in ("is_terminated", "is_repair_done"):
+    for col in ("is_terminated", "is_repair_done", "driver_name"):
         try:
             get_supabase().table(TABLE).select(col).limit(1).execute()
         except Exception:
@@ -177,7 +179,7 @@ def fetch_taxi(direction=None, upload_date=None, date_from=None, date_to=None,
         q = (
             get_supabase().table(TABLE)
             .select("id,upload_id,trcn_id,device_type,direction,"
-                    "is_terminated,is_repair_done,uploaded_at,upload_date,file_name,notes")
+                    "is_terminated,is_repair_done,driver_name,uploaded_at,upload_date,file_name,notes")
             .order("uploaded_at", desc=True)
         )
         if direction is not None:   q = q.eq("direction",     direction)
@@ -246,6 +248,10 @@ def _upload_dialog(sel_date: date, direction: str):
     st.markdown(f"**{dir_label}** 단말기 번호를 등록합니다.")
 
     mv_date = st.date_input("이동 날짜", value=sel_date, key="dlg_taxi_date")
+    if direction == "out":
+        driver = st.selectbox("담당 기사", ["조기사", "김기사"], key="dlg_taxi_driver")
+    else:
+        driver = None
     notes   = st.text_area("비고 (선택)", key="dlg_taxi_notes", height=60)
 
     def _parse_ids(series: pd.Series) -> pd.DataFrame:
@@ -270,6 +276,7 @@ def _upload_dialog(sel_date: date, direction: str):
                 "device_type":   row["_dtype"],
                 "direction":     direction,
                 "is_terminated": bool(row.get("_terminated", False)),
+                "driver_name":   driver,
                 "uploaded_by":   user["id"],
                 "upload_date":   mv_date.isoformat(),
                 "file_name":     file_name,
@@ -428,28 +435,36 @@ def _edit_records_dialog(rows: list, direction: str):
     dir_label = "양품출고" if direction == "out" else "불량입고"
     st.markdown(f"**{dir_label}** 데이터를 수정합니다. 셀을 클릭해 변경 후 저장하세요.")
 
-    orig_df = pd.DataFrame(rows)[
-        ["id", "trcn_id", "device_type", "upload_date", "is_terminated", "notes"]
-    ]
+    _cols = ["id", "trcn_id", "device_type", "upload_date", "is_terminated", "notes"]
+    if direction == "out":
+        _cols.insert(_cols.index("notes"), "driver_name")
+    orig_df = pd.DataFrame(rows)[_cols]
     orig_df["upload_date"]   = pd.to_datetime(orig_df["upload_date"]).dt.date
     orig_df["is_terminated"] = orig_df["is_terminated"].fillna(False)
+    if direction == "out":
+        orig_df["driver_name"] = orig_df["driver_name"].fillna("")
 
-    display_df = orig_df.drop(columns=["id"]).rename(columns={
-        "trcn_id": "단말기번호", "device_type": "기종",
-        "upload_date": "날짜", "is_terminated": "해지", "notes": "비고",
-    })
+    _rename = {"trcn_id": "단말기번호", "device_type": "기종",
+               "upload_date": "날짜", "is_terminated": "해지", "notes": "비고"}
+    if direction == "out":
+        _rename["driver_name"] = "기사"
+    display_df = orig_df.drop(columns=["id"]).rename(columns=_rename)
+
+    _col_cfg = {
+        "날짜":     st.column_config.DateColumn("날짜"),
+        "기종":     st.column_config.SelectboxColumn("기종", options=TAXI_DEVICE_ORDER),
+        "단말기번호": st.column_config.TextColumn("단말기번호"),
+        "해지":     st.column_config.CheckboxColumn("해지") if direction == "in"
+                    else st.column_config.CheckboxColumn("해지", disabled=True),
+        "비고":     st.column_config.TextColumn("비고"),
+    }
+    if direction == "out":
+        _col_cfg["기사"] = st.column_config.SelectboxColumn("기사", options=["조기사", "김기사"])
 
     edited = st.data_editor(
         display_df,
         use_container_width=True, hide_index=True,
-        column_config={
-            "날짜":     st.column_config.DateColumn("날짜"),
-            "기종":     st.column_config.SelectboxColumn("기종", options=TAXI_DEVICE_ORDER),
-            "단말기번호": st.column_config.TextColumn("단말기번호"),
-            "해지":     st.column_config.CheckboxColumn("해지") if direction == "in"
-                        else st.column_config.CheckboxColumn("해지", disabled=True),
-            "비고":     st.column_config.TextColumn("비고"),
-        },
+        column_config=_col_cfg,
         key="dlg_edit_records_editor",
     )
 
@@ -469,6 +484,10 @@ def _edit_records_dialog(rows: list, direction: str):
             _on = orig_row.notes or ""
             _en = edit_row.비고 or ""
             if _on != _en:                                             diff["notes"]         = _en or None
+            if direction == "out":
+                _od = orig_row.driver_name or ""
+                _ed = edit_row.기사 or ""
+                if _od != _ed:                                         diff["driver_name"]   = _ed or None
             if diff:
                 diff["id"] = orig_row.id
                 changes.append(diff)
@@ -580,15 +599,16 @@ with tab_dash:
     for r in _all_in_rows:
         _latest_in.setdefault(r["trcn_id"], r)
 
-    _latest_out_at: dict = {}
+    _latest_out: dict = {}
     for r in _all_out_rows:
-        _latest_out_at.setdefault(r["trcn_id"], r["uploaded_at"] or "")
+        _latest_out.setdefault(r["trcn_id"], r)
 
     # 마지막 in이 마지막 out 이후인 경우만 현재 재고로 집계
     _repair_rows = []
     _stored_rows = []
     for _tid, _in_rec in _latest_in.items():
-        _out_at = _latest_out_at.get(_tid, "")
+        _out_rec = _latest_out.get(_tid)
+        _out_at  = (_out_rec["uploaded_at"] or "") if _out_rec else ""
         if not _out_at or (_in_rec["uploaded_at"] or "") >= _out_at:
             if _in_rec.get("is_repair_done"):
                 _stored_rows.append(_in_rec)
@@ -598,6 +618,16 @@ with tab_dash:
     _repair_ids = {r["trcn_id"] for r in _repair_rows}
     _stored_ids = {r["trcn_id"] for r in _stored_rows}
     _term_cnt   = sum(1 for r in _all_in_rows if r.get("is_terminated"))
+
+    # 기사별 재고: 양품출고 후 아직 재입고 안 된 단말기 수
+    _driver_stock: dict = {}
+    for _tid, _out_rec in _latest_out.items():
+        _in_rec2 = _latest_in.get(_tid)
+        _in_at2  = (_in_rec2["uploaded_at"] or "") if _in_rec2 else ""
+        _out_at2 = _out_rec["uploaded_at"] or ""
+        if not _in_at2 or _out_at2 >= _in_at2:
+            _drv = _out_rec.get("driver_name") or "미배정"
+            _driver_stock[_drv] = _driver_stock.get(_drv, 0) + 1
 
     # 알림 처리
     for _msg_key in ("_taxi_upload_done", "_repair_done_msg", "_edit_done_msg"):
@@ -618,6 +648,17 @@ with tab_dash:
     km2.metric("📦 자재센터 보관",  f"{len(_stored_ids):,}대", help="수리완료 후 출고 대기")
     km3.metric("📤 양품출고 합계",  f"{len(_all_out_rows):,}대")
     km4.metric("📥 불량입고 합계",  f"{len(_all_in_rows):,}대", help=f"해지 포함 (해지 {_term_cnt}대)")
+    st.divider()
+
+    # ── 물류기사 재고현황 ──────────────────────────────────────────────────────
+    st.markdown("<p style='font-size:14px;font-weight:700;margin:0 0 6px'>🚗 물류기사 재고현황</p>",
+                unsafe_allow_html=True)
+    _drv_cols = st.columns(max(len(_driver_stock), 2) if _driver_stock else 2)
+    if _driver_stock:
+        for _ci, (_drv, _cnt) in enumerate(sorted(_driver_stock.items())):
+            _drv_cols[_ci % len(_drv_cols)].metric(_drv, f"{_cnt:,}대", help="양품출고 후 미반납 단말기")
+    else:
+        _drv_cols[0].info("기사 배정 데이터 없음")
     st.divider()
 
     # ── 현황 테이블 4열 ────────────────────────────────────────────────────────
