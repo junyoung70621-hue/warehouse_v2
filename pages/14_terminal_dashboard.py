@@ -1189,12 +1189,12 @@ if not _table_exists():
     st.code(_SQL_SETUP, language="sql")
     st.stop()
 
-_tab_labels = ["📊 오늘의 현황", "📋 이력 조회", "📄 인수인계증"]
+_tab_labels = ["📊 오늘의 현황", "📈 월간 현황", "📋 이력 조회", "📄 인수인계증"]
 if _is_admin:
     _tab_labels.append("⚙️ 관리")
 _tabs = st.tabs(_tab_labels)
-tab_dash, tab_hist, tab_cert = _tabs[0], _tabs[1], _tabs[2]
-tab_admin = _tabs[3] if _is_admin else None
+tab_dash, tab_monthly, tab_hist, tab_cert = _tabs[0], _tabs[1], _tabs[2], _tabs[3]
+tab_admin = _tabs[4] if _is_admin else None
 
 
 # ══ Tab 1: 오늘의 현황 ════════════════════════════════════════════════════════
@@ -1376,6 +1376,125 @@ with tab_hist:
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             key="hist_dl",
         )
+
+
+# ══ Tab 2: 월간 현황 ══════════════════════════════════════════════════════════
+with tab_monthly:
+    st.markdown("#### 📈 월간 현황")
+    _today = _today_kst()
+    _mc1, _mc2, _mc3 = st.columns([2, 2, 3])
+    _m_year  = _mc1.selectbox("연도", list(range(_today.year, _today.year - 3, -1)),
+                               index=0, key="m_year")
+    _m_month = _mc2.selectbox("월", list(range(1, 13)),
+                               index=_today.month - 1, key="m_month")
+    _mc3.markdown("<div style='height:27px'></div>", unsafe_allow_html=True)
+
+    import calendar as _cal
+    _m_first = date(_m_year, _m_month, 1)
+    _m_last  = date(_m_year, _m_month, _cal.monthrange(_m_year, _m_month)[1])
+
+    with st.spinner("월간 데이터 조회 중..."):
+        _m_out = fetch_terminal(direction="out", date_from=_m_first, date_to=_m_last, limit=10000)
+        _m_in  = fetch_terminal(direction="in",  date_from=_m_first, date_to=_m_last, limit=10000)
+
+    _m_days_out = len({r["upload_date"] for r in _m_out})
+    _m_days_in  = len({r["upload_date"] for r in _m_in})
+    _m_days     = max(_m_days_out, _m_days_in)
+
+    km1, km2, km3, km4 = st.columns(4)
+    km1.metric("📤 출고 합계", f"{len(_m_out):,}대")
+    km2.metric("📥 입고 합계", f"{len(_m_in):,}대")
+    km3.metric("📅 운영일수", f"{_m_days}일")
+    km4.metric("📆 조회 기간", f"{_m_year}/{_m_month:02d}")
+    st.divider()
+
+    # ── 일별 추이 ─────────────────────────────────────────────────────────────
+    st.markdown("##### 일별 출고/입고 추이")
+    if _m_out or _m_in:
+        _day_map: dict = {}
+        for r in _m_out:
+            d = str(r["upload_date"])[:10]
+            _day_map.setdefault(d, {"날짜": d, "출고": 0, "입고": 0})["출고"] += 1
+        for r in _m_in:
+            d = str(r["upload_date"])[:10]
+            _day_map.setdefault(d, {"날짜": d, "출고": 0, "입고": 0})["입고"] += 1
+        _day_df = pd.DataFrame(sorted(_day_map.values(), key=lambda x: x["날짜"]))
+        _day_df["합계"] = _day_df["출고"] + _day_df["입고"]
+        st.dataframe(_day_df, use_container_width=True, hide_index=True)
+    else:
+        st.info("📭 해당 월 데이터가 없습니다.")
+
+    st.divider()
+
+    # ── 기종별 집계 ────────────────────────────────────────────────────────────
+    st.markdown("##### 기종별 집계")
+    _pv_mc1, _pv_mc2 = st.columns(2)
+    with _pv_mc1:
+        st.caption("📤 출고")
+        _pv_out = build_pivot(_m_out)
+        if not _pv_out.empty:
+            st.dataframe(_pv_out.reset_index(), use_container_width=True, hide_index=True)
+        else:
+            st.info("데이터 없음")
+    with _pv_mc2:
+        st.caption("📥 입고")
+        _pv_in = build_pivot(_m_in)
+        if not _pv_in.empty:
+            st.dataframe(_pv_in.reset_index(), use_container_width=True, hide_index=True)
+        else:
+            st.info("데이터 없음")
+
+    st.divider()
+
+    # ── 센터별 집계 ────────────────────────────────────────────────────────────
+    st.markdown("##### 센터별 집계")
+    _ctr_mc1, _ctr_mc2 = st.columns(2)
+
+    def _center_summary(rows, ctr_col):
+        if not rows:
+            return pd.DataFrame()
+        _df = pd.DataFrame(rows)
+        _s = _df.groupby(ctr_col)["trcn_id"].count().reset_index()
+        _s.columns = ["센터", "대수"]
+        return _s.sort_values("대수", ascending=False)
+
+    with _ctr_mc1:
+        st.caption("📤 출고 (센터별)")
+        _out_ctr = _center_summary(_m_out, "to_center")
+        if not _out_ctr.empty:
+            st.dataframe(_out_ctr, use_container_width=True, hide_index=True)
+        else:
+            st.info("데이터 없음")
+    with _ctr_mc2:
+        st.caption("📥 입고 (센터별)")
+        _in_ctr = _center_summary(_m_in, "from_center")
+        if not _in_ctr.empty:
+            st.dataframe(_in_ctr, use_container_width=True, hide_index=True)
+        else:
+            st.info("데이터 없음")
+
+    st.divider()
+
+    # ── 엑셀 다운로드 ──────────────────────────────────────────────────────────
+    _xbuf_m = io.BytesIO()
+    with pd.ExcelWriter(_xbuf_m, engine="openpyxl") as _xw:
+        if _m_out or _m_in:
+            _day_df.to_excel(_xw, index=False, sheet_name="일별추이")
+        if not _pv_out.empty:
+            _pv_out.reset_index().to_excel(_xw, index=False, sheet_name="기종별_출고")
+        if not _pv_in.empty:
+            _pv_in.reset_index().to_excel(_xw, index=False, sheet_name="기종별_입고")
+        if not _out_ctr.empty:
+            _out_ctr.to_excel(_xw, index=False, sheet_name="센터별_출고")
+        if not _in_ctr.empty:
+            _in_ctr.to_excel(_xw, index=False, sheet_name="센터별_입고")
+    st.download_button(
+        "📥 월간 통계 Excel 다운로드",
+        data=_xbuf_m.getvalue(),
+        file_name=f"단말기월간통계_{_m_year}{_m_month:02d}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        key="monthly_dl",
+    )
 
 
 # ══ Tab 3: 인수인계증 ══════════════════════════════════════════════════════════
