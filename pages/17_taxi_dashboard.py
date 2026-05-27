@@ -121,6 +121,28 @@ def device_summary(rows: list) -> pd.DataFrame:
     return pd.concat([result, total], ignore_index=True)
 
 
+def render_device_table(rows: list, tbl_key: str) -> None:
+    """기종별 집계표 + 행 클릭 시 해당 기종 IH 리스트 표시."""
+    summary = device_summary(rows)
+    if summary.empty:
+        return
+    event = st.dataframe(
+        summary, use_container_width=True, hide_index=True,
+        on_select="rerun", selection_mode="single-row",
+        key=tbl_key,
+    )
+    sel = event.selection.rows if event and event.selection else []
+    if sel:
+        dtype = summary.iloc[sel[0]]["기종"]
+        if dtype != "합계":
+            ih_list = [r["trcn_id"] for r in rows if r["device_type"] == dtype]
+            st.caption(f"**{dtype}** 단말기 번호 ({len(ih_list)}대)")
+            st.dataframe(
+                pd.DataFrame({"단말기번호": ih_list}),
+                use_container_width=True, hide_index=True,
+            )
+
+
 def _table_exists() -> bool:
     try:
         get_supabase().table(TABLE).select("id").limit(1).execute()
@@ -598,7 +620,7 @@ with tab_dash:
                 st.session_state["_show_repair_done_dlg"] = True
                 st.rerun()
         if _repair_rows:
-            st.dataframe(device_summary(_repair_rows), use_container_width=True, hide_index=True)
+            render_device_table(_repair_rows, "tbl_repair")
             st.caption(f"수리 중 **{len(_repair_ids):,}대**")
         else:
             st.info("수리 중 없음")
@@ -606,7 +628,7 @@ with tab_dash:
     with col_stored:
         st.markdown("#### 📦 자재센터 보관")
         if _stored_rows:
-            st.dataframe(device_summary(_stored_rows), use_container_width=True, hide_index=True)
+            render_device_table(_stored_rows, "tbl_stored")
             st.caption(f"출고 대기 **{len(_stored_ids):,}대**")
         else:
             st.info("보관 중 없음")
@@ -622,7 +644,7 @@ with tab_dash:
                 st.session_state["_show_edit_dlg"] = {"rows": out_rows, "direction": "out"}
                 st.rerun()
         if out_rows:
-            st.dataframe(device_summary(out_rows), use_container_width=True, hide_index=True)
+            render_device_table(out_rows, "tbl_out")
             st.caption(f"오늘 **{len(out_rows):,}대**")
         else:
             st.info("📭 오늘 출고 없음")
@@ -639,7 +661,7 @@ with tab_dash:
                 st.rerun()
         if in_rows:
             _in_term = [r for r in in_rows if r.get("is_terminated")]
-            st.dataframe(device_summary(in_rows), use_container_width=True, hide_index=True)
+            render_device_table(in_rows, "tbl_in")
             _cap = f"오늘 **{len(in_rows):,}대**"
             if _in_term:
                 _cap += f" (해지 {len(_in_term)}대)"
