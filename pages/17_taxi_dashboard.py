@@ -545,16 +545,57 @@ with tab_hist:
 
     if h_rows:
         h_df = pd.DataFrame(h_rows)[
-            ["upload_date", "direction", "device_type", "trcn_id", "file_name", "notes"]
+            ["id", "upload_date", "direction", "device_type", "trcn_id", "file_name", "notes"]
         ]
         h_df["direction"] = h_df["direction"].map({"out": "양품출고", "in": "불량입고"})
-        h_df.columns = ["날짜", "방향", "기종", "단말기번호", "파일명", "비고"]
-        st.caption(f"총 **{len(h_df):,}건**")
-        st.dataframe(h_df, use_container_width=True, hide_index=True)
+
+        if _is_admin:
+            # 체크박스 열 추가해서 선택 삭제
+            h_edit = h_df.copy()
+            h_edit.insert(0, "삭제", False)
+            h_edit = h_edit.rename(columns={
+                "upload_date": "날짜", "direction": "방향",
+                "device_type": "기종", "trcn_id": "단말기번호",
+                "file_name": "파일명", "notes": "비고",
+            })
+            st.caption(f"총 **{len(h_edit):,}건** — 삭제할 행을 체크 후 아래 버튼을 누르세요.")
+            edited = st.data_editor(
+                h_edit.drop(columns=["id"]),
+                use_container_width=True, hide_index=True,
+                column_config={"삭제": st.column_config.CheckboxColumn("삭제", default=False)},
+                disabled=[c for c in h_edit.columns if c not in ("삭제",)],
+                key="taxi_hist_editor",
+            )
+            _sel_mask  = edited["삭제"].astype(bool)
+            _sel_count = _sel_mask.sum()
+            _del_col, _dl_col = st.columns([2, 3])
+            if _del_col.button(
+                f"🗑 선택 {_sel_count}건 삭제", type="primary",
+                disabled=_sel_count == 0, key="taxi_hist_del_btn",
+            ):
+                _del_ids = h_df.loc[_sel_mask.values, "id"].tolist()
+                try:
+                    get_supabase().table(TABLE).delete().in_("id", _del_ids).execute()
+                    st.success(f"✅ {len(_del_ids)}건 삭제 완료")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"삭제 실패: {e}")
+        else:
+            h_show = h_df.drop(columns=["id"]).rename(columns={
+                "upload_date": "날짜", "direction": "방향",
+                "device_type": "기종", "trcn_id": "단말기번호",
+                "file_name": "파일명", "notes": "비고",
+            })
+            st.caption(f"총 **{len(h_show):,}건**")
+            st.dataframe(h_show, use_container_width=True, hide_index=True)
 
         _xbuf_h = io.BytesIO()
         with pd.ExcelWriter(_xbuf_h, engine="openpyxl") as _xw:
-            h_df.to_excel(_xw, index=False, sheet_name="이력")
+            h_df.drop(columns=["id"]).rename(columns={
+                "upload_date": "날짜", "direction": "방향",
+                "device_type": "기종", "trcn_id": "단말기번호",
+                "file_name": "파일명", "notes": "비고",
+            }).to_excel(_xw, index=False, sheet_name="이력")
         st.download_button(
             "📥 Excel 다운로드",
             data=_xbuf_h.getvalue(),
