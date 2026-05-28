@@ -459,6 +459,134 @@ def _upload_dialog(sel_date: date, direction: str):
                 _show_dup_and_save(valid_ih, "직접입력", "ih")
 
 
+@st.experimental_dialog("➕ 추가출고 등록", width="large")
+def _extra_out_dialog(sel_date: date):
+    st.markdown("**추가출고** 단말기 번호를 등록합니다. (중복 불가)")
+
+    mv_date = st.date_input("이동 날짜", value=sel_date, key="dlg_extra_date")
+    notes   = st.text_area("비고 (선택)", key="dlg_extra_notes", height=60)
+
+    def _parse_ids_ex(series: pd.Series) -> pd.DataFrame:
+        def _norm(x):
+            s = str(x).strip()
+            try:
+                return str(int(float(s)))
+            except Exception:
+                return s
+        normed     = series.map(_norm)
+        classified = [classify_taxi(v) for v in normed]
+        return pd.DataFrame({"_trcn": normed, "_dtype": classified})[normed.str.len() > 0]
+
+    def _do_save_ex(new_df: pd.DataFrame, file_name: str):
+        uid = str(uuid.uuid4())
+        records = [
+            {
+                "upload_id":     uid,
+                "trcn_id":       row["_trcn"],
+                "device_type":   row["_dtype"],
+                "direction":     "out",
+                "is_terminated": False,
+                "driver_name":   "추가출고",
+                "uploaded_by":   user["id"],
+                "upload_date":   mv_date.isoformat(),
+                "file_name":     file_name,
+                "notes":         notes.strip() or None,
+            }
+            for _, row in new_df.iterrows()
+        ]
+        if save_taxi(records):
+            st.session_state["_taxi_upload_done"] = f"✅ {len(records)}건 추가출고 저장 완료!"
+            st.rerun()
+
+    def _show_and_save_ex(valid_df: pd.DataFrame, file_name: str, key_sfx: str):
+        valid_df = valid_df.drop_duplicates(subset="_trcn")
+        try:
+            dup_ids = check_taxi_dups(valid_df["_trcn"].tolist(), mv_date, "out")
+        except Exception as e:
+            st.error(f"중복 확인 오류: {e}")
+            dup_ids = set()
+        dup_df = valid_df[valid_df["_trcn"].isin(dup_ids)]
+        new_df = valid_df[~valid_df["_trcn"].isin(dup_ids)].copy()
+        if not dup_df.empty:
+            st.warning(f"⚠️ 이미 등록된 단말기 {len(dup_df)}건 (제외됨)")
+            st.dataframe(
+                dup_df[["_trcn", "_dtype"]].rename(columns={"_trcn": "단말기번호", "_dtype": "기종"}),
+                use_container_width=True, hide_index=True,
+            )
+        if new_df.empty:
+            st.error("저장할 데이터가 없습니다 (전부 중복).")
+            return
+        cnt = new_df["_dtype"].value_counts().to_dict()
+        st.info(f"저장 예정: **{len(new_df)}건** ({' / '.join(f'{k} {v}대' for k, v in cnt.items())}) / {mv_date} / 추가출고")
+        _sa, _ca = st.columns(2)
+        if _ca.button("취소", key=f"dlg_extra_{key_sfx}_cancel"):
+            st.rerun()
+        if _sa.button("✅ 저장", type="primary", key=f"dlg_extra_{key_sfx}_save"):
+            _do_save_ex(new_df, file_name)
+
+    tab_xl, tab_ih = st.tabs(["📁 엑셀 업로드", "⌨️ IH 직접 입력"])
+
+    with tab_xl:
+        _tmpl_buf = io.BytesIO()
+        _tmpl_df  = pd.DataFrame({"단말기번호": ["182100001", "182100002", "180700001"]})
+        with pd.ExcelWriter(_tmpl_buf, engine="openpyxl") as _tw:
+            _tmpl_df.to_excel(_tw, index=False, sheet_name="양식")
+        st.download_button(
+            "📋 업로드 양식 다운로드",
+            data=_tmpl_buf.getvalue(),
+            file_name="택시단말기_추가출고_양식.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True,
+            key="dlg_extra_tmpl_dl",
+        )
+        st.divider()
+        uploaded = st.file_uploader("엑셀 파일 선택 (.xlsx/.xls)", type=["xlsx", "xls"],
+                                    key="dlg_extra_xl_file")
+        if uploaded:
+            try:
+                xdf = pd.read_excel(uploaded, dtype=str, header=None)
+                num_col = next(
+                    (col for col in xdf.columns if xdf[col].dropna().str.match(r"^\d+").any()),
+                    None,
+                )
+                if num_col is None:
+                    st.error("단말기 번호 컬럼을 찾을 수 없습니다.")
+                else:
+                    valid = _parse_ids_ex(xdf[num_col].dropna())
+                    unknown = valid[valid["_dtype"] == "미분류"]
+                    valid   = valid[valid["_dtype"] != "미분류"]
+                    if not unknown.empty:
+                        st.warning(f"미분류 {len(unknown)}건 제외")
+                    if valid.empty:
+                        st.error("유효한 단말기 번호가 없습니다.")
+                    else:
+                        cnt = valid["_dtype"].value_counts().to_dict()
+                        st.success(f"파싱 완료: {' / '.join(f'{k} {v}대' for k, v in cnt.items())}")
+                        _show_and_save_ex(valid, uploaded.name, "xl")
+            except Exception as e:
+                st.error(f"파일 읽기 오류: {e}")
+
+    with tab_ih:
+        raw_text = st.text_area(
+            "단말기 번호 입력 (줄바꿈·쉼표·공백 구분)",
+            height=200, key="dlg_extra_ih_txt",
+            placeholder="182100001\n182100002\n180700001",
+        )
+        if raw_text.strip():
+            tokens   = [t.strip() for t in re.split(r"[\n,\s]+", raw_text) if t.strip()]
+            valid_ih = _parse_ids_ex(pd.Series(tokens))
+            unknown_ih = valid_ih[valid_ih["_dtype"] == "미분류"]
+            valid_ih   = valid_ih[valid_ih["_dtype"] != "미분류"]
+            if not unknown_ih.empty:
+                st.warning(f"미분류 {len(unknown_ih)}건 제외")
+            if valid_ih.empty:
+                st.warning("인식된 단말기가 없습니다.")
+            else:
+                cnt = valid_ih["_dtype"].value_counts().to_dict()
+                st.success(f"인식: {' / '.join(f'{k} {v}대' for k, v in cnt.items())}")
+                _show_and_save_ex(valid_ih, "직접입력", "ih")
+
+
 @st.experimental_dialog("✅ 수리완료 처리", width="large")
 def _repair_done_dialog(repair_rows: list, out_ids: set):
     """수리중 단말기 목록에서 완료된 것을 선택해 자재센터 보관으로 이동."""
@@ -774,7 +902,12 @@ with tab_dash:
     # ── 물류기사 재고현황 ──────────────────────────────────────────────────────
     st.markdown("<p style='font-size:14px;font-weight:700;margin:0 0 6px'>🚗 물류기사 재고현황</p>",
                 unsafe_allow_html=True)
-    _drv_list = sorted(_driver_stock.keys()) if _driver_stock else []
+    _DRIVER_ORDER = ["조기사", "김기사", "추가출고"]
+    _drv_list = (
+        [d for d in _DRIVER_ORDER if d in _driver_stock]
+        + sorted(d for d in _driver_stock if d not in _DRIVER_ORDER and d != "미배정")
+        + (["미배정"] if "미배정" in _driver_stock else [])
+    ) if _driver_stock else []
     _n_drv = max(len(_drv_list), 2)
     _drv_cols = st.columns(_n_drv)
     if _drv_list:
@@ -782,7 +915,7 @@ with tab_dash:
             _cnt = _driver_stock[_drv]
             _dc  = _drv_cols[_ci]
             _dc.metric(_drv, f"{_cnt:,}대", help="배송 전 보유 단말기")
-            if _can_write and _delivery_ready and _drv != "미배정":
+            if _can_write and _delivery_ready and _drv not in ("미배정", "추가출고"):
                 if _dc.button("🚚 배송완료", key=f"taxi_dlv_btn_{_drv}",
                                use_container_width=True):
                     _delivery_dialog(_drv, _driver_stock_rows.get(_drv, []))
@@ -816,9 +949,11 @@ with tab_dash:
             st.info("보관 중 없음")
 
     with col_out:
-        _oh, _ob, _oe = st.columns([3, 1, 1])
+        _oh, _oadd, _ob, _oe = st.columns([3, 1, 1, 1])
         _oh.markdown("<p style='font-size:15px;font-weight:700;margin:0'>📤 양품출고</p>", unsafe_allow_html=True)
         if _can_up_out:
+            if _oadd.button("추가출고", key="taxi_extra_out_btn", use_container_width=True):
+                _extra_out_dialog(sel_date)
             if _ob.button("업로드", key="taxi_out_upload_btn", use_container_width=True):
                 _upload_dialog(sel_date, "out")
             if out_rows and _oe.button("수정", key="taxi_out_edit_btn", use_container_width=True):
