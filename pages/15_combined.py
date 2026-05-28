@@ -407,6 +407,7 @@ if _st_dialog:
                                if x["item_name"] == _sel_item["item_name"]), None)
                 if _idx is not None:
                     _cart[_idx]["requested_qty"] = _req_qty
+                    st.toast(f"'{_sel_item['item_name']}' 수량 업데이트됨")
                 else:
                     _cart.append({
                         "item_name":     _sel_item["item_name"],
@@ -414,8 +415,8 @@ if _st_dialog:
                         "current_qty":   int(_sel_item["quantity"]),
                         "requested_qty": _req_qty,
                     })
+                    st.toast(f"'{_sel_item['item_name']}' 추가됨")
                 st.session_state.cv_mat_req_cart = _cart
-                st.rerun()
 
         # 요청 목록
         _cart = st.session_state.cv_mat_req_cart
