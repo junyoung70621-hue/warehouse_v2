@@ -118,7 +118,8 @@ with tab_login:
                 )
             user = login(username, password)
             if user:
-                st.session_state.user = user
+                from utils.auth import _store_user_session
+                _store_user_session(user)
                 st.session_state.login_time    = datetime.now()
                 st.session_state.last_activity = datetime.now()
                 st.success(f"환영합니다, {user['name']}님!")

@@ -55,8 +55,8 @@ user_name   = user.get("name") or user.get("username", "")
 user_id     = user["id"]
 
 _is_admin     = user_role == "admin"
-_is_materials = user_center == "자재센터"
-_can_manage   = _is_admin or (_is_materials and user_role != "guest")
+_is_materials = user_role == "materials"
+_can_manage   = _is_admin or _is_materials
 _can_write    = user_role not in ("guest",)
 
 TRACKING_CENTERS = ["강서센터", "강북센터", "강동센터", "강남센터"]

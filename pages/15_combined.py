@@ -449,15 +449,20 @@ if _st_dialog:
                     st.error("자재파트 담당자 이메일을 찾을 수 없습니다.")
                 else:
                     try:
-                        submit_material_request(
+                        _req_id = submit_material_request(
                             requester_id=usr_id, requester_name=usr_name,
                             requester_email=usr_email, from_center=center,
                             items=_cart, notes=_notes,
                         )
-                        _send_req(_mat_emails, center, usr_name, _cart, notes=_notes)
-                        st.session_state.cv_mat_req_cart = []
-                        st.session_state["_cv_done_msg"] = "📨 자재 요청이 발송되었습니다."
-                        st.rerun()
+                        if not _req_id:
+                            st.error("자재 요청 저장에 실패했습니다. 다시 시도해 주세요.")
+                        else:
+                            from utils.db import clear_material_request_cache
+                            clear_material_request_cache()
+                            _send_req(_mat_emails, center, usr_name, _cart, notes=_notes)
+                            st.session_state.cv_mat_req_cart = []
+                            st.session_state["_cv_done_msg"] = "📨 자재 요청이 발송되었습니다."
+                            st.rerun()
                     except Exception as _e:
                         st.error(f"발송 오류: {_e}")
 
@@ -503,8 +508,7 @@ if _st_dialog:
                 st.session_state["_cv_done_msg"] = "✅ 승인 완료!"
                 try:
                     from utils.mail import send_transfer_result as _str
-                    _actor_center = _u.get("assigned_center") or _u.get("center","")
-                    _emails = get_center_emails(_actor_center)
+                    _emails = get_center_emails(from_center)
                     _str(_emails, item_name, from_center, "자재센터",
                          qty, "approved", _u.get("name",""))
                 except Exception:

@@ -251,6 +251,10 @@ def approve_transfer(
             st.error("이동 신청 정보를 찾을 수 없습니다.")
             return False
 
+        if tr["status"] != "pending":
+            st.warning("이미 처리된 이동 신청입니다.")
+            return False
+
         if not can_approve_transfer(approver, tr["from_center"], tr["to_center"]):
             st.error("해당 이동 건의 승인 권한이 없습니다.")
             return False
@@ -306,7 +310,7 @@ def approve_transfer(
 
         if dest_list:
             dest       = max(dest_list, key=lambda r: int(r.get("quantity") or 0))
-            before_dst = int(dest["quantity"])
+            before_dst = int(dest["quantity"] or 0)
             after_dst  = before_dst + qty
             sb.table("warehouse").update({
                 "quantity":         after_dst,
@@ -684,6 +688,9 @@ def approve_material_request_with_stock(
         if not req:
             return False, [], ["요청 정보를 찾을 수 없습니다."]
 
+        if req["status"] != "pending":
+            return False, [], ["이미 처리된 자재 요청입니다."]
+
         from_center  = req["from_center"]
         items        = req.get("items") or []
         approver_id  = approver["id"]
@@ -737,8 +744,8 @@ def approve_material_request_with_stock(
             dest_res = sb.table("warehouse").select("id, quantity") \
                          .eq("item_name", item_name).eq("location", from_center).execute()
             if dest_res.data:
-                dest       = max(dest_res.data, key=lambda r: int(r["quantity"]))
-                before_dst = int(dest["quantity"])
+                dest       = max(dest_res.data, key=lambda r: int(r.get("quantity") or 0))
+                before_dst = int(dest["quantity"] or 0)
                 after_dst  = before_dst + req_qty
                 upd_dst = sb.table("warehouse").update({
                     "quantity":         after_dst,

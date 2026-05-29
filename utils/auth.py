@@ -20,6 +20,12 @@ def _make_session_token(user_id: str, password_hash: str) -> str:
     ).hexdigest()
 
 
+def _store_user_session(user: dict) -> None:
+    """password_hash를 세션 user 딕셔너리에서 분리 저장."""
+    st.session_state._session_phash = user.get("password_hash", "")
+    st.session_state.user = {k: v for k, v in user.items() if k != "password_hash"}
+
+
 def try_restore_session() -> bool:
     """query_params의 토큰으로 세션 복구 (새로고침 대응). 복구 성공 시 True 반환."""
     if st.session_state.get("user"):
@@ -35,7 +41,7 @@ def try_restore_session() -> bool:
             user     = res.data[0]
             expected = _make_session_token(user["id"], user["password_hash"])
             if hmac.compare_digest(t, expected):
-                st.session_state.user          = user
+                _store_user_session(user)
                 st.session_state.last_activity = datetime.now()
                 return True
     except Exception:
@@ -124,14 +130,18 @@ def reset_password(email: str) -> bool:
     user   = res.data[0]
     temp_pw = generate_temp_password()
     try:
-        send_temp_password(email, user["name"], temp_pw)
         sb.table("users").update({
             "password_hash": hash_password(temp_pw)
         }).eq("id", user["id"]).execute()
+    except Exception as e:
+        st.error(f"비밀번호 변경 실패: {e}")
+        return False
+    try:
+        send_temp_password(email, user["name"], temp_pw)
         st.success(f"임시 비밀번호를 {email}로 발송했습니다.")
         return True
     except Exception as e:
-        st.error(f"메일 발송 실패: {e}\n비밀번호는 변경되지 않았습니다.")
+        st.error(f"비밀번호는 변경됐으나 메일 발송 실패: {e}\n관리자에게 문의하세요.")
         return False
 
 
@@ -163,7 +173,7 @@ def require_login():
         # 새로고침 대응: JS로 URL에 세션 토큰 삽입 (history.replaceState)
         if user:
             _uid = user["id"]
-            _tok = _make_session_token(_uid, user["password_hash"])
+            _tok = _make_session_token(_uid, st.session_state.get("_session_phash", ""))
             st.markdown(
                 f'<script>(function(){{var u=new URL(window.location.href);'
                 f'if(u.searchParams.get("t")!=="{_tok}")'
