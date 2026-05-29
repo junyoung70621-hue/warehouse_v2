@@ -1090,23 +1090,48 @@ with tab_center:
     center_all_rows = active_all + unassigned_rows
 
     # ── 직원별 기종별 수량 (가로 피벗) ────────────────────────────────────────
-    if active_all:
+    if active_all or available_pool:
         st.markdown("##### 직원별 기종별 수량")
-        p_df = pd.DataFrame(active_all)
-        p_df["기종유형"] = p_df.apply(
-            lambda r: f"{r.get('device_type') or '미분류'} {r.get('sub_type') or ''}".strip(), axis=1
-        )
-        pivot = (
-            p_df.groupby(["employee_name", "기종유형"])
-            .size()
-            .unstack(fill_value=0)
-        )
-        pivot.index.name = None
-        pivot.columns.name = None
-        pivot["합계"] = pivot.sum(axis=1)
-        pivot = pivot.sort_values("합계", ascending=False)
-        pivot.index = pivot.index.rename("직원명")
-        st.dataframe(pivot, use_container_width=True)
+
+        rows_for_pivot = []
+
+        # 직원 보유 단말기
+        for r in active_all:
+            rows_for_pivot.append({
+                "직원명": r.get("employee_name") or "(미배정)",
+                "기종유형": f"{r.get('device_type') or '미분류'} {r.get('sub_type') or ''}".strip(),
+            })
+
+        # 센터 미배정 단말기 (available_pool)
+        for t in available_pool:
+            rows_for_pivot.append({
+                "직원명": "── 센터 보유 ──",
+                "기종유형": f"{t.get('device_type') or '미분류'} {t.get('sub_type') or ''}".strip(),
+            })
+
+        if rows_for_pivot:
+            p_df = pd.DataFrame(rows_for_pivot)
+            pivot = (
+                p_df.groupby(["직원명", "기종유형"])
+                .size()
+                .unstack(fill_value=0)
+            )
+            pivot.index.name = None
+            pivot.columns.name = None
+            pivot["합계"] = pivot.sum(axis=1)
+
+            # 센터 보유 행을 맨 아래로, 나머지는 합계 내림차순
+            센터행 = pivot[pivot.index == "── 센터 보유 ──"]
+            직원행 = pivot[pivot.index != "── 센터 보유 ──"].sort_values("합계", ascending=False)
+
+            # 기종별 합계 행
+            합계행 = pd.DataFrame(pivot.sum(axis=0)).T
+            합계행.index = ["▶ 기종별 합계"]
+
+            pivot_final = pd.concat([직원행, 센터행, 합계행])
+            pivot_final.index.name = "직원명"
+
+            st.dataframe(pivot_final, use_container_width=True)
         st.divider()
 
     cl2, cr2 = st.columns([1, 2])
