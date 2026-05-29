@@ -8,7 +8,7 @@ from utils.db import (
     approve_material_request_with_stock,
     save_reply_message,
     clear_material_request_cache,
-    get_supabase,,
+    get_supabase,
     ts_kst,
 )
 from utils.mail import (
