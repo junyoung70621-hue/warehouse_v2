@@ -894,6 +894,70 @@ def _dlg_cancel(ids: list, ih_preview: str, meta: list = None):
         st.rerun()
 
 
+@st.experimental_dialog("✏️ 레코드 수정 (관리자)", width="small")
+def _dlg_edit(rec: dict, center: str):
+    st.caption(f"ID: `{rec['id'][:8]}…`")
+
+    # IH
+    new_ih = st.text_input("IH 번호", value=rec.get("ih_code", ""), key="dlg_ed_ih")
+
+    # 기종/유형
+    DEVICE_OPTS = ["", "B800", "B700", "B710", "B620", "한강버스", "미분류"]
+    SUB_OPTS    = ["", "표출기", "통합단말기", "승하차", "운전자", "모뎀", "알 수 없음"]
+    cur_dt = rec.get("device_type") or ""
+    cur_st = rec.get("sub_type")    or ""
+    new_dt = st.selectbox("기종", DEVICE_OPTS,
+                          index=DEVICE_OPTS.index(cur_dt) if cur_dt in DEVICE_OPTS else 0,
+                          key="dlg_ed_dt")
+    new_st = st.selectbox("유형", SUB_OPTS,
+                          index=SUB_OPTS.index(cur_st) if cur_st in SUB_OPTS else 0,
+                          key="dlg_ed_st")
+
+    # 배정 직원
+    cus     = fetch_center_users(center)
+    u_map   = {"(미배정)": {"id": None, "name": "(미배정)"}}
+    u_map.update({u.get("name") or u["username"]: u for u in cus})
+    cur_emp = rec.get("employee_name") or "(미배정)"
+    emp_key = cur_emp if cur_emp in u_map else "(미배정)"
+    new_emp_name = st.selectbox("배정 직원", list(u_map.keys()),
+                                index=list(u_map.keys()).index(emp_key),
+                                key="dlg_ed_emp")
+    new_emp_u  = u_map[new_emp_name]
+    new_emp_id = new_emp_u.get("id")
+
+    # 상태
+    STATUS_OPTS = list(_STATUS_LABEL.keys())
+    cur_st_val  = rec.get("status", "holding")
+    new_status  = st.selectbox("상태",
+                               STATUS_OPTS,
+                               index=STATUS_OPTS.index(cur_st_val) if cur_st_val in STATUS_OPTS else 0,
+                               format_func=lambda s: _STATUS_LABEL.get(s, s),
+                               key="dlg_ed_status")
+
+    c1, c2 = st.columns(2)
+    if c1.button("저장", type="primary", use_container_width=True, key="dlg_ed_ok"):
+        if not new_ih.strip():
+            st.warning("IH 번호를 입력해 주세요.")
+        else:
+            try:
+                get_supabase().table(TABLE).update({
+                    "ih_code":       new_ih.strip(),
+                    "device_type":   new_dt or None,
+                    "sub_type":      new_st or None,
+                    "employee_id":   new_emp_id,
+                    "employee_name": new_emp_name if new_emp_name != "(미배정)" else "(미배정)",
+                    "status":        new_status,
+                }).eq("id", rec["id"]).execute()
+                st.session_state.pop("btt_dlg_edit", None)
+                st.success("수정됐습니다.")
+                st.rerun()
+            except Exception as e:
+                st.error(f"수정 실패: {e}")
+    if c2.button("취소", use_container_width=True, key="dlg_ed_cancel"):
+        st.session_state.pop("btt_dlg_edit", None)
+        st.rerun()
+
+
 @st.experimental_dialog("➕ 새 배정", width="large")
 def _dlg_new_assign(center: str, can_pick_emp: bool):
     if can_pick_emp:
@@ -952,6 +1016,7 @@ if "btt_dlg_swap"     in st.session_state: _dlg_swap(**st.session_state["btt_dlg
 if "btt_dlg_transfer" in st.session_state: _dlg_transfer(**st.session_state["btt_dlg_transfer"])
 if "btt_dlg_return"   in st.session_state: _dlg_return(**st.session_state["btt_dlg_return"])
 if "btt_dlg_cancel"   in st.session_state: _dlg_cancel(**st.session_state["btt_dlg_cancel"])
+if "btt_dlg_edit"     in st.session_state: _dlg_edit(**st.session_state["btt_dlg_edit"])
 
 
 # ── 탭 ───────────────────────────────────────────────────────────────────────
@@ -1042,7 +1107,10 @@ with tab_my:
                 swap_ok     = len(sel_ids) == 1 and sel_recs.iloc[0]["status"] in ("holding", "defective")
 
                 st.markdown(f"**선택: {len(sel_ids)}건**")
-                ba1, ba2, ba3, ba4 = st.columns(4)
+                _n_cols = 5 if _is_admin else 4
+                _btn_cols = st.columns(_n_cols)
+                ba1, ba2, ba3, ba4 = _btn_cols[:4]
+                ba5 = _btn_cols[4] if _is_admin else None
 
                 if ba1.button("🔄 불량 교체", use_container_width=True,
                               disabled=not swap_ok, key="btt_my_swap",
@@ -1071,6 +1139,13 @@ with tab_my:
                     st.session_state["btt_dlg_cancel"] = {
                         "ids": sel_ids, "ih_preview": ih_preview, "meta": _sel_meta,
                     }
+                    st.rerun()
+
+                if ba5 and ba5.button("✏️ 수정", use_container_width=True, key="btt_my_edit",
+                                      disabled=len(sel_ids) != 1,
+                                      help="1건만 선택해야 수정할 수 있습니다."):
+                    rec = sel_recs.iloc[0].to_dict()
+                    st.session_state["btt_dlg_edit"] = {"rec": rec, "center": sel_center}
                     st.rerun()
 
 
