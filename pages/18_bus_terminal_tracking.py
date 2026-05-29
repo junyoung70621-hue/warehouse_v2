@@ -718,23 +718,41 @@ def _dlg_swap(rec: dict):
                            placeholder="예: 100456")
 
     type_ok = False
+    dup_ok   = True
     if def_ih.strip():
-        d_dtype, d_stype = classify_terminal(def_ih.strip())
-        d_label = f"{d_dtype} {d_stype}".strip()
-        if d_dtype == "미분류":
-            st.warning("IH를 인식하지 못했습니다. 번호를 확인해 주세요.")
-        elif d_dtype != exp_dtype or d_stype != exp_stype:
-            st.error(
-                f"기종 불일치: 양품 **{exp_label}** ↔ 불량 **{d_label}**\n\n"
-                "같은 기종·유형끼리만 교체할 수 있습니다."
-            )
+        ih_clean = def_ih.strip()
+
+        # 같은 IH가 이미 등록돼 있는지 확인
+        existing = [
+            r for r in fetch_assignments(center=rec["center"])
+            if r["ih_code"] == ih_clean and r["status"] in _ACTIVE_STATUSES | {"unassigned"}
+        ]
+        if ih_clean == rec["ih_code"]:
+            st.error("설치할 단말기와 수거한 단말기의 IH가 동일합니다.")
+            dup_ok = False
+        elif existing:
+            holder = existing[0].get("employee_name", "")
+            st.error(f"IH `{ih_clean}` 은 이미 **{holder}** 보유 중입니다. 중복 등록 불가.")
+            dup_ok = False
         else:
-            st.success(f"기종 일치: **{d_label}** ✅")
-            type_ok = True
+            d_dtype, d_stype = classify_terminal(ih_clean)
+            d_label = f"{d_dtype} {d_stype}".strip()
+            if d_dtype == "미분류":
+                st.warning("IH를 인식하지 못했습니다. 번호를 확인해 주세요.")
+                dup_ok = False
+            elif d_dtype != exp_dtype or d_stype != exp_stype:
+                st.error(
+                    f"기종 불일치: 설치 **{exp_label}** ↔ 수거 **{d_label}**\n\n"
+                    "같은 기종·유형끼리만 교체할 수 있습니다."
+                )
+                dup_ok = False
+            else:
+                st.success(f"기종 일치: **{d_label}** ✅")
+                type_ok = True
 
     c1, c2 = st.columns(2)
     if c1.button("교체 확정", type="primary", use_container_width=True,
-                 key="dlg_sw_ok", disabled=not type_ok):
+                 key="dlg_sw_ok", disabled=not (type_ok and dup_ok)):
         if swap_terminal(rec["id"], def_ih.strip(), rec["center"],
                          rec.get("employee_id"), rec["employee_name"],
                          orig_ih=rec["ih_code"], orig_status=rec.get("status","holding"),
