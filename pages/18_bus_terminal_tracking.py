@@ -1543,6 +1543,29 @@ with tab_move:
 # Tab 4: 변경이력
 # ─────────────────────────────────────────────────────────────────────────────
 with tab_hist:
+    # 테이블 존재 확인
+    try:
+        get_supabase().table(HIST_TABLE).select("id").limit(1).execute()
+    except Exception:
+        st.error("bus_terminal_history 테이블이 없습니다. Supabase에서 아래 SQL을 먼저 실행해 주세요.")
+        st.code("""CREATE TABLE IF NOT EXISTS bus_terminal_history (
+    id            uuid        DEFAULT gen_random_uuid() PRIMARY KEY,
+    center        text        NOT NULL,
+    action        text        NOT NULL CHECK (action IN ('assign','swap','transfer','return','cancel','init')),
+    ih_code       text        NOT NULL,
+    device_type   text,  sub_type  text,
+    from_employee text,  to_employee text,
+    from_status   text,  to_status   text,
+    extra_ih      text,
+    acted_by      uuid        REFERENCES users(id) ON DELETE SET NULL,
+    acted_by_name text,
+    acted_at      timestamptz DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_bth_center   ON bus_terminal_history(center);
+CREATE INDEX IF NOT EXISTS idx_bth_ih       ON bus_terminal_history(ih_code);
+CREATE INDEX IF NOT EXISTS idx_bth_acted_at ON bus_terminal_history(acted_at DESC);""", language="sql")
+        st.stop()
+
     hc1, hc2, hc3 = st.columns([2, 2, 1])
     with hc1:
         date_from = st.date_input("시작일", value=_today_kst() - timedelta(days=30),
