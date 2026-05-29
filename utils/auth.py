@@ -22,7 +22,7 @@ def _make_session_token(user_id: str, password_hash: str) -> str:
 
 def _store_user_session(user: dict) -> None:
     """password_hash를 세션 user 딕셔너리에서 분리 저장."""
-    st.session_state._session_phash = user.get("password_hash", "")
+    st.session_state["wms_session_phash"] = user.get("password_hash", "")
     st.session_state.user = {k: v for k, v in user.items() if k != "password_hash"}
 
 
@@ -173,7 +173,12 @@ def require_login():
         # 새로고침 대응: JS로 URL에 세션 토큰 삽입 (history.replaceState)
         if user:
             _uid = user["id"]
-            _tok = _make_session_token(_uid, st.session_state.get("_session_phash", ""))
+            # 이전 세션(password_hash가 user dict에 남아있는 경우) 마이그레이션
+            if not st.session_state.get("wms_session_phash") and user.get("password_hash"):
+                st.session_state["wms_session_phash"] = user["password_hash"]
+                st.session_state.user = {k: v for k, v in user.items() if k != "password_hash"}
+                user = st.session_state.user
+            _tok = _make_session_token(_uid, st.session_state.get("wms_session_phash", ""))
             st.markdown(
                 f'<script>(function(){{var u=new URL(window.location.href);'
                 f'if(u.searchParams.get("t")!=="{_tok}")'
