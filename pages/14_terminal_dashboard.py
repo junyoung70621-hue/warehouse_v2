@@ -647,6 +647,25 @@ def save_terminal(records: list) -> bool:
         return False
 
 
+def _auto_return_bus_assignments(ih_codes: list, center: str) -> int:
+    """입고 업로드 시 bus_terminal_assignments 자동 반납. 처리 건수 반환."""
+    if not ih_codes:
+        return 0
+    try:
+        _now = datetime.now(_KST).isoformat()
+        res = (
+            get_supabase().table("bus_terminal_assignments")
+            .update({"status": "returned", "returned_at": _now})
+            .in_("ih_code", ih_codes)
+            .eq("center",   center)
+            .eq("status",   "holding")
+            .execute()
+        )
+        return len(res.data or [])
+    except Exception:
+        return 0
+
+
 def delete_by_upload_id(upload_id: str) -> bool:
     try:
         get_supabase().table(TABLE).delete().eq("upload_id", upload_id).execute()
@@ -723,9 +742,11 @@ def render_manage_section(rows: list, direction: str, center_filter: str | None,
         fname      = grp["file_name"].iloc[0] or str(upload_id)[:8]
         upl_time   = str(grp["uploaded_at"].iloc[0])[:16].replace("T", " ")
         cnt        = len(grp)
+        ctr_col    = "from_center" if direction == "in" else "to_center"
+        center_tag = grp[ctr_col].iloc[0] or ""
         with st.container(border=True):
             hc1, hc2 = st.columns([4, 1])
-            hc1.markdown(f"**📁 {fname}** &nbsp; `{cnt}건` &nbsp; {upl_time}")
+            hc1.markdown(f"**📁 [{center_tag}] {fname}** &nbsp; `{cnt}건` &nbsp; {upl_time}")
             if hc2.button("🗑️ 전체삭제", key=f"{key_prefix}_batch_{upload_id}",
                           type="secondary", use_container_width=True):
                 if delete_by_upload_id(upload_id):
@@ -1123,7 +1144,13 @@ def _upload_section(direction: str, from_c: str, to_c_fixed: str | None, key_pre
             for _, row in new_df.iterrows()
         ]
         if save_terminal(records):
-            st.success(f"✅ {len(records)}건 저장 완료!")
+            msg = f"✅ {len(records)}건 저장 완료!"
+            if direction == "in":
+                ih_codes = [r["trcn_id"] for r in records]
+                auto_n = _auto_return_bus_assignments(ih_codes, from_c)
+                if auto_n > 0:
+                    msg += f"  (단말기 배정 자동 반납: {auto_n}건)"
+            st.success(msg)
             st.rerun()
 
 
