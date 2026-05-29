@@ -413,16 +413,23 @@ def swap_terminal(holding_id: str, defective_ih: str, center: str, employee_id: 
         actor_name = user.get("name") or user.get("username", "")
         sb.table(TABLE).update({"status": "exchanged", "returned_at": now}) \
           .eq("id", holding_id).execute()
+        # 불량 단말기 기종 결정: orig 기종 있으면 그대로, 없으면 IH로 자동 분류
+        def_dtype = orig_dtype or ""
+        def_stype = orig_stype or ""
+        if not def_dtype:
+            _ad, _as = classify_terminal(defective_ih)
+            if _ad != "미분류":
+                def_dtype, def_stype = _ad, _as
         sb.table(TABLE).insert({
             "id":            str(uuid.uuid4()),
             "ih_code":       defective_ih,
-            "device_type":   orig_dtype or None,
-            "sub_type":      orig_stype or None,
+            "device_type":   def_dtype or None,
+            "sub_type":      def_stype or None,
             "center":        center,
-            "employee_id":   employee_id,
+            "employee_id":   employee_id or user_id,
             "employee_name": employee_name,
             "assigned_at":   now,
-            "assigned_by":   employee_id,
+            "assigned_by":   user_id,
             "status":        "defective",
         }).execute()
         _log([{
@@ -707,6 +714,11 @@ def _render_device_summary(rows: list, active_statuses=("holding", "defective"))
 def _dlg_swap(rec: dict):
     exp_dtype = rec.get("device_type") or ""
     exp_stype = rec.get("sub_type")    or ""
+    # device_type 미설정 시 IH 번호로 자동 분류
+    if not exp_dtype:
+        _ad, _as = classify_terminal(rec["ih_code"])
+        if _ad != "미분류":
+            exp_dtype, exp_stype = _ad, _as
     exp_label = f"{exp_dtype} {exp_stype}".strip() or "미분류"
 
     src_label = _STATUS_LABEL.get(rec.get("status", ""), "")
