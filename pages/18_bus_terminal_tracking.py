@@ -995,7 +995,7 @@ with tab_my:
                 if ba1.button("🔄 불량 교체", use_container_width=True,
                               disabled=not swap_ok, key="btt_my_swap",
                               help="단말기 1건만 선택해야 합니다 (양품·불량 모두 가능)."):
-                    rec = holding_sel.iloc[0].to_dict()
+                    rec = sel_recs.iloc[0].to_dict()
                     rec["center"] = sel_center
                     st.session_state["btt_dlg_swap"] = {"rec": rec}
                     st.rerun()
@@ -1327,8 +1327,8 @@ if False:
 
             elif action == "swap":
                 with st.container(border=True):
-                    rec = holding_sel.iloc[0]
-                    st.markdown(f"**불량 교체** — 양품 `{rec['ih_code']}` ({rec['employee_name']})")
+                    rec = sel_recs.iloc[0]
+                    st.markdown(f"**불량 교체** — `{rec['ih_code']}` ({rec['employee_name']})")
                     st.caption("양품은 '교체 완료' 처리되고, 불량 단말기가 해당 직원 보유 목록에 등록됩니다.")
                     def_ih = st.text_input("수거한 불량 IH 번호", key="btt_sw_ih",
                                            placeholder="예: 100456")
