@@ -697,3 +697,92 @@ def send_transfer_result(emails: list, item_name: str,
             _send_email(email, subject, body)
         except Exception:
             pass
+
+
+def send_bus_terminal_transfer(
+    emails: list,
+    from_center: str,
+    to_center: str,
+    requester_name: str,
+    terminals: list,
+    notes: str = "",
+):
+    """센터간 단말기 이동신청 알림 — 목적 센터 전체 인원 발송."""
+    if not emails:
+        return
+    rows_html = "".join(
+        f"<tr><td style='padding:4px 10px;border:1px solid #ddd;'>{t.get('ih_code','')}</td>"
+        f"<td style='padding:4px 10px;border:1px solid #ddd;'>{(t.get('device_type') or '')} {(t.get('sub_type') or '')}</td>"
+        f"<td style='padding:4px 10px;border:1px solid #ddd;'>{t.get('employee_name') or '센터보유'}</td></tr>"
+        for t in terminals
+    )
+    notes_html = f"<p><b>비고:</b> {notes}</p>" if notes else ""
+    subject = f"[에이텍모빌리티] 단말기 이동신청 — {from_center} → {to_center}"
+    body = f"""
+    <p>안녕하세요.</p>
+    <p><b>{from_center}</b>에서 <b>{to_center}</b>으로 단말기 이동신청이 접수됐습니다.</p>
+    <table style='border-collapse:collapse;font-size:13px;margin:10px 0;'>
+      <thead>
+        <tr style='background:#f0f4ff;'>
+          <th style='padding:6px 10px;border:1px solid #ddd;'>IH</th>
+          <th style='padding:6px 10px;border:1px solid #ddd;'>기종</th>
+          <th style='padding:6px 10px;border:1px solid #ddd;'>보유직원</th>
+        </tr>
+      </thead>
+      <tbody>{rows_html}</tbody>
+    </table>
+    <p>신청자: <b>{requester_name}</b> &nbsp;|&nbsp; 총 <b>{len(terminals)}대</b></p>
+    {notes_html}
+    <hr><p style="color:gray;font-size:12px;">에이텍모빌리티 자재관리 자동발송 메일입니다.</p>
+    """
+    for email in emails:
+        try:
+            _send_email(email, subject, body)
+        except Exception:
+            pass
+
+
+def send_bus_terminal_transfer_result(
+    emails: list,
+    from_center: str,
+    to_center: str,
+    approved: bool,
+    processor_name: str,
+    terminals: list,
+    notes: str = "",
+):
+    """이동신청 승인/거절 결과 알림 — 신청 센터 전체 인원 발송."""
+    if not emails:
+        return
+    status_txt   = "승인됐습니다" if approved else "거절됐습니다"
+    status_color = "#1a7f37" if approved else "#cf2a27"
+    rows_html = "".join(
+        f"<tr><td style='padding:4px 10px;border:1px solid #ddd;'>{t.get('ih_code','')}</td>"
+        f"<td style='padding:4px 10px;border:1px solid #ddd;'>"
+        f"{(t.get('device_type') or '')} {(t.get('sub_type') or '')}</td></tr>"
+        for t in terminals
+    )
+    notes_html = f"<p><b>비고:</b> {notes}</p>" if notes else ""
+    subject = f"[에이텍모빌리티] 단말기 이동신청 {status_txt[:2]} — {from_center} → {to_center}"
+    body = f"""
+    <p>안녕하세요.</p>
+    <p><b>{from_center} → {to_center}</b> 단말기 이동신청이
+    <b style='color:{status_color};'>{status_txt}</b>.</p>
+    <table style='border-collapse:collapse;font-size:13px;margin:10px 0;'>
+      <thead>
+        <tr style='background:#f0f4ff;'>
+          <th style='padding:6px 10px;border:1px solid #ddd;'>IH</th>
+          <th style='padding:6px 10px;border:1px solid #ddd;'>기종</th>
+        </tr>
+      </thead>
+      <tbody>{rows_html}</tbody>
+    </table>
+    <p>처리자: <b>{processor_name}</b> &nbsp;|&nbsp; 총 <b>{len(terminals)}대</b></p>
+    {notes_html}
+    <hr><p style="color:gray;font-size:12px;">에이텍모빌리티 자재관리 자동발송 메일입니다.</p>
+    """
+    for email in emails:
+        try:
+            _send_email(email, subject, body)
+        except Exception:
+            pass

@@ -648,20 +648,62 @@ def save_terminal(records: list) -> bool:
 
 
 def _auto_return_bus_assignments(ih_codes: list, center: str) -> int:
-    """입고 업로드 시 bus_terminal_assignments 자동 반납. 처리 건수 반환."""
+    """
+    입고 업로드 시 자동 반납.
+    center_defective(센터 반납 완료)만 처리.
+    holding/defective(직원 보유중)는 직원이 직접 반납해야 함.
+    """
     if not ih_codes:
         return 0
     try:
+        sb   = get_supabase()
         _now = datetime.now(_KST).isoformat()
-        res = (
-            get_supabase().table("bus_terminal_assignments")
-            .update({"status": "returned", "returned_at": _now})
+
+        # 처리 전 대상 레코드 조회 (이력용)
+        target_rows = (
+            sb.table("bus_terminal_assignments")
+            .select("id,ih_code,device_type,sub_type,employee_name,center")
             .in_("ih_code", ih_codes)
             .eq("center",   center)
-            .eq("status",   "holding")
+            .eq("status",   "center_defective")
+            .execute().data or []
+        )
+
+        if not target_rows:
+            return 0
+
+        res = (
+            sb.table("bus_terminal_assignments")
+            .update({"status": "returned", "returned_at": _now})
+            .in_("ih_code", [r["ih_code"] for r in target_rows])
+            .eq("center",   center)
+            .eq("status",   "center_defective")
             .execute()
         )
-        return len(res.data or [])
+        processed = len(res.data or [])
+
+        # 변경이력 기록
+        if processed > 0:
+            actor_name = user.get("name") or user.get("username", "")
+            hist_rows = [{
+                "center":        center,
+                "action":        "return",
+                "ih_code":       r["ih_code"],
+                "device_type":   r.get("device_type"),
+                "sub_type":      r.get("sub_type"),
+                "from_employee": r.get("employee_name"),
+                "from_status":   "center_defective",
+                "to_status":     "returned",
+                "acted_by":      user["id"],
+                "acted_by_name": actor_name,
+                "acted_at":      _now,
+            } for r in target_rows]
+            try:
+                sb.table("bus_terminal_history").insert(hist_rows).execute()
+            except Exception:
+                pass
+
+        return processed
     except Exception:
         return 0
 
@@ -1170,6 +1212,8 @@ with st.sidebar:
     render_sidebar_section("재고 관리")
     if st.button("📦 재고 현황", use_container_width=True):
         st.switch_page("pages/15_combined.py")
+    if st.button("📟 센터 단말현황(버스)", use_container_width=True):
+        st.switch_page("pages/18_bus_terminal_tracking.py")
     if st.button("📋 입출고 이력", use_container_width=True):
         st.switch_page("pages/04_history.py")
     if not is_role("guest"):
