@@ -1131,7 +1131,23 @@ with tab_center:
             pivot_final = pd.concat([직원행, 센터행, 합계행])
             pivot_final.index.name = "직원명"
 
-            st.dataframe(pivot_final, use_container_width=True)
+            def _style_pivot(df):
+                styles = pd.DataFrame("", index=df.index, columns=df.columns)
+                # 합계 열 — 연노랑
+                if "합계" in df.columns:
+                    styles["합계"] = "background-color:#FFF2CC; font-weight:600;"
+                # 기종별 합계 행 — 연파랑
+                total_idx = "▶ 기종별 합계"
+                if total_idx in df.index:
+                    styles.loc[total_idx] = "background-color:#D9E1F2; font-weight:700;"
+                    if "합계" in df.columns:
+                        styles.loc[total_idx, "합계"] = "background-color:#BDD7EE; font-weight:700;"
+                return styles
+
+            st.dataframe(
+                pivot_final.style.apply(_style_pivot, axis=None),
+                use_container_width=True,
+            )
         st.divider()
 
     cl2, cr2 = st.columns([1, 2])
