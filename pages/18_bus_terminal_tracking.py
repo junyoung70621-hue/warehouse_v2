@@ -1636,8 +1636,13 @@ CREATE INDEX IF NOT EXISTS idx_bth_acted_at ON bus_terminal_history(acted_at DES
             "액션", ["전체"] + list(_ACTION_LABEL.values()), key="btt_hist_action"
         )
 
-    if st.button("조회", key="btt_hist_query"):
-        st.session_state["btt_hist_run"] = True
+    hs1, hs2 = st.columns([3, 1])
+    with hs1:
+        search_kw = st.text_input("검색 (IH · 직원명 · 처리자)", placeholder="예: 100123  또는  홍길동",
+                                  key="btt_hist_kw", label_visibility="collapsed")
+    with hs2:
+        if st.button("조회", use_container_width=True, key="btt_hist_query"):
+            st.session_state["btt_hist_run"] = True
 
     if st.session_state.get("btt_hist_run"):
         try:
@@ -1700,10 +1705,21 @@ CREATE INDEX IF NOT EXISTS idx_bth_acted_at ON bus_terminal_history(acted_at DES
                 rev_map = {v: k for k, v in _ACTION_LABEL.items()}
                 h_df = h_df[h_df["action"] == rev_map[action_filter]]
 
+            # 검색어 필터 — IH, extra_ih, 직원, 처리자 대상
+            kw = search_kw.strip()
+            if kw:
+                mask = (
+                    h_df["ih_code"].str.contains(kw, case=False, na=False) |
+                    h_df["extra_ih"].fillna("").str.contains(kw, case=False, na=False) |
+                    h_df["직원"].str.contains(kw, case=False, na=False) |
+                    h_df["acted_by_name"].fillna("").str.contains(kw, case=False, na=False)
+                )
+                h_df = h_df[mask]
+
             disp_h = h_df[["시각", "액션", "단말기", "기종", "직원", "상태변경", "acted_by_name"]].copy()
             disp_h.columns = ["시각", "액션", "단말기(설치→수거)", "기종", "직원", "상태변경", "처리자"]
 
-            st.caption(f"총 {len(disp_h)}건")
+            st.caption(f"총 {len(disp_h)}건" + (f"  (검색: '{kw}')" if kw else ""))
             st.dataframe(disp_h, use_container_width=True, hide_index=True)
 
             # 엑셀 다운로드
