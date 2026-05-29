@@ -86,6 +86,10 @@ with st.sidebar:
     render_sidebar_section("재고 관리")
     if st.button("📦 재고 현황", use_container_width=True):
         st.switch_page("pages/15_combined.py")
+    _uc = user.get("assigned_center") or user.get("center", "")
+    if _uc in {"강남센터","강서센터","강북센터","강동센터","자재센터"} or user.get("role") == "admin":
+        if st.button("📟 센터 단말현황(버스)", use_container_width=True, key="sb_bus_track"):
+            st.switch_page("pages/18_bus_terminal_tracking.py")
     if st.button("📋 입출고 이력", use_container_width=True):
         st.switch_page("pages/04_history.py")
     if not is_role("guest"):
