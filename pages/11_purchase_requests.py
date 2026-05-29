@@ -344,7 +344,7 @@ if tab_all is not None:
             for req in all_data:
                 items    = req.get("items") or []
                 status   = req.get("status", "pending")
-                req_date = (req.get("requested_at") or "")[:16].replace("T", " ")
+                req_date = ts_kst(req.get("requested_at"))
                 with st.container(border=True):
                     h1, h2, h3, h4 = st.columns([3, 2, 2, 2])
                     h1.markdown(f"**{req['requester_name']}** ({req['requester_center']})")
@@ -357,7 +357,7 @@ if tab_all is not None:
                         if proc_by.get("name"):
                             p_center = proc_by.get("assigned_center") or proc_by.get("center", "")
                             h3.caption(f"처리자: {proc_by['name']}" + (f" ({p_center})" if p_center else ""))
-                        proc_date = (req.get("processed_at") or "")[:16].replace("T", " ")
+                        proc_date = ts_kst(req.get("processed_at"))
                         if proc_date:
                             h3.caption(f"처리일: {proc_date}")
 
@@ -472,7 +472,7 @@ with tab_mine:
         for req in mine_data:
             items    = req.get("items") or []
             status   = req.get("status", "pending")
-            req_date = (req.get("requested_at") or "")[:16].replace("T", " ")
+            req_date = ts_kst(req.get("requested_at"))
             with st.container(border=True):
                 m1, m2, m3 = st.columns([4, 2, 2])
                 m1.markdown(f"**{req_date}** — 품목 {len(items)}개")

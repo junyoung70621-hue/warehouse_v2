@@ -143,7 +143,7 @@ for h in raw:
     )
     rows.append({
         "_id":     h.get("id", ""),
-        "일시":    (h.get("acted_at","") or "")[:16].replace("T"," "),
+        "일시":    ts_kst(h.get("acted_at","")),
         "센터":    center_val,
         "담당자":  actor_info.get("name","") if isinstance(actor_info, dict) else "",
         "자재명":  item_info.get("item_name","") if isinstance(item_info, dict) else "",

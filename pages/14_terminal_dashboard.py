@@ -782,7 +782,7 @@ def render_manage_section(rows: list, direction: str, center_filter: str | None,
 
     for upload_id, grp in df.groupby("upload_id"):
         fname      = grp["file_name"].iloc[0] or str(upload_id)[:8]
-        upl_time   = str(grp["uploaded_at"].iloc[0])[:16].replace("T", " ")
+        upl_time   = ts_kst(grp["uploaded_at"].iloc[0])
         cnt        = len(grp)
         ctr_col    = "from_center" if direction == "in" else "to_center"
         center_tag = grp[ctr_col].iloc[0] or ""

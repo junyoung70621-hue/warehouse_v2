@@ -189,7 +189,7 @@ for n in notices:
     is_read   = nid in _read_ids
     is_active = n.get("is_active", True)
     author    = (n.get("users") or {}).get("name", "관리자") if isinstance(n.get("users"), dict) else "관리자"
-    created   = (n.get("created_at") or "")[:16].replace("T", " ")
+    created   = ts_kst(n.get("created_at"))
 
     # 제목 행
     status_dot = "" if is_read else "🔴 "

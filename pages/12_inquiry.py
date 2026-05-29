@@ -4,7 +4,7 @@ from datetime import datetime
 from utils.auth import require_login, is_role, logout
 from utils.db import (
     fetch_inquiries, submit_inquiry, answer_inquiry,
-    clear_inquiry_cache, get_supabase,
+    clear_inquiry_cache, get_supabase, ts_kst,
 )
 from utils.mail import send_inquiry_to_admin, send_inquiry_reply
 from utils.ui import apply_global_css, render_sidebar_header, render_sidebar_section, render_sidebar_user, render_top_bar
@@ -39,7 +39,7 @@ def _get_admin_emails():
 def reply_dialog(inq: dict):
     st.markdown(f"**제목:** {inq['title']}")
     st.markdown(f"**작성자:** {inq['requester_name']} ({inq['from_center']})")
-    st.caption(f"접수일: {inq['created_at'][:16].replace('T', ' ')}")
+    st.caption(f"접수일: {ts_kst(inq['created_at'])}")
     st.markdown("---")
     st.markdown("**문의 내용**")
     st.markdown(
@@ -152,7 +152,7 @@ if is_role("admin"):
                 with col_info:
                     st.markdown(
                         f"<span style='font-size:11px;color:{status_color};font-weight:700;'>{status_label}</span>"
-                        f"&nbsp;&nbsp;<span style='font-size:11px;color:#64748B;'>{inq['created_at'][:16].replace('T',' ')}</span>",
+                        f"&nbsp;&nbsp;<span style='font-size:11px;color:#64748B;'>{ts_kst(inq['created_at'])}</span>",
                         unsafe_allow_html=True,
                     )
                     st.markdown("**문의 내용**")
@@ -170,7 +170,7 @@ if is_role("admin"):
                             f"{inq['reply']}</div>",
                             unsafe_allow_html=True,
                         )
-                        st.caption(f"답변자: {inq.get('answered_by_name','')}  |  {(inq.get('answered_at') or '')[:16].replace('T',' ')}")
+                        st.caption(f"답변자: {inq.get('answered_by_name','')}  |  {ts_kst(inq.get('answered_at'))}")
                 with col_btn:
                     if st.button("답변", key=f"reply_btn_{tab_key}_{inq['id']}", use_container_width=True):
                         reply_dialog(inq)
@@ -219,7 +219,7 @@ else:
                 with st.expander(f"{status_label}  |  {inq['title']}  |  {inq['created_at'][:10]}", expanded=False):
                     st.markdown(
                         f"<span style='font-size:11px;color:{status_color};font-weight:700;'>{status_label}</span>"
-                        f"&nbsp;&nbsp;<span style='font-size:11px;color:#64748B;'>{inq['created_at'][:16].replace('T',' ')}</span>",
+                        f"&nbsp;&nbsp;<span style='font-size:11px;color:#64748B;'>{ts_kst(inq['created_at'])}</span>",
                         unsafe_allow_html=True,
                     )
                     st.markdown("**문의 내용**")
@@ -237,5 +237,5 @@ else:
                             f"{inq['reply']}</div>",
                             unsafe_allow_html=True,
                         )
-                        st.caption(f"답변자: {inq.get('answered_by_name','')}  |  {(inq.get('answered_at') or '')[:16].replace('T',' ')}")
+                        st.caption(f"답변자: {inq.get('answered_by_name','')}  |  {ts_kst(inq.get('answered_at'))}")
 

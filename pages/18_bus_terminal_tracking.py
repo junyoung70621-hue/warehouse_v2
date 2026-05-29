@@ -12,6 +12,18 @@ def _now_kst() -> datetime:
 def _today_kst() -> date:
     return datetime.now(_KST).date()
 
+def _ts(ts_str) -> str:
+    """Supabase UTC 타임스탬프 → KST 표시 문자열 (YYYY-MM-DD HH:MM)"""
+    if not ts_str:
+        return ""
+    try:
+        dt = datetime.fromisoformat(str(ts_str))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(_KST).strftime("%Y-%m-%d %H:%M")
+    except Exception:
+        return str(ts_str)[:16].replace("T", " ")
+
 import pandas as pd
 import streamlit as st
 
@@ -997,7 +1009,7 @@ with tab_my:
             st.info("현재 보유 중인 단말기가 없습니다.")
         else:
             my_df = pd.DataFrame(active_rows).reset_index(drop=True)
-            my_df["배정일시"] = my_df["assigned_at"].str[:16].str.replace("T", " ", regex=False)
+            my_df["배정일시"] = my_df["assigned_at"].apply(_ts)
             my_df["상태"]    = my_df["status"].map(_STATUS_LABEL)
 
             show_df = my_df[["ih_code", "device_type", "sub_type", "상태", "배정일시"]].copy()
@@ -1175,9 +1187,7 @@ with tab_center:
                 axis=1
             )
             if "assigned_at" in ctr_df.columns:
-                ctr_df["배정일시"] = ctr_df["assigned_at"].apply(
-                    lambda x: str(x)[:16].replace("T", " ") if x else ""
-                )
+                ctr_df["배정일시"] = ctr_df["assigned_at"].apply(_ts)
             disp_ctr = ctr_df[[
                 "employee_name", "ih_code", "device_type", "sub_type", "배정일시", "상태"
             ]].copy()
@@ -1196,7 +1206,7 @@ with tab_center:
                 st.info("삭제할 데이터가 없습니다.")
             else:
                 del_df = pd.DataFrame(del_all_rows).reset_index(drop=True)
-                del_df["배정일시"] = del_df["assigned_at"].str[:16].str.replace("T", " ", regex=False)
+                del_df["배정일시"] = del_df["assigned_at"].apply(_ts)
                 del_df["상태"]     = del_df["status"].map(_STATUS_LABEL)
 
                 del_disp = del_df[["employee_name", "ih_code", "device_type", "sub_type", "배정일시", "상태"]].copy()
@@ -1314,7 +1324,7 @@ if False:
         st.info("배정 내역이 없습니다.")
     else:
         main_df = pd.DataFrame(rows).reset_index(drop=True)
-        main_df["배정일시"] = main_df["assigned_at"].str[:16].str.replace("T", " ", regex=False)
+        main_df["배정일시"] = main_df["assigned_at"].apply(_ts)
         main_df["상태라벨"] = main_df["status"].map(_STATUS_LABEL)
 
         # 메트릭
@@ -1502,7 +1512,7 @@ with tab_move:
                 st.info("이동 신청할 단말기가 없습니다.")
             else:
                 mv_df = pd.DataFrame(movable).reset_index(drop=True)
-                mv_df["배정일시"] = mv_df["assigned_at"].str[:16].str.replace("T", " ", regex=False)
+                mv_df["배정일시"] = mv_df["assigned_at"].apply(_ts)
                 mv_df["상태"] = mv_df["status"].map(_STATUS_LABEL)
                 mv_disp = mv_df[["employee_name", "ih_code", "device_type", "sub_type", "배정일시", "상태"]].copy()
                 mv_disp.columns = ["보유직원", "IH", "기종", "유형", "배정일시", "상태"]
@@ -1579,7 +1589,7 @@ with tab_move:
                                 f"**{req['from_center']} → {req['to_center']}** &nbsp; "
                                 f"`{len(ih_list)}대` &nbsp; "
                                 f"신청자: {req.get('requested_by_name','?')} &nbsp; "
-                                f"{str(req['requested_at'])[:16].replace('T',' ')}"
+                                f"{_ts(req['requested_at'])}"
                             )
                             if req.get("notes"):
                                 st.caption(f"비고: {req['notes']}")
@@ -1626,7 +1636,7 @@ with tab_move:
                 # 전체 이력
                 st.markdown("**📋 이동 신청 이력**")
                 hist_df = pd.DataFrame(reqs)
-                hist_df["신청일시"]  = hist_df["requested_at"].str[:16].str.replace("T", " ", regex=False)
+                hist_df["신청일시"]  = hist_df["requested_at"].apply(_ts)
                 hist_df["상태"]     = hist_df["status"].map(_MOVE_STATUS)
                 hist_df["단말기수"] = hist_df["ih_codes"].apply(len)
                 disp_mv = hist_df[[
@@ -1707,7 +1717,7 @@ CREATE INDEX IF NOT EXISTS idx_bth_acted_at ON bus_terminal_history(acted_at DES
             st.info("조회된 이력이 없습니다.")
         else:
             h_df = pd.DataFrame(hist_rows)
-            h_df["시각"] = h_df["acted_at"].str[:16].str.replace("T", " ", regex=False)
+            h_df["시각"] = h_df["acted_at"].apply(_ts)
             h_df["액션"] = h_df["action"].map(_ACTION_LABEL)
             h_df["기종"] = h_df.apply(
                 lambda r: f"{r['device_type'] or ''} {r['sub_type'] or ''}".strip(), axis=1

@@ -9,7 +9,7 @@ from utils.db import (
     approve_transfer, create_transfer, stock_in, stock_out,
     clear_warehouse_cache, clear_transfer_cache, clear_history_cache,
     get_supabase, fetch_item_history, update_item, submit_material_request,
-    get_center_emails,
+    get_center_emails, ts_kst,
 )
 from utils.routing import get_allowed_destinations, NO_WAREHOUSE_CENTERS, CATEGORY_DESTINATIONS, CENTERS as _ALL_CENTERS_ROUTING
 from utils.rack_map import RACK_COORD
@@ -568,7 +568,7 @@ if _st_dialog:
                 for h in hist:
                     actor = h.get("users", {}) or {}
                     h_rows.append({
-                        "일시":     (h.get("acted_at", "") or "")[:16].replace("T", " "),
+                        "일시":     ts_kst(h.get("acted_at", "")),
                         "작업자":   actor.get("name", "") if isinstance(actor, dict) else "",
                         "작업유형": ACTION_LABEL.get(h.get("action_type", ""), h.get("action_type", "")),
                         "수량":     h.get("quantity", 0),
@@ -1346,8 +1346,8 @@ with tab_tr:
 
                 req_at  = tr.get("requested_at", "")
                 proc_at = tr.get("processed_at")
-                if req_at:  st.caption(f"신청일: {req_at[:16].replace('T',' ')}")
-                if proc_at: st.caption(f"처리일: {proc_at[:16].replace('T',' ')}")
+                if req_at:  st.caption(f"신청일: {ts_kst(req_at)}")
+                if proc_at: st.caption(f"처리일: {ts_kst(proc_at)}")
                 if status in ("approved", "rejected"):
                     approver = tr.get("approver") or {}
                     if approver.get("name"):

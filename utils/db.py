@@ -1,10 +1,28 @@
 # utils/db.py
 import os
+from datetime import datetime, timezone, timedelta
+
 import streamlit as st
 from supabase import create_client, Client
 from dotenv import load_dotenv
 
 load_dotenv()
+
+_KST = timezone(timedelta(hours=9))
+
+
+def ts_kst(ts_str) -> str:
+    """Supabase UTC 타임스탬프 문자열 → KST 표시 문자열 (YYYY-MM-DD HH:MM).
+    기존 [:16].replace('T',' ') 패턴을 대체한다."""
+    if not ts_str:
+        return ""
+    try:
+        dt = datetime.fromisoformat(str(ts_str))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(_KST).strftime("%Y-%m-%d %H:%M")
+    except Exception:
+        return str(ts_str)[:16].replace("T", " ")
 
 
 # ── Supabase 연결 ─────────────────────────────────────────────────────────

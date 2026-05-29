@@ -127,7 +127,7 @@ for h in raw:
     if h.get("from_center") and h.get("to_center"):
         route = f"{h['from_center']} → {h['to_center']}"
     rows.append({
-        "일시":    (h.get("acted_at","") or "")[:16].replace("T"," "),
+        "일시":    ts_kst(h.get("acted_at","")),
         "작업자":  actor_info.get("name","") if isinstance(actor_info,dict) else "",
         "자재명":  item_info.get("item_name","") if isinstance(item_info,dict) else "",
         "센터":    item_info.get("location","") if isinstance(item_info,dict) else "",

@@ -302,8 +302,8 @@ if IS_MANAGER:
             req_name   = req.get("requester_name", "")
             req_email  = req.get("requester_email", "")
             center     = req.get("from_center", "")
-            req_at     = (req.get("requested_at","") or "")[:16].replace("T"," ")
-            proc_at    = (req.get("processed_at","") or "")[:16].replace("T"," ")
+            req_at     = ts_kst(req.get("requested_at",""))
+            proc_at    = ts_kst(req.get("processed_at",""))
             prev_reply = req.get("reply_message","") or ""
             req_notes  = req.get("notes","") or ""
 
@@ -435,8 +435,8 @@ else:
             req_name     = req.get("requester_name", "")
             req_uid      = req.get("requester_id", "")
             center       = req.get("from_center", "")
-            req_at       = (req.get("requested_at","") or "")[:16].replace("T"," ")
-            proc_at      = (req.get("processed_at","") or "")[:16].replace("T"," ")
+            req_at       = ts_kst(req.get("requested_at",""))
+            proc_at      = ts_kst(req.get("processed_at",""))
             prev_reply   = req.get("reply_message","") or ""
             is_mine      = (req_uid == user_id)
 

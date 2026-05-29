@@ -224,7 +224,7 @@ try:
         actor = h.get("users")    or {}
         item  = h.get("warehouse") or {}
         hist_rows.append({
-            "일시":    (h.get("acted_at", "") or "")[:16].replace("T", " "),
+            "일시":    ts_kst(h.get("acted_at","")),
             "유형":    ACTION.get(h.get("action_type", ""), h.get("action_type", "")),
             "자재명":  item.get("item_name", "") if isinstance(item, dict) else "",
             "수량":    h.get("quantity", 0),
