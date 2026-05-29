@@ -4,7 +4,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 from utils.auth import require_login, is_role, logout
-from utils.db import get_supabase, fetch_purchase_requests, clear_purchase_request_cache
+from utils.db import get_supabase, fetch_purchase_requests, clear_purchase_request_cache, ts_kst
 from utils.permissions import get_viewable_centers, get_center as _get_center
 from utils.routing import CENTERS
 from utils.ui import apply_global_css, render_sidebar_header, render_sidebar_section, render_sidebar_user, render_top_bar

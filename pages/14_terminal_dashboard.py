@@ -15,7 +15,7 @@ import streamlit as st
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
 from utils.auth import is_role, require_login, logout
-from utils.db import get_supabase
+from utils.db import get_supabase, ts_kst
 from utils.permissions import get_center as _get_center
 from utils.routing import CENTERS
 from utils.ui import (

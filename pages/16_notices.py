@@ -5,7 +5,8 @@ from utils.auth import require_login, is_role, logout
 from utils.db import (
     fetch_notices, fetch_unread_notice_count,
     mark_notice_read, create_notice, update_notice, delete_notice,
-    clear_notice_cache, upload_notice_file,
+    clear_notice_cache, upload_notice_file,,
+    ts_kst,
 )
 from utils.ui import (
     apply_global_css, render_sidebar_header,
