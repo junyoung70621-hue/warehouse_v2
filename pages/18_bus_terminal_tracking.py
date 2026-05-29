@@ -818,7 +818,7 @@ def _dlg_swap(rec: dict):
 
 
 @st.experimental_dialog("👤 직원 이동", width="small")
-def _dlg_transfer(ids: list, center: str, ih_preview: str):
+def _dlg_transfer(ids: list, center: str, ih_preview: str, meta: list = None):
     st.markdown(f"이동할 단말기 **{len(ids)}건**: `{ih_preview}`")
     cus = fetch_center_users(center)
     if not cus:
@@ -839,7 +839,7 @@ def _dlg_transfer(ids: list, center: str, ih_preview: str):
             }).in_("id", ids).execute()
             now = _now_kst().isoformat()
             actor_name = user.get("name") or user.get("username", "")
-            meta = st.session_state["btt_dlg_transfer"].get("meta", [])
+            meta = meta or []
             _log([{
                 "center":        center,
                 "action":        "transfer",
