@@ -757,40 +757,38 @@ def _dlg_swap(rec: dict):
     if def_ih.strip():
         ih_clean = def_ih.strip()
 
-        # 같은 IH가 이미 등록돼 있는지 확인
-        existing = [
-            r for r in fetch_assignments(center=rec["center"])
-            if r["ih_code"] == ih_clean and r["status"] in _ACTIVE_STATUSES | {"unassigned"}
-        ]
+        # ── 1. 자기 자신 IH 입력 차단 ────────────────────────────────────────
         if ih_clean == rec["ih_code"]:
             st.error("설치할 단말기와 수거한 단말기의 IH가 동일합니다.")
             dup_ok = False
-        elif existing:
-            holder = existing[0].get("employee_name", "")
-            st.warning(
-                f"IH `{ih_clean}` 이 **{holder}** 보유 중으로 등록돼 있습니다.\n\n"
-                "현장 수거 후 강제 등록하려면 아래 체크박스를 선택하세요."
-            )
-            force = st.checkbox("강제 등록 (기존 배정 무시)", key="dlg_sw_force")
-            if force:
-                dup_ok = True
-            else:
-                dup_ok = False
         else:
+            # ── 2. 기종 체크 (항상 실행) ──────────────────────────────────────
             d_dtype, d_stype = classify_terminal(ih_clean)
             d_label = f"{d_dtype} {d_stype}".strip()
             if d_dtype == "미분류":
                 st.warning("IH를 인식하지 못했습니다. 번호를 확인해 주세요.")
-                dup_ok = False
             elif d_dtype != exp_dtype or d_stype != exp_stype:
                 st.error(
                     f"기종 불일치: 설치 **{exp_label}** ↔ 수거 **{d_label}**\n\n"
                     "같은 기종·유형끼리만 교체할 수 있습니다."
                 )
-                dup_ok = False
             else:
                 st.success(f"기종 일치: **{d_label}** ✅")
                 type_ok = True
+
+            # ── 3. 중복 체크 (기종 OK인 경우에만 의미 있음) ──────────────────
+            existing = [
+                r for r in fetch_assignments(center=rec["center"])
+                if r["ih_code"] == ih_clean and r["status"] in _ACTIVE_STATUSES | {"unassigned"}
+            ]
+            if existing:
+                holder = existing[0].get("employee_name", "")
+                st.warning(
+                    f"IH `{ih_clean}` 이 **{holder}** 보유 중으로 등록돼 있습니다.\n\n"
+                    "현장 수거 후 강제 등록하려면 아래 체크박스를 선택하세요."
+                )
+                force = st.checkbox("강제 등록 (기존 배정 무시)", key="dlg_sw_force")
+                dup_ok = force
 
     c1, c2 = st.columns(2)
     if c1.button("교체 확정", type="primary", use_container_width=True,
