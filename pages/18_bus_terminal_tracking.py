@@ -894,7 +894,7 @@ def _dlg_cancel(ids: list, ih_preview: str, meta: list = None):
         st.rerun()
 
 
-@st.experimental_dialog("✏️ 레코드 수정 (관리자)", width="small")
+@st.experimental_dialog("✏️ 레코드 수정 (관리자·센터장)", width="small")
 def _dlg_edit(rec: dict, center: str):
     st.caption(f"ID: `{rec['id'][:8]}…`")
 
@@ -1107,10 +1107,11 @@ with tab_my:
                 swap_ok     = len(sel_ids) == 1 and sel_recs.iloc[0]["status"] in ("holding", "defective")
 
                 st.markdown(f"**선택: {len(sel_ids)}건**")
-                _n_cols = 5 if _is_admin else 4
+                _can_edit = _is_admin or user_role == "manager"
+                _n_cols = 5 if _can_edit else 4
                 _btn_cols = st.columns(_n_cols)
                 ba1, ba2, ba3, ba4 = _btn_cols[:4]
-                ba5 = _btn_cols[4] if _is_admin else None
+                ba5 = _btn_cols[4] if _can_edit else None
 
                 if ba1.button("🔄 불량 교체", use_container_width=True,
                               disabled=not swap_ok, key="btt_my_swap",
