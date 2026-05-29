@@ -394,6 +394,16 @@ def clear_usage_history_cache():
     fetch_usage_history.clear()
 
 
+def update_history_reason(record_id: str, reason: str) -> bool:
+    try:
+        get_supabase().table("history").update(
+            {"reason": reason.strip()}
+        ).eq("id", record_id).execute()
+        return True
+    except Exception:
+        return False
+
+
 # ══════════════════════════════════════════════════════════════════════════
 # 접속 현황 (last_seen)
 # ══════════════════════════════════════════════════════════════════════════

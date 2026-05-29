@@ -3,7 +3,7 @@ import streamlit as st
 import pandas as pd
 import io
 from utils.auth import require_login, is_role, logout
-from utils.db import fetch_usage_history, clear_usage_history_cache
+from utils.db import fetch_usage_history, clear_usage_history_cache, update_history_reason
 from utils.routing import CENTERS
 from utils.permissions import get_center as _get_center, get_viewable_centers
 from utils.ui import apply_global_css, render_sidebar_header, render_sidebar_section, render_sidebar_user, render_top_bar
@@ -138,6 +138,7 @@ for h in raw:
         or ""
     )
     rows.append({
+        "_id":     h.get("id", ""),
         "일시":    (h.get("acted_at","") or "")[:16].replace("T"," "),
         "센터":    center_val,
         "담당자":  actor_info.get("name","") if isinstance(actor_info, dict) else "",
@@ -145,7 +146,7 @@ for h in raw:
         "사용수량": h.get("quantity", 0),
         "변경전":  h.get("snapshot_qty_before", ""),
         "변경후":  h.get("snapshot_qty_after", ""),
-        "사유":    h.get("reason", ""),
+        "사유":    h.get("reason", "") or "",
     })
 
 df = pd.DataFrame(rows)
@@ -155,7 +156,7 @@ df["_date"] = pd.to_datetime(df["일시"], errors="coerce").dt.date
 df = df[
     (df["_date"] >= date_from) &
     (df["_date"] <= date_to)
-].drop(columns=["_date"])
+].drop(columns=["_date"]).reset_index(drop=True)
 
 # 검색 필터
 if search:
@@ -164,27 +165,73 @@ if search:
         df["담당자"].str.contains(search, case=False, na=False) |
         df["사유"].str.contains(search,  case=False, na=False)
     )
-    df = df[mask]
+    df = df[mask].reset_index(drop=True)
 
 st.caption(f"총 {len(df)}건")
 
 # ── 테이블 ────────────────────────────────────────────────────────────────
+_col_cfg = {
+    "일시":     st.column_config.TextColumn("일시",     width=130),
+    "센터":     st.column_config.TextColumn("센터",     width=90),
+    "담당자":   st.column_config.TextColumn("담당자",   width=80),
+    "자재명":   st.column_config.TextColumn("자재명",   width=200),
+    "사용수량": st.column_config.NumberColumn("사용수량", width=80),
+    "변경전":   st.column_config.NumberColumn("변경전",  width=70),
+    "변경후":   st.column_config.NumberColumn("변경후",  width=70),
+    "사유":     st.column_config.TextColumn("사유",     width=220),
+}
 st.dataframe(
-    df,
+    df.drop(columns=["_id"]),
     use_container_width=True,
     hide_index=True,
     height=min(max(len(df) * 35 + 40, 200), 620),
-    column_config={
-        "일시":     st.column_config.TextColumn("일시",     width=130),
-        "센터":     st.column_config.TextColumn("센터",     width=90),
-        "담당자":   st.column_config.TextColumn("담당자",   width=80),
-        "자재명":   st.column_config.TextColumn("자재명",   width=200),
-        "사용수량": st.column_config.NumberColumn("사용수량", width=80),
-        "변경전":   st.column_config.NumberColumn("변경전",  width=70),
-        "변경후":   st.column_config.NumberColumn("변경후",  width=70),
-        "사유":     st.column_config.TextColumn("사유",     width=220),
-    }
+    column_config=_col_cfg,
 )
+
+# ── 사유 수정 (admin·manager) ─────────────────────────────────────────────
+if user_role in ("admin", "manager") and not df.empty:
+    with st.expander("✏️ 사유 수정"):
+        st.caption("사유 열만 직접 수정할 수 있습니다. 수정 후 아래 [저장] 버튼을 누르세요.")
+        id_series       = df["_id"].tolist()
+        original_reasons = df["사유"].tolist()
+        edit_df = df.drop(columns=["_id"]).copy()
+
+        edited = st.data_editor(
+            edit_df,
+            use_container_width=True,
+            hide_index=True,
+            height=min(max(len(edit_df) * 35 + 40, 200), 500),
+            key="usage_reason_editor",
+            column_config={
+                "일시":     st.column_config.TextColumn("일시",     disabled=True, width=130),
+                "센터":     st.column_config.TextColumn("센터",     disabled=True, width=90),
+                "담당자":   st.column_config.TextColumn("담당자",   disabled=True, width=80),
+                "자재명":   st.column_config.TextColumn("자재명",   disabled=True, width=200),
+                "사용수량": st.column_config.NumberColumn("사용수량", disabled=True, width=80),
+                "변경전":   st.column_config.NumberColumn("변경전",  disabled=True, width=70),
+                "변경후":   st.column_config.NumberColumn("변경후",  disabled=True, width=70),
+                "사유":     st.column_config.TextColumn("사유",     width=220),
+            },
+        )
+
+        changed = [
+            i for i, (orig, new) in enumerate(zip(original_reasons, edited["사유"].tolist()))
+            if (orig or "") != (new or "")
+        ]
+
+        if changed:
+            st.info(f"{len(changed)}건 변경됨")
+            if st.button("💾 저장", type="primary", key="usage_reason_save"):
+                ok = 0
+                for i in changed:
+                    if update_history_reason(id_series[i], edited["사유"].iloc[i] or ""):
+                        ok += 1
+                if ok:
+                    st.success(f"✅ {ok}건 사유가 수정됐습니다.")
+                    clear_usage_history_cache()
+                    st.rerun()
+                else:
+                    st.error("저장 중 오류가 발생했습니다.")
 
 # ── 엑셀 다운로드 ─────────────────────────────────────────────────────────
 buf = io.BytesIO()
