@@ -101,6 +101,29 @@ def fetch_assignments(center: str = None, status: str = None, employee_id: str =
         return []
 
 
+def fetch_my_assignments(center: str, status: str = None) -> list:
+    """본인 배정 조회 — employee_id 일치 OR (employee_id NULL AND employee_name 일치).
+    초기 등록 시 계정 미매칭으로 employee_id가 NULL인 경우도 포함."""
+    try:
+        q = (
+            get_supabase().table(TABLE)
+            .select("id,ih_code,device_type,sub_type,center,"
+                    "employee_id,employee_name,assigned_at,status,returned_at,notes")
+            .eq("center", center)
+            .order("assigned_at", desc=True)
+        )
+        if status:
+            q = q.eq("status", status)
+        all_rows = q.limit(3000).execute().data or []
+        return [
+            r for r in all_rows
+            if r.get("employee_id") == user_id
+            or (not r.get("employee_id") and r.get("employee_name") == user_name)
+        ]
+    except Exception:
+        return []
+
+
 def fetch_tm_out(center: str) -> dict:
     """terminal_movements 출고 레코드 (to_center=center). ih → 레코드."""
     try:
@@ -943,7 +966,7 @@ with tab_my:
 
     # 본인 소유 단말기 (holding + defective)
     if user_role in ("user",):
-        my_rows = fetch_assignments(center=sel_center, status=None, employee_id=user_id)
+        my_rows = fetch_my_assignments(center=sel_center)
     elif _can_manage:
         # admin/materials: 선택 가능
         cus_all = fetch_center_users(sel_center)
@@ -960,7 +983,7 @@ with tab_my:
         else:
             my_rows = []
     else:
-        my_rows = fetch_assignments(center=sel_center, employee_id=user_id)
+        my_rows = fetch_my_assignments(center=sel_center)
 
     active_rows = [r for r in my_rows if r.get("status") in ("holding", "defective")]
 
@@ -1243,7 +1266,8 @@ if False:
     status_val = _sf_map[status_filter]
 
     if user_role == "user":
-        rows = fetch_assignments(center=sel_center, status=status_val, employee_id=user_id)
+        _all = fetch_my_assignments(center=sel_center, status=status_val)
+        rows = _all
     else:
         rows = fetch_assignments(center=sel_center, status=status_val)
 
