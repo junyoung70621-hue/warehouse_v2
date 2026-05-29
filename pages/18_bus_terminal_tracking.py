@@ -1105,7 +1105,7 @@ with tab_center:
         # 센터 미배정 단말기 (available_pool)
         for t in available_pool:
             rows_for_pivot.append({
-                "직원명": "── 센터 보유 ──",
+                "직원명": "센터 창고",
                 "기종유형": f"{t.get('device_type') or '미분류'} {t.get('sub_type') or ''}".strip(),
             })
 
@@ -1121,8 +1121,8 @@ with tab_center:
             pivot["합계"] = pivot.sum(axis=1)
 
             # 센터 보유 행을 맨 아래로, 나머지는 합계 내림차순
-            센터행 = pivot[pivot.index == "── 센터 보유 ──"]
-            직원행 = pivot[pivot.index != "── 센터 보유 ──"].sort_values("합계", ascending=False)
+            센터행 = pivot[pivot.index == "센터 창고"]
+            직원행 = pivot[pivot.index != "센터 창고"].sort_values("합계", ascending=False)
 
             # 기종별 합계 행
             합계행 = pd.DataFrame(pivot.sum(axis=0)).T
