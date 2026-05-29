@@ -744,8 +744,15 @@ def _dlg_swap(rec: dict):
             dup_ok = False
         elif existing:
             holder = existing[0].get("employee_name", "")
-            st.error(f"IH `{ih_clean}` 은 이미 **{holder}** 보유 중입니다. 중복 등록 불가.")
-            dup_ok = False
+            st.warning(
+                f"IH `{ih_clean}` 이 **{holder}** 보유 중으로 등록돼 있습니다.\n\n"
+                "현장 수거 후 강제 등록하려면 아래 체크박스를 선택하세요."
+            )
+            force = st.checkbox("강제 등록 (기존 배정 무시)", key="dlg_sw_force")
+            if force:
+                dup_ok = True
+            else:
+                dup_ok = False
         else:
             d_dtype, d_stype = classify_terminal(ih_clean)
             d_label = f"{d_dtype} {d_stype}".strip()
