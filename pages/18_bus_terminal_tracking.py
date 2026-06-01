@@ -1354,6 +1354,19 @@ with tab_move:
             all_src_rows = fetch_assignments(center=src)
             movable = [r for r in all_src_rows if r.get("status") in (_ACTIVE_STATUSES | {"unassigned"})]
 
+            # terminal_movements 기반 가용풀도 포함 (bus_terminal_assignments에 없는 단말기)
+            _movable_ihs = {r["ih_code"] for r in movable}
+            for _t in get_available_terminals(src):
+                if _t["ih_code"] not in _movable_ihs:
+                    movable.append({
+                        "ih_code":       _t["ih_code"],
+                        "device_type":   _t.get("device_type", ""),
+                        "sub_type":      _t.get("sub_type", ""),
+                        "employee_name": "─ 미배정 ─",
+                        "assigned_at":   _t.get("upload_date", ""),
+                        "status":        "unassigned",
+                    })
+
             if not movable:
                 st.info("이동 신청할 단말기가 없습니다.")
             else:
