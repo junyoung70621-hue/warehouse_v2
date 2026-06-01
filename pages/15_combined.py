@@ -52,13 +52,6 @@ for k, v in _cv_defaults.items():
         st.session_state[k] = v
 
 # ── 완료 팝업 ─────────────────────────────────────────────────────────────
-@st.experimental_dialog("✅ 처리 완료")
-def _cv_done_popup(msg: str):
-    st.markdown(msg)
-    st.write("")
-    if st.button("확인", use_container_width=True, type="primary", key="cv_done_ok"):
-        st.session_state.pop("_cv_done_msg", None)
-        st.rerun()
 
 # ── 이동 신청 승인 다이얼로그 ──────────────────────────────────────────────
 _st_dialog = getattr(st, "dialog", getattr(st, "experimental_dialog", None))
@@ -742,9 +735,9 @@ if _st_dialog:
 if _st_dialog and st.session_state.get("_cv_mat_req_args"):
     _cv_mat_req_dialog(*st.session_state["_cv_mat_req_args"])
 
-# 이동 신청 완료 팝업 표시
+# 완료 알림
 if st.session_state.get("_cv_done_msg"):
-    _cv_done_popup(st.session_state["_cv_done_msg"])
+    st.toast(st.session_state.pop("_cv_done_msg"), icon="✅")
 
 # ── 사용자 정보 ───────────────────────────────────────────────────────────
 user       = st.session_state.user

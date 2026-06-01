@@ -1712,16 +1712,9 @@ if tab_init is not None:
             "시범운영 초기 현황을 맞출 때 사용하세요."
         )
 
-        # 완료 팝업
+        # 완료 알림
         if st.session_state.get("btt_init_done"):
-            msg = st.session_state.pop("btt_init_done")
-
-            @st.experimental_dialog("✅ 초기 등록 완료")
-            def _init_done_popup():
-                st.success(msg)
-                if st.button("확인", type="primary", use_container_width=True, key="btt_init_done_ok"):
-                    st.rerun()
-            _init_done_popup()
+            st.toast(st.session_state.pop("btt_init_done"), icon="✅")
 
         # 양식 다운로드
         def _make_template(with_center: bool) -> bytes:

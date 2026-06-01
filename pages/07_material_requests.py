@@ -29,13 +29,6 @@ st.set_page_config(
 apply_global_css()
 require_login()
 
-@st.experimental_dialog("✅ 처리 완료")
-def _done_popup(msg: str):
-    st.markdown(msg)
-    st.write("")
-    if st.button("확인", use_container_width=True, type="primary", key="mr_done_ok"):
-        st.session_state.pop("_done_popup_msg", None)
-        st.rerun()
 
 user      = st.session_state.user
 user_id   = user["id"]
@@ -258,11 +251,10 @@ render_top_bar("자재 요청", user)
 if _st_dialog and "_mat_dlg_args" in st.session_state:
     action_dialog(*st.session_state["_mat_dlg_args"])
 
-# ── 처리 완료 팝업 ────────────────────────────────────────────────────────
+# ── 처리 완료 알림 ────────────────────────────────────────────────────────
 if "_mat_dlg_result" in st.session_state:
-    st.session_state["_done_popup_msg"] = st.session_state.pop("_mat_dlg_result")
-if st.session_state.get("_done_popup_msg"):
-    _done_popup(st.session_state["_done_popup_msg"])
+    st.toast(st.session_state.pop("_mat_dlg_result"), icon="✅")
+st.session_state.pop("_done_popup_msg", None)  # 이전 세션 잔여값 정리
 
 # ── 타이틀 ────────────────────────────────────────────────────────────────
 if IS_MANAGER:
