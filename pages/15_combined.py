@@ -461,6 +461,7 @@ if _st_dialog:
                             clear_material_request_cache()
                             _send_req(_mat_emails, center, usr_name, _cart, notes=_notes)
                             st.session_state.cv_mat_req_cart = []
+                            st.session_state.pop("_cv_mat_req_args", None)
                             st.session_state["_cv_done_msg"] = "📨 자재 요청이 발송되었습니다."
                             st.rerun()
                     except Exception as _e:
@@ -468,9 +469,11 @@ if _st_dialog:
 
             if _b2.button("🗑️ 초기화", use_container_width=True, key="cv_mr_clear"):
                 st.session_state.cv_mat_req_cart = []
+                st.session_state.pop("_cv_mat_req_args", None)
                 st.rerun()
             if _b3.button("✖️ 닫기", use_container_width=True, key="cv_mr_close"):
                 st.session_state.cv_mat_req_cart = []
+                st.session_state.pop("_cv_mat_req_args", None)
                 st.rerun()
 
     @_st_dialog("자재센터 입고 위치 지정", width="large")
@@ -734,6 +737,10 @@ if _st_dialog:
                     clear_warehouse_cache(); clear_history_cache()
                     st.success(f"✅ '{item_name}' 삭제 완료")
                     st.rerun()
+
+# ── 자재요청 다이얼로그 top-level 호출 (dialog nesting 방지) ──────────────
+if _st_dialog and st.session_state.get("_cv_mat_req_args"):
+    _cv_mat_req_dialog(*st.session_state["_cv_mat_req_args"])
 
 # 이동 신청 완료 팝업 표시
 if st.session_state.get("_cv_done_msg"):
@@ -1020,10 +1027,10 @@ with tab_wh:
     # 자재 요청 (비자재센터 + 권한 있는 역할)
     if CAN_MAT_REQ and _st_dialog:
         if _ab[_bi % 6].button("📦 자재 요청", use_container_width=True, key="cv_ab_matreq"):
-            _cv_mat_req_dialog(
-                selected_center, user_id, user_name,
-                user.get("email", ""),
+            st.session_state["_cv_mat_req_args"] = (
+                selected_center, user_id, user_name, user.get("email", "")
             )
+            st.rerun()
 
     # ── 이동 신청 패널 ───────────────────────────────────────────────────
     if CAN_TRANSFER_WH and not filtered.empty:
