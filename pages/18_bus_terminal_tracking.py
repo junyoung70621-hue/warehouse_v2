@@ -1373,8 +1373,10 @@ with tab_move:
                 mv_notes = st.text_input("비고 (선택)", placeholder="이동 사유 등", key="mv_notes")
 
                 if not sel_mv.empty:
-                    sel_mv_recs = mv_df.iloc[sel_mv.index]
-                    st.info(f"선택: **{len(sel_mv)}건** → {to_center}")
+                    # IH 코드 기준으로 조회 — 위치 인덱스 사용 시 정렬 후 잘못된 행 참조 버그 방지
+                    _sel_ihs = set(sel_mv["IH"].tolist())
+                    sel_mv_recs = mv_df[mv_df["ih_code"].isin(_sel_ihs)].drop_duplicates(subset=["ih_code"])
+                    st.info(f"선택: **{len(sel_mv_recs)}건** → {to_center}")
 
                     if st.button("📤 이동 신청", type="primary", key="mv_submit_btn"):
                         ih_payload = [
