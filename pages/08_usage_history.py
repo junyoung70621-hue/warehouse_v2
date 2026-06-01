@@ -240,7 +240,7 @@ if user_role in ("admin", "manager") and not df.empty:
 # ── 엑셀 다운로드 ─────────────────────────────────────────────────────────
 buf = io.BytesIO()
 with pd.ExcelWriter(buf, engine="openpyxl") as writer:
-    df.to_excel(writer, index=False, sheet_name="사용내역")
+    df.drop(columns=["_id"]).to_excel(writer, index=False, sheet_name="사용내역")
 buf.seek(0)
 
 fname = f"{selected_center or user_center}_사용내역.xlsx"
