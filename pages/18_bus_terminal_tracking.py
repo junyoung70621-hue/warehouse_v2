@@ -619,6 +619,15 @@ def reject_transfer_request(req_id: str, actor_id: str, actor_name: str) -> bool
         return False
 
 
+def delete_transfer_request(req_id: str) -> bool:
+    try:
+        get_supabase().table(TRANSFER_TABLE).delete().eq("id", req_id).execute()
+        return True
+    except Exception as e:
+        st.error(f"이동신청 삭제 실패: {e}")
+        return False
+
+
 def delete_assignments(assignment_ids: list, records_meta: list = None) -> bool:
     if not assignment_ids:
         return False
@@ -1470,6 +1479,27 @@ with tab_move:
                                     )
                                     st.success("거절 처리됐습니다.")
                                     st.rerun()
+                            # ── 관리자 삭제 ────────────────────────────────
+                            if _is_admin:
+                                _del_key = f"mv_del_{req['id']}"
+                                if not st.session_state.get(_del_key):
+                                    _da, _ = st.columns([1, 5])
+                                    if _da.button("🗑️ 삭제", key=f"mv_delbtn_{req['id']}",
+                                                  use_container_width=True):
+                                        st.session_state[_del_key] = True
+                                        st.rerun()
+                                else:
+                                    st.warning("이 이동신청을 삭제합니까? 되돌릴 수 없습니다.")
+                                    _dc1, _dc2, _ = st.columns([1, 1, 4])
+                                    if _dc1.button("✅ 확인", key=f"mv_delok_{req['id']}",
+                                                   type="primary", use_container_width=True):
+                                        if delete_transfer_request(req["id"]):
+                                            st.session_state.pop(_del_key, None)
+                                            st.rerun()
+                                    if _dc2.button("취소", key=f"mv_delno_{req['id']}",
+                                                   use_container_width=True):
+                                        st.session_state[_del_key] = False
+                                        st.rerun()
                     st.divider()
 
                 # 전체 이력
@@ -1486,6 +1516,40 @@ with tab_move:
                     "requested_by_name":   "신청자",
                 })
                 st.dataframe(disp_mv, use_container_width=True, hide_index=True)
+
+                # ── 관리자 전용 삭제 ──────────────────────────────────────
+                if _is_admin:
+                    with st.expander("🗑️ 이동신청 삭제 (관리자)"):
+                        st.caption("삭제하면 복구할 수 없습니다. 단말기 배정 상태는 변경되지 않습니다.")
+                        for _req in reqs:
+                            _ih_list = _req.get("ih_codes", [])
+                            _del_key2 = f"mv_hist_del_{_req['id']}"
+                            with st.container(border=True):
+                                _c1, _c2 = st.columns([5, 1])
+                                _status_ko = _MOVE_STATUS.get(_req.get("status", ""), _req.get("status", ""))
+                                _c1.markdown(
+                                    f"**{_req['from_center']} → {_req['to_center']}** &nbsp;"
+                                    f"`{len(_ih_list)}대` &nbsp; {_status_ko} &nbsp;"
+                                    f"신청: {_req.get('requested_by_name','?')} &nbsp;"
+                                    f"{_ts(_req['requested_at'])}"
+                                )
+                                if not st.session_state.get(_del_key2):
+                                    if _c2.button("🗑️", key=f"mv_hist_delbtn_{_req['id']}",
+                                                   use_container_width=True):
+                                        st.session_state[_del_key2] = True
+                                        st.rerun()
+                                else:
+                                    st.warning("삭제합니까?")
+                                    _dc1, _dc2, _ = st.columns([1, 1, 4])
+                                    if _dc1.button("✅ 확인", key=f"mv_hist_delok_{_req['id']}",
+                                                   type="primary", use_container_width=True):
+                                        if delete_transfer_request(_req["id"]):
+                                            st.session_state.pop(_del_key2, None)
+                                            st.rerun()
+                                    if _dc2.button("취소", key=f"mv_hist_delno_{_req['id']}",
+                                                   use_container_width=True):
+                                        st.session_state[_del_key2] = False
+                                        st.rerun()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
