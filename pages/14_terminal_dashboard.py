@@ -1550,25 +1550,29 @@ with tab_monthly:
     st.divider()
 
     # ── 엑셀 다운로드 ──────────────────────────────────────────────────────────
-    _xbuf_m = io.BytesIO()
-    with pd.ExcelWriter(_xbuf_m, engine="openpyxl") as _xw:
-        if _m_out or _m_in:
-            _day_df.to_excel(_xw, index=False, sheet_name="일별추이")
-        if not _pv_out.empty:
-            _pv_out.reset_index().to_excel(_xw, index=False, sheet_name="기종별_출고")
-        if not _pv_in.empty:
-            _pv_in.reset_index().to_excel(_xw, index=False, sheet_name="기종별_입고")
-        if not _out_ctr.empty:
-            _out_ctr.to_excel(_xw, index=False, sheet_name="센터별_출고")
-        if not _in_ctr.empty:
-            _in_ctr.to_excel(_xw, index=False, sheet_name="센터별_입고")
-    st.download_button(
-        "📥 월간 통계 Excel 다운로드",
-        data=_xbuf_m.getvalue(),
-        file_name=f"단말기월간통계_{_m_year}{_m_month:02d}.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        key="monthly_dl",
-    )
+    _has_monthly_data = bool(_m_out or _m_in) or not _pv_out.empty or not _pv_in.empty or not _out_ctr.empty or not _in_ctr.empty
+    if _has_monthly_data:
+        _xbuf_m = io.BytesIO()
+        with pd.ExcelWriter(_xbuf_m, engine="openpyxl") as _xw:
+            if _m_out or _m_in:
+                _day_df.to_excel(_xw, index=False, sheet_name="일별추이")
+            if not _pv_out.empty:
+                _pv_out.reset_index().to_excel(_xw, index=False, sheet_name="기종별_출고")
+            if not _pv_in.empty:
+                _pv_in.reset_index().to_excel(_xw, index=False, sheet_name="기종별_입고")
+            if not _out_ctr.empty:
+                _out_ctr.to_excel(_xw, index=False, sheet_name="센터별_출고")
+            if not _in_ctr.empty:
+                _in_ctr.to_excel(_xw, index=False, sheet_name="센터별_입고")
+        st.download_button(
+            "📥 월간 통계 Excel 다운로드",
+            data=_xbuf_m.getvalue(),
+            file_name=f"단말기월간통계_{_m_year}{_m_month:02d}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            key="monthly_dl",
+        )
+    else:
+        st.info("해당 기간 데이터가 없어 Excel 다운로드를 사용할 수 없습니다.")
 
 
 # ══ Tab 3: 인수인계증 ══════════════════════════════════════════════════════════
