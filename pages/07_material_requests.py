@@ -252,8 +252,10 @@ if _st_dialog and "_mat_dlg_args" in st.session_state:
     action_dialog(*st.session_state["_mat_dlg_args"])
 
 # ── 처리 완료 알림 ────────────────────────────────────────────────────────
+# st.toast()는 dialog와 동일한 event_dg 경로를 사용하므로, dialog 직후 호출 시
+# 'setIn cannot be called on an ElementNode' 오류 발생 → 일반 배너로 표시.
 if "_mat_dlg_result" in st.session_state:
-    st.toast(st.session_state.pop("_mat_dlg_result"), icon="✅")
+    st.success(st.session_state.pop("_mat_dlg_result"))
 st.session_state.pop("_done_popup_msg", None)  # 이전 세션 잔여값 정리
 
 # ── 타이틀 ────────────────────────────────────────────────────────────────

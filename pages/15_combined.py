@@ -400,7 +400,8 @@ if _st_dialog:
                                if x["item_name"] == _sel_item["item_name"]), None)
                 if _idx is not None:
                     _cart[_idx]["requested_qty"] = _req_qty
-                    st.toast(f"'{_sel_item['item_name']}' 수량 업데이트됨")
+                    # dialog 내부에서는 st.toast() 사용 금지(event_dg 충돌 → setIn 오류)
+                    st.success(f"'{_sel_item['item_name']}' 수량 업데이트됨")
                 else:
                     _cart.append({
                         "item_name":     _sel_item["item_name"],
@@ -408,7 +409,7 @@ if _st_dialog:
                         "current_qty":   int(_sel_item["quantity"]),
                         "requested_qty": _req_qty,
                     })
-                    st.toast(f"'{_sel_item['item_name']}' 추가됨")
+                    st.success(f"'{_sel_item['item_name']}' 추가됨")
                 st.session_state.cv_mat_req_cart = _cart
 
         # 요청 목록
@@ -735,9 +736,9 @@ if _st_dialog:
 if _st_dialog and st.session_state.get("_cv_mat_req_args"):
     _cv_mat_req_dialog(*st.session_state["_cv_mat_req_args"])
 
-# 완료 알림
+# 완료 알림 — dialog 직후 st.toast()는 event_dg 충돌(setIn 오류) → 일반 배너 사용
 if st.session_state.get("_cv_done_msg"):
-    st.toast(st.session_state.pop("_cv_done_msg"), icon="✅")
+    st.success(st.session_state.pop("_cv_done_msg"))
 
 # ── 사용자 정보 ───────────────────────────────────────────────────────────
 user       = st.session_state.user
